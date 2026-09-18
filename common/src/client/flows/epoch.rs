@@ -28,10 +28,7 @@ pub(crate) async fn view_active_validators(client: &ChainClient) {
 
             for (i, validator) in active_validators.validators.iter().enumerate() {
                 info!("\nValidator #{}", i + 1);
-                info!(
-                    "  Address: {}",
-                    SanitizedLog::as_address(&validator.address)
-                );
+                info!("  Address: {}", SanitizedLog::as_address(validator.address));
                 info!("  Stake (Voting Power): {}", validator.stake);
 
                 match api

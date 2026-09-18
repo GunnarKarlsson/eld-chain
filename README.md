@@ -19,13 +19,13 @@ Hex and ID conventions are in [TYPE_DESIGN.md](TYPE_DESIGN.md). The crate is not
 
 ## Setup
 
-Rust 1.88.0 (see `rust-toolchain.toml`).
+Rust 1.88.0 (see `rust-toolchain.toml`). Install [gitleaks](https://github.com/gitleaks/gitleaks) for secret scanning (`brew install gitleaks` on macOS).
 
 ```sh
-cargo build
-cargo test
-cargo clippy --all-targets --all-features
+./scripts/ci.sh
 ```
+
+That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy (`-D warnings`), build, test, and gitleaks.
 
 ## Configuration
 

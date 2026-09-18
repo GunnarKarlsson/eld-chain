@@ -35,17 +35,19 @@ impl PublicKey {
             value: hex_str.to_string(),
             details: format!("invalid public_key hex: {e}"),
         })?;
-        let array: [u8; 32] = decoded.as_slice().try_into().map_err(|_| {
-            EldError::ValidationError {
-                field: "public_key".to_string(),
-                value: hex_str.to_string(),
-                details: format!(
-                    "invalid public_key length: {}, expected {}",
-                    decoded.len(),
-                    Self::LEN
-                ),
-            }
-        })?;
+        let array: [u8; 32] =
+            decoded
+                .as_slice()
+                .try_into()
+                .map_err(|_| EldError::ValidationError {
+                    field: "public_key".to_string(),
+                    value: hex_str.to_string(),
+                    details: format!(
+                        "invalid public_key length: {}, expected {}",
+                        decoded.len(),
+                        Self::LEN
+                    ),
+                })?;
         Self::new(array)
     }
 

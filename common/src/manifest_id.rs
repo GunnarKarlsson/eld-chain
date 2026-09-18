@@ -172,10 +172,10 @@ mod tests {
 
     #[test]
     fn serde_json_roundtrip() {
-        let id: ManifestId = serde_json::from_str(&format!("\"{}\"", SAMPLE)).expect("de");
+        let id: ManifestId = serde_json::from_str(&format!("\"{SAMPLE}\"")).expect("de");
         assert_eq!(id.to_string(), SAMPLE);
         let json = serde_json::to_string(&id).expect("ser");
-        assert_eq!(json, format!("\"{}\"", SAMPLE));
+        assert_eq!(json, format!("\"{SAMPLE}\""));
     }
 
     #[test]

@@ -6,9 +6,7 @@
 use crate::address::Address;
 use crate::coin::Coin;
 use crate::constants::{
-    cado::{MAX_APP_STATE_SNAPSHOT_CADO_SIZE_BYTES},
-    protocol::MIN_STAKE_AMOUNT,
-    token::MAX_COIN,
+    cado::MAX_APP_STATE_SNAPSHOT_CADO_SIZE_BYTES, protocol::MIN_STAKE_AMOUNT, token::MAX_COIN,
     tx_type,
 };
 use crate::error::EldError;
@@ -53,10 +51,7 @@ pub(crate) fn validate_stake_amount(amount: &Coin) -> Result<(), EldError> {
         return EldError::validation_error(
             "stake amount",
             &value.to_string(),
-            &format!(
-                "Stake amount {} is below minimum required {}",
-                value, MIN_STAKE_AMOUNT
-            ),
+            &format!("Stake amount {value} is below minimum required {MIN_STAKE_AMOUNT}"),
         );
     }
 
@@ -315,815 +310,6 @@ pub fn validate_positive_integer<
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::address::Address;
-    use crate::tx::StakeTx;
-    use crate::tx::TransferTx;
-
-    #[test]
-    fn test_validate_transfer_amount() {
-        // Valid transfer
-        let valid_amount = Coin::new(100).expect("Failed to create valid amount coin in test");
-        assert!(validate_transfer_amount(&valid_amount).is_ok());
-
-        // Zero amount should fail
-        let zero_amount = Coin::zero();
-        assert!(validate_transfer_amount(&zero_amount).is_err());
-
-        // Maximum amount should be valid
-        let max_amount = Coin::max();
-        assert!(validate_transfer_amount(&max_amount).is_ok());
-    }
-
-    #[test]
-    fn test_validate_stake_amount() {
-        // Valid stake amount
-        let valid_stake =
-            Coin::new(MIN_STAKE_AMOUNT).expect("Failed to create valid stake coin in test");
-        assert!(validate_stake_amount(&valid_stake).is_ok());
-
-        // Below minimum should fail
-        let low_stake =
-            Coin::new(MIN_STAKE_AMOUNT - 1).expect("Failed to create low stake coin in test");
-        assert!(validate_stake_amount(&low_stake).is_err());
-
-        // Maximum amount should be valid
-        let max_amount = Coin::max();
-        assert!(validate_stake_amount(&max_amount).is_ok());
-    }
-
-    #[test]
-    fn test_validate_fee_amount() {
-        // Valid fee
-        let valid_fee = Coin::new(100).expect("Failed to create valid fee coin in test");
-        assert!(validate_fee_amount(&valid_fee).is_ok());
-
-        // Zero fee should fail
-        let zero_fee = Coin::zero();
-        assert!(validate_fee_amount(&zero_fee).is_err());
-
-        // Maximum fee should be valid
-        let max_fee = Coin::max();
-        assert!(validate_fee_amount(&max_fee).is_ok());
-    }
-
-    #[test]
-    fn test_validate_chunk_id() {
-        // Valid chunk ID (32 bytes = 64 hex chars)
-        let valid_chunk_id = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        assert!(validate_chunk_id(valid_chunk_id).is_ok());
-
-        let invalid_prefix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        assert!(validate_chunk_id(invalid_prefix).is_err());
-
-        // Short chunk ID (20 bytes = 40 hex chars, should fail)
-        let short_chunk_id = "0xabcdef1234567890abcdef1234567890abcdef12";
-        assert!(validate_chunk_id(short_chunk_id).is_err());
-
-        // Even shorter chunk ID
-        let very_short_chunk_id = "0xabcdef1234567890abcdef1234567890abcdef1";
-        assert!(validate_chunk_id(very_short_chunk_id).is_err());
-
-        let invalid_hex = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefgh";
-        assert!(validate_chunk_id(invalid_hex).is_err());
-
-        let empty_chunk_id = "0x";
-        assert!(validate_chunk_id(empty_chunk_id).is_err());
-    }
-
-    #[test]
-    fn test_validate_address() {
-        // Valid address (20 bytes = 40 hex chars)
-        let valid_address = "0x1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_address(valid_address).is_ok());
-
-        // Missing 0x prefix
-        let invalid_prefix = "1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_address(invalid_prefix).is_err());
-
-        // Wrong length (19 bytes)
-        let short_address = "0x1234567890abcdef1234567890abcdef1234567";
-        assert!(validate_address(short_address).is_err());
-
-        // Invalid hex
-        let invalid_hex = "0x1234567890abcdef1234567890abcdef1234567g";
-        assert!(validate_address(invalid_hex).is_err());
-
-        // Empty
-        let empty_address = "0x";
-        assert!(validate_address(empty_address).is_err());
-    }
-
-    #[test]
-    fn test_validate_address_requires_prefix() {
-        let valid_address = "0x1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_address(valid_address).is_ok());
-        assert!(Address::parse_hex_str(valid_address).is_ok());
-
-        let invalid_prefix = "1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_address(invalid_prefix).is_err());
-        assert!(Address::parse_hex_str(invalid_prefix).is_ok());
-    }
-
-    #[test]
-    fn test_validate_address_error_messages() {
-        let missing_prefix = validate_address("1234567890abcdef1234567890abcdef12345678")
-            .expect_err("missing prefix should fail");
-        assert!(matches!(
-            missing_prefix,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details == "Address must start with 0x"
-        ));
-
-        let short = validate_address("0x1234567890abcdef1234567890abcdef123456")
-            .expect_err("short address should fail");
-        assert!(matches!(
-            short,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details.contains("Invalid address length")
-        ));
-
-        let invalid_hex = validate_address("0x1234567890abcdef1234567890abcdef1234567g")
-            .expect_err("invalid hex should fail");
-        assert!(matches!(
-            invalid_hex,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details.contains("Invalid hex format")
-        ));
-
-        let empty = validate_address("0x").expect_err("empty address should fail");
-        assert!(matches!(
-            empty,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details == "Address cannot be empty after 0x prefix"
-        ));
-    }
-
-    #[test]
-    fn test_validate_contract_id() {
-        // Valid 32-byte contract ID (64 hex characters)
-        let valid_contract_id =
-            "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-        assert!(validate_contract_id(valid_contract_id).is_ok());
-
-        // Invalid: missing 0x prefix
-        let invalid_prefix = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-        assert!(validate_contract_id(invalid_prefix).is_err());
-
-        // Invalid: too short (20 bytes instead of 32)
-        let short_contract_id = "0x1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_contract_id(short_contract_id).is_err());
-
-        // Invalid: too long
-        let long_contract_id =
-            "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12";
-        assert!(validate_contract_id(long_contract_id).is_err());
-
-        // Invalid: invalid hex
-        let invalid_hex = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdefg";
-        assert!(validate_contract_id(invalid_hex).is_err());
-
-        // Invalid: empty
-        let empty_contract_id = "0x";
-        assert!(validate_contract_id(empty_contract_id).is_err());
-    }
-
-    #[test]
-    fn test_validate_safe_string() {
-        // Valid string
-        let valid_string = "Hello World";
-        assert!(validate_safe_string(valid_string, 100).is_ok());
-
-        // Empty string
-        let empty_string = "";
-        assert!(validate_safe_string(empty_string, 100).is_err());
-
-        // Too long string
-        let long_string = "a".repeat(101);
-        assert!(validate_safe_string(&long_string, 100).is_err());
-
-        // Contains dangerous characters
-        let dangerous_string = "Hello<script>alert('xss')</script>";
-        assert!(validate_safe_string(dangerous_string, 100).is_err());
-
-        let dangerous_string2 = "Hello; rm -rf /";
-        assert!(validate_safe_string(dangerous_string2, 100).is_err());
-
-        // Contains control characters
-        let control_string = "Hello\x00World";
-        assert!(validate_safe_string(control_string, 100).is_err());
-    }
-
-    #[test]
-    fn test_validate_transfer_tx() {
-        let a1 = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
-        let a2 = Address::parse_hex_str("0xabcdef1234567890abcdef1234567890abcdef12").unwrap();
-
-        // Valid transfer
-        let valid_tx = TransferTx::new(a1, a2, 1000.into()).expect("valid transfer");
-        assert!(validate_transfer_tx(&valid_tx).is_ok());
-
-        // Same sender and recipient
-        assert!(TransferTx::new(a1, a1, 1000.into()).is_err());
-
-        // Zero amount
-        assert!(TransferTx::new(a1, a2, 0.into()).is_err());
-    }
-
-    #[test]
-    fn test_transfer_tx_json_rejects_invalid_addresses() {
-        let bad_sender = r#"{"sender":"invalid","recipient":"0xabcdef1234567890abcdef1234567890abcdef12","amount":"1000"}"#;
-        assert!(serde_json::from_str::<TransferTx>(bad_sender).is_err());
-
-        let bad_recipient = r#"{"sender":"0x1234567890abcdef1234567890abcdef12345678","recipient":"invalid","amount":"1000"}"#;
-        assert!(serde_json::from_str::<TransferTx>(bad_recipient).is_err());
-    }
-
-    #[test]
-    fn test_validate_stake_tx() {
-        let sender = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
-
-        // Valid stake
-        let valid_tx = StakeTx::new(
-            sender,
-            MIN_STAKE_AMOUNT.into(),
-            Some("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef".to_string()),
-        )
-        .expect("valid stake");
-        assert!(validate_stake_tx(&valid_tx).is_ok());
-
-        // Valid stake without public key
-        let valid_tx_no_pk =
-            StakeTx::new(sender, MIN_STAKE_AMOUNT.into(), None).expect("valid stake");
-        assert!(validate_stake_tx(&valid_tx_no_pk).is_ok());
-
-        // Invalid public key
-        let invalid_pk_tx = StakeTx::new(
-            sender,
-            MIN_STAKE_AMOUNT.into(),
-            Some("invalid_key".to_string()),
-        );
-        assert!(invalid_pk_tx.is_err());
-
-        // Below minimum stake amount
-        let low_amount_tx = StakeTx::new(sender, (MIN_STAKE_AMOUNT - 1).into(), None);
-        assert!(low_amount_tx.is_err());
-    }
-
-    #[test]
-    fn test_stake_tx_json_rejects_invalid_sender() {
-        let j = format!(
-            r#"{{"sender":"not_an_address","amount":"{}","public_key":null}}"#,
-            MIN_STAKE_AMOUNT
-        );
-        assert!(serde_json::from_str::<StakeTx>(&j).is_err());
-    }
-
-    #[test]
-    fn test_validate_unstake_tx() {
-        use crate::tx::UnstakeTx;
-
-        let sender = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
-
-        // Valid unstake
-        let valid_tx = UnstakeTx::new(sender, 1000.into()).expect("valid unstake");
-        assert!(validate_unstake_tx(&valid_tx).is_ok());
-
-        // Zero amount
-        assert!(UnstakeTx::new(sender, 0.into()).is_err());
-    }
-
-    #[test]
-    fn test_unstake_tx_json_rejects_invalid_sender() {
-        use crate::tx::UnstakeTx;
-
-        let j = r#"{"sender":"invalid","amount":"1000"}"#;
-        assert!(serde_json::from_str::<UnstakeTx>(j).is_err());
-    }
-
-    #[test]
-    fn test_validate_add_namespace_tx() {
-        use crate::tx::AddNamespaceTx;
-
-        let sender = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
-
-        let valid_tx = AddNamespaceTx::new(sender, "peter".to_string(), 1.into())
-            .expect("valid add_namespace");
-        assert!(AddNamespaceTx::new(sender, "peter".to_string(), 0.into()).is_err());
-        assert!(validate_add_namespace_tx(&valid_tx).is_ok());
-        assert_eq!(valid_tx.namespace_slug, "peter");
-
-        assert!(
-            AddNamespaceTx::new(sender, "eld".to_string(), 1.into()).is_err(),
-            "reserved slug"
-        );
-        assert!(
-            AddNamespaceTx::new(sender, "ab".to_string(), 1.into()).is_err(),
-            "slug too short"
-        );
-    }
-
-    #[test]
-    fn test_add_namespace_tx_json_rejects_unknown_field() {
-        use crate::tx::AddNamespaceTx;
-
-        let j = r#"{"sender":"0x1234567890abcdef1234567890abcdef12345678","namespace_slug":"peter","registration_fee":"0","extra":true}"#;
-        assert!(serde_json::from_str::<AddNamespaceTx>(j).is_err());
-    }
-
-    #[test]
-    fn test_validate_add_namespace_transaction_structure() {
-        let tx = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "fee": 5000,
-            "public_key": "a".repeat(64),
-            "payload": {
-                "type": tx_type::TX_TYPE_ADD_NAMESPACE,
-                "sender": "0x1234567890abcdef1234567890abcdef12345678",
-                "namespace_slug": "peter",
-                "registration_fee": "1"
-            }
-        });
-        assert!(validate_transaction_structure(&tx).is_ok());
-
-        let reserved = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "fee": 5000,
-            "public_key": "a".repeat(64),
-            "payload": {
-                "type": tx_type::TX_TYPE_ADD_NAMESPACE,
-                "sender": "0x1234567890abcdef1234567890abcdef12345678",
-                "namespace_slug": "eld",
-                "registration_fee": "1"
-            }
-        });
-        assert!(validate_transaction_structure(&reserved).is_err());
-    }
-
-
-    #[test]
-    fn test_validate_hex_string() {
-        // Valid hex strings
-        assert!(validate_hex_string("1234567890abcdef", 8).is_ok());
-        assert!(validate_hex_string("", 0).is_err()); // Empty string
-        assert!(validate_hex_string("1234567890abcdef", 4).is_err()); // Too long
-        assert!(validate_hex_string("1234567890abcde", 8).is_err()); // Odd length
-        assert!(validate_hex_string("1234567890abcdefg", 8).is_err()); // Invalid characters
-        assert!(validate_hex_string("1234567890ABCDEF", 8).is_ok()); // Uppercase is valid
-    }
-
-    #[test]
-    fn test_validate_json_string() {
-        // Valid JSON
-        assert!(validate_json_string(r#"{"key": "value"}"#, 100, 5).is_ok());
-        assert!(validate_json_string(r#"{"nested": {"key": "value"}}"#, 100, 5).is_ok());
-
-        // Invalid cases
-        assert!(validate_json_string("", 100, 5).is_err()); // Empty
-        assert!(validate_json_string("invalid json", 100, 5).is_err()); // Invalid JSON
-        assert!(validate_json_string(&"x".repeat(200), 100, 5).is_err()); // Too large
-
-        // Test nesting depth - simpler test
-        let nested_5 = r#"{"a":{"b":{"c":{"d":{"e":"v"}}}}}"#;
-        assert!(validate_json_string(nested_5, 1000, 3).is_err()); // Too deep
-        assert!(validate_json_string(nested_5, 1000, 10).is_ok()); // Within limit
-
-        // Test mismatched brackets
-        assert!(validate_json_string(r#"{"key": "value""#, 100, 5).is_err()); // Missing }
-        assert!(validate_json_string(r#"{"key": "value"}"#, 100, 5).is_ok()); // Valid
-    }
-
-    #[test]
-    fn test_validate_transaction_structure() {
-        // Valid transaction structure
-        let valid_tx = serde_json::json!({
-            "sig": "a".repeat(128), // 64 bytes = 128 hex chars
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64), // 32 bytes = 64 hex chars
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&valid_tx).is_ok());
-
-        // Missing required field
-        let missing_field = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64)
-            // Missing fee
-        });
-        assert!(validate_transaction_structure(&missing_field).is_err());
-
-        // Invalid field type
-        let invalid_type = serde_json::json!({
-            "sig": 123, // Should be string
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&invalid_type).is_err());
-
-        // Invalid payload type
-        let invalid_payload_type = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": "InvalidType"
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&invalid_payload_type).is_err());
-
-        // Not an object
-        let not_object = serde_json::json!("not an object");
-        assert!(validate_transaction_structure(&not_object).is_err());
-
-        // Invalid signature length
-        let invalid_sig = serde_json::json!({
-            "sig": "short", // Too short
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&invalid_sig).is_err());
-
-        // Invalid public key length
-        let invalid_pubkey = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "short", // Too short
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&invalid_pubkey).is_err());
-
-        // Negative nonce
-        let negative_nonce = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": -1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&negative_nonce).is_err());
-
-        // Negative fee
-        let negative_fee = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": -100
-        });
-        assert!(validate_transaction_structure(&negative_fee).is_err());
-    }
-
-    #[test]
-    fn test_validate_transfer_payload() {
-        // Valid transfer payload
-        let valid_tx = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&valid_tx).is_ok());
-
-        // Missing sender
-        let missing_sender = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&missing_sender).is_err());
-
-        // Invalid sender address
-        let invalid_sender = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "invalid_address",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&invalid_sender).is_err());
-
-        // Same sender and recipient
-        let same_addresses = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x1234567890123456789012345678901234567890",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&same_addresses).is_err());
-
-        // Zero amount
-        let zero_amount = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": 0
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&zero_amount).is_err());
-
-        // Test string amount (u128 serialization format)
-        let string_amount_tx = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_TRANSFER,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "recipient": "0x0987654321098765432109876543210987654321",
-                "amount": "77777777777"
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&string_amount_tx).is_ok());
-    }
-
-    #[test]
-    fn test_validate_stake_payload() {
-        // Valid stake payload
-        let valid_tx = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_STAKE,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "amount": 1000
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&valid_tx).is_ok());
-
-        // Valid stake payload with public key
-        let valid_tx_with_pk = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_STAKE,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "amount": 1000,
-                "public_key": "a".repeat(64)
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&valid_tx_with_pk).is_ok());
-
-        // Zero amount
-        let zero_amount = serde_json::json!({
-            "sig": "a".repeat(128),
-            "nonce": 1,
-            "payload": {
-                "type": tx_type::TX_TYPE_STAKE,
-                "sender": "0x1234567890123456789012345678901234567890",
-                "amount": 0
-            },
-            "public_key": "a".repeat(64),
-            "fee": 100
-        });
-        assert!(validate_transaction_structure(&zero_amount).is_err());
-    }
-
-
-    #[test]
-    fn test_safe_bincode_deserialize() {
-        use serde::{Deserialize, Serialize};
-
-        #[derive(Debug, Serialize, Deserialize, PartialEq)]
-        struct TestStruct {
-            value: String,
-            number: u32,
-        }
-
-        let test_data = TestStruct {
-            value: "test".to_string(),
-            number: 42,
-        };
-
-        // Test successful deserialization
-        let serialized = bincode::serialize(&test_data).unwrap();
-        let deserialized =
-            safe_bincode_deserialize::<TestStruct>(&serialized, 1024, "test_struct").unwrap();
-        assert_eq!(deserialized, test_data);
-
-        // Test empty data
-        assert!(safe_bincode_deserialize::<TestStruct>(&[], 1024, "empty_data").is_err());
-
-        // Test oversized data
-        let large_data = vec![0u8; 2048];
-        assert!(
-            safe_bincode_deserialize::<TestStruct>(&large_data, 1024, "oversized_data").is_err()
-        );
-
-        // Test malformed data
-        let malformed_data = b"this is not valid bincode data";
-        assert!(
-            safe_bincode_deserialize::<TestStruct>(malformed_data, 1024, "malformed_data").is_err()
-        );
-    }
-
-    #[test]
-    fn test_safe_deserialize_cado_data() {
-        use serde::{Deserialize, Serialize};
-
-        #[derive(Debug, Serialize, Deserialize, PartialEq)]
-        struct TestCado {
-            id: String,
-            data: Vec<u8>,
-        }
-
-        let test_cado = TestCado {
-            id: "test_id".to_string(),
-            data: vec![1, 2, 3, 4, 5],
-        };
-
-        // Test successful deserialization
-        let serialized = bincode::serialize(&test_cado).unwrap();
-        let deserialized =
-            safe_deserialize_cado_data::<TestCado>(&serialized, "test_cado").unwrap();
-        assert_eq!(deserialized, test_cado);
-
-        // Test oversized data (exceeds 1MB limit)
-        let oversized_cado = TestCado {
-            id: "oversized".to_string(),
-            data: vec![0u8; 2 * 1024 * 1024], // 2MB
-        };
-        let oversized_serialized = bincode::serialize(&oversized_cado).unwrap();
-        assert!(
-            safe_deserialize_cado_data::<TestCado>(&oversized_serialized, "oversized_cado")
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn test_verify_cado_deletion_signature() {
-        use ed25519_dalek::{Signer, SigningKey};
-
-        // Generate a keypair for testing
-        let signing_key = SigningKey::from_bytes(&[1u8; 32]);
-        let verifying_key = signing_key.verifying_key();
-
-        let path = "/test/cado/path";
-        let owner = "test_owner";
-        let chain_id = "test_chain";
-
-        // Create the message to sign: path + owner + chain_id
-        let message = format!("{}:{}:{}", path, owner, chain_id);
-        let signature = signing_key.sign(message.as_bytes());
-        let signature_hex = hex::encode(signature.to_bytes());
-        let public_key_hex = hex::encode(verifying_key.to_bytes());
-
-        // Test valid signature
-        assert!(verify_cado_deletion_signature(
-            path,
-            owner,
-            &signature_hex,
-            &public_key_hex,
-            chain_id
-        )
-        .is_ok());
-
-        // Test invalid signature
-        let invalid_signature = "a".repeat(128); // 64 bytes hex = 128 chars
-        assert!(verify_cado_deletion_signature(
-            path,
-            owner,
-            &invalid_signature,
-            &public_key_hex,
-            chain_id
-        )
-        .is_err());
-
-        // Test invalid public key
-        let invalid_public_key = "a".repeat(64); // 32 bytes hex = 64 chars
-        assert!(verify_cado_deletion_signature(
-            path,
-            owner,
-            &signature_hex,
-            &invalid_public_key,
-            chain_id
-        )
-        .is_err());
-
-        // Test wrong owner
-        assert!(verify_cado_deletion_signature(
-            path,
-            "wrong_owner",
-            &signature_hex,
-            &public_key_hex,
-            chain_id
-        )
-        .is_err());
-
-        // Test wrong path
-        assert!(verify_cado_deletion_signature(
-            "/wrong/path",
-            owner,
-            &signature_hex,
-            &public_key_hex,
-            chain_id
-        )
-        .is_err());
-
-        // Test wrong chain_id
-        assert!(verify_cado_deletion_signature(
-            path,
-            owner,
-            &signature_hex,
-            &public_key_hex,
-            "wrong_chain"
-        )
-        .is_err());
-    }
 }
 
 /// Validate a transfer transaction
@@ -2168,14 +1354,15 @@ fn validate_verified_proof_payload(
     }
     validate_hex_string(provider_pubkey, 32)?;
 
-    let provider_signature = payload_obj["provider_signature"].as_str().ok_or_else(|| {
-        EldError::ValidationError {
-            field: "verified proof payload provider_signature".to_string(),
-            value: payload_obj["provider_signature"].to_string(),
-            details: "VerifiedProof payload 'provider_signature' field must be a string"
-                .to_string(),
-        }
-    })?;
+    let provider_signature =
+        payload_obj["provider_signature"]
+            .as_str()
+            .ok_or_else(|| EldError::ValidationError {
+                field: "verified proof payload provider_signature".to_string(),
+                value: payload_obj["provider_signature"].to_string(),
+                details: "VerifiedProof payload 'provider_signature' field must be a string"
+                    .to_string(),
+            })?;
     if provider_signature.is_empty() {
         return Err(EldError::ValidationError {
             field: "verified proof payload provider_signature".to_string(),
@@ -2187,7 +1374,6 @@ fn validate_verified_proof_payload(
 
     Ok(())
 }
-
 
 /// Verify CADO deletion signature
 pub fn verify_cado_deletion_signature(
@@ -2362,4 +1548,810 @@ pub fn safe_deserialize_account_data<T: for<'de> serde::Deserialize<'de>>(
     const MAX_ACCOUNT_DATA_SIZE: usize = 10 * 1024; // 10KB
 
     safe_bincode_deserialize::<T>(data, MAX_ACCOUNT_DATA_SIZE, context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::address::Address;
+    use crate::tx::StakeTx;
+    use crate::tx::TransferTx;
+
+    #[test]
+    fn test_validate_transfer_amount() {
+        // Valid transfer
+        let valid_amount = Coin::new(100).expect("Failed to create valid amount coin in test");
+        assert!(validate_transfer_amount(&valid_amount).is_ok());
+
+        // Zero amount should fail
+        let zero_amount = Coin::zero();
+        assert!(validate_transfer_amount(&zero_amount).is_err());
+
+        // Maximum amount should be valid
+        let max_amount = Coin::max();
+        assert!(validate_transfer_amount(&max_amount).is_ok());
+    }
+
+    #[test]
+    fn test_validate_stake_amount() {
+        // Valid stake amount
+        let valid_stake =
+            Coin::new(MIN_STAKE_AMOUNT).expect("Failed to create valid stake coin in test");
+        assert!(validate_stake_amount(&valid_stake).is_ok());
+
+        // Below minimum should fail
+        let low_stake =
+            Coin::new(MIN_STAKE_AMOUNT - 1).expect("Failed to create low stake coin in test");
+        assert!(validate_stake_amount(&low_stake).is_err());
+
+        // Maximum amount should be valid
+        let max_amount = Coin::max();
+        assert!(validate_stake_amount(&max_amount).is_ok());
+    }
+
+    #[test]
+    fn test_validate_fee_amount() {
+        // Valid fee
+        let valid_fee = Coin::new(100).expect("Failed to create valid fee coin in test");
+        assert!(validate_fee_amount(&valid_fee).is_ok());
+
+        // Zero fee should fail
+        let zero_fee = Coin::zero();
+        assert!(validate_fee_amount(&zero_fee).is_err());
+
+        // Maximum fee should be valid
+        let max_fee = Coin::max();
+        assert!(validate_fee_amount(&max_fee).is_ok());
+    }
+
+    #[test]
+    fn test_validate_chunk_id() {
+        // Valid chunk ID (32 bytes = 64 hex chars)
+        let valid_chunk_id = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        assert!(validate_chunk_id(valid_chunk_id).is_ok());
+
+        let invalid_prefix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        assert!(validate_chunk_id(invalid_prefix).is_err());
+
+        // Short chunk ID (20 bytes = 40 hex chars, should fail)
+        let short_chunk_id = "0xabcdef1234567890abcdef1234567890abcdef12";
+        assert!(validate_chunk_id(short_chunk_id).is_err());
+
+        // Even shorter chunk ID
+        let very_short_chunk_id = "0xabcdef1234567890abcdef1234567890abcdef1";
+        assert!(validate_chunk_id(very_short_chunk_id).is_err());
+
+        let invalid_hex = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefgh";
+        assert!(validate_chunk_id(invalid_hex).is_err());
+
+        let empty_chunk_id = "0x";
+        assert!(validate_chunk_id(empty_chunk_id).is_err());
+    }
+
+    #[test]
+    fn test_validate_address() {
+        // Valid address (20 bytes = 40 hex chars)
+        let valid_address = "0x1234567890abcdef1234567890abcdef12345678";
+        assert!(validate_address(valid_address).is_ok());
+
+        // Missing 0x prefix
+        let invalid_prefix = "1234567890abcdef1234567890abcdef12345678";
+        assert!(validate_address(invalid_prefix).is_err());
+
+        // Wrong length (19 bytes)
+        let short_address = "0x1234567890abcdef1234567890abcdef1234567";
+        assert!(validate_address(short_address).is_err());
+
+        // Invalid hex
+        let invalid_hex = "0x1234567890abcdef1234567890abcdef1234567g";
+        assert!(validate_address(invalid_hex).is_err());
+
+        // Empty
+        let empty_address = "0x";
+        assert!(validate_address(empty_address).is_err());
+    }
+
+    #[test]
+    fn test_validate_address_requires_prefix() {
+        let valid_address = "0x1234567890abcdef1234567890abcdef12345678";
+        assert!(validate_address(valid_address).is_ok());
+        assert!(Address::parse_hex_str(valid_address).is_ok());
+
+        let invalid_prefix = "1234567890abcdef1234567890abcdef12345678";
+        assert!(validate_address(invalid_prefix).is_err());
+        assert!(Address::parse_hex_str(invalid_prefix).is_ok());
+    }
+
+    #[test]
+    fn test_validate_address_error_messages() {
+        let missing_prefix = validate_address("1234567890abcdef1234567890abcdef12345678")
+            .expect_err("missing prefix should fail");
+        assert!(matches!(
+            missing_prefix,
+            EldError::ValidationError {
+                field,
+                details,
+                ..
+            } if field == "address" && details == "Address must start with 0x"
+        ));
+
+        let short = validate_address("0x1234567890abcdef1234567890abcdef123456")
+            .expect_err("short address should fail");
+        assert!(matches!(
+            short,
+            EldError::ValidationError {
+                field,
+                details,
+                ..
+            } if field == "address" && details.contains("Invalid address length")
+        ));
+
+        let invalid_hex = validate_address("0x1234567890abcdef1234567890abcdef1234567g")
+            .expect_err("invalid hex should fail");
+        assert!(matches!(
+            invalid_hex,
+            EldError::ValidationError {
+                field,
+                details,
+                ..
+            } if field == "address" && details.contains("Invalid hex format")
+        ));
+
+        let empty = validate_address("0x").expect_err("empty address should fail");
+        assert!(matches!(
+            empty,
+            EldError::ValidationError {
+                field,
+                details,
+                ..
+            } if field == "address" && details == "Address cannot be empty after 0x prefix"
+        ));
+    }
+
+    #[test]
+    fn test_validate_contract_id() {
+        // Valid 32-byte contract ID (64 hex characters)
+        let valid_contract_id =
+            "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        assert!(validate_contract_id(valid_contract_id).is_ok());
+
+        // Invalid: missing 0x prefix
+        let invalid_prefix = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        assert!(validate_contract_id(invalid_prefix).is_err());
+
+        // Invalid: too short (20 bytes instead of 32)
+        let short_contract_id = "0x1234567890abcdef1234567890abcdef12345678";
+        assert!(validate_contract_id(short_contract_id).is_err());
+
+        // Invalid: too long
+        let long_contract_id =
+            "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12";
+        assert!(validate_contract_id(long_contract_id).is_err());
+
+        // Invalid: invalid hex
+        let invalid_hex = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdefg";
+        assert!(validate_contract_id(invalid_hex).is_err());
+
+        // Invalid: empty
+        let empty_contract_id = "0x";
+        assert!(validate_contract_id(empty_contract_id).is_err());
+    }
+
+    #[test]
+    fn test_validate_safe_string() {
+        // Valid string
+        let valid_string = "Hello World";
+        assert!(validate_safe_string(valid_string, 100).is_ok());
+
+        // Empty string
+        let empty_string = "";
+        assert!(validate_safe_string(empty_string, 100).is_err());
+
+        // Too long string
+        let long_string = "a".repeat(101);
+        assert!(validate_safe_string(&long_string, 100).is_err());
+
+        // Contains dangerous characters
+        let dangerous_string = "Hello<script>alert('xss')</script>";
+        assert!(validate_safe_string(dangerous_string, 100).is_err());
+
+        let dangerous_string2 = "Hello; rm -rf /";
+        assert!(validate_safe_string(dangerous_string2, 100).is_err());
+
+        // Contains control characters
+        let control_string = "Hello\x00World";
+        assert!(validate_safe_string(control_string, 100).is_err());
+    }
+
+    #[test]
+    fn test_validate_transfer_tx() {
+        let a1 = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
+        let a2 = Address::parse_hex_str("0xabcdef1234567890abcdef1234567890abcdef12").unwrap();
+
+        // Valid transfer
+        let valid_tx = TransferTx::new(a1, a2, 1000.into()).expect("valid transfer");
+        assert!(validate_transfer_tx(&valid_tx).is_ok());
+
+        // Same sender and recipient
+        assert!(TransferTx::new(a1, a1, 1000.into()).is_err());
+
+        // Zero amount
+        assert!(TransferTx::new(a1, a2, 0.into()).is_err());
+    }
+
+    #[test]
+    fn test_transfer_tx_json_rejects_invalid_addresses() {
+        let bad_sender = r#"{"sender":"invalid","recipient":"0xabcdef1234567890abcdef1234567890abcdef12","amount":"1000"}"#;
+        assert!(serde_json::from_str::<TransferTx>(bad_sender).is_err());
+
+        let bad_recipient = r#"{"sender":"0x1234567890abcdef1234567890abcdef12345678","recipient":"invalid","amount":"1000"}"#;
+        assert!(serde_json::from_str::<TransferTx>(bad_recipient).is_err());
+    }
+
+    #[test]
+    fn test_validate_stake_tx() {
+        let sender = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
+
+        // Valid stake
+        let valid_tx = StakeTx::new(
+            sender,
+            MIN_STAKE_AMOUNT.into(),
+            Some("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef".to_string()),
+        )
+        .expect("valid stake");
+        assert!(validate_stake_tx(&valid_tx).is_ok());
+
+        // Valid stake without public key
+        let valid_tx_no_pk =
+            StakeTx::new(sender, MIN_STAKE_AMOUNT.into(), None).expect("valid stake");
+        assert!(validate_stake_tx(&valid_tx_no_pk).is_ok());
+
+        // Invalid public key
+        let invalid_pk_tx = StakeTx::new(
+            sender,
+            MIN_STAKE_AMOUNT.into(),
+            Some("invalid_key".to_string()),
+        );
+        assert!(invalid_pk_tx.is_err());
+
+        // Below minimum stake amount
+        let low_amount_tx = StakeTx::new(sender, (MIN_STAKE_AMOUNT - 1).into(), None);
+        assert!(low_amount_tx.is_err());
+    }
+
+    #[test]
+    fn test_stake_tx_json_rejects_invalid_sender() {
+        let j = format!(
+            r#"{{"sender":"not_an_address","amount":"{MIN_STAKE_AMOUNT}","public_key":null}}"#
+        );
+        assert!(serde_json::from_str::<StakeTx>(&j).is_err());
+    }
+
+    #[test]
+    fn test_validate_unstake_tx() {
+        use crate::tx::UnstakeTx;
+
+        let sender = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
+
+        // Valid unstake
+        let valid_tx = UnstakeTx::new(sender, 1000.into()).expect("valid unstake");
+        assert!(validate_unstake_tx(&valid_tx).is_ok());
+
+        // Zero amount
+        assert!(UnstakeTx::new(sender, 0.into()).is_err());
+    }
+
+    #[test]
+    fn test_unstake_tx_json_rejects_invalid_sender() {
+        use crate::tx::UnstakeTx;
+
+        let j = r#"{"sender":"invalid","amount":"1000"}"#;
+        assert!(serde_json::from_str::<UnstakeTx>(j).is_err());
+    }
+
+    #[test]
+    fn test_validate_add_namespace_tx() {
+        use crate::tx::AddNamespaceTx;
+
+        let sender = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").unwrap();
+
+        let valid_tx = AddNamespaceTx::new(sender, "peter".to_string(), 1.into())
+            .expect("valid add_namespace");
+        assert!(AddNamespaceTx::new(sender, "peter".to_string(), 0.into()).is_err());
+        assert!(validate_add_namespace_tx(&valid_tx).is_ok());
+        assert_eq!(valid_tx.namespace_slug, "peter");
+
+        assert!(
+            AddNamespaceTx::new(sender, "eld".to_string(), 1.into()).is_err(),
+            "reserved slug"
+        );
+        assert!(
+            AddNamespaceTx::new(sender, "ab".to_string(), 1.into()).is_err(),
+            "slug too short"
+        );
+    }
+
+    #[test]
+    fn test_add_namespace_tx_json_rejects_unknown_field() {
+        use crate::tx::AddNamespaceTx;
+
+        let j = r#"{"sender":"0x1234567890abcdef1234567890abcdef12345678","namespace_slug":"peter","registration_fee":"0","extra":true}"#;
+        assert!(serde_json::from_str::<AddNamespaceTx>(j).is_err());
+    }
+
+    #[test]
+    fn test_validate_add_namespace_transaction_structure() {
+        let tx = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "fee": 5000,
+            "public_key": "a".repeat(64),
+            "payload": {
+                "type": tx_type::TX_TYPE_ADD_NAMESPACE,
+                "sender": "0x1234567890abcdef1234567890abcdef12345678",
+                "namespace_slug": "peter",
+                "registration_fee": "1"
+            }
+        });
+        assert!(validate_transaction_structure(&tx).is_ok());
+
+        let reserved = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "fee": 5000,
+            "public_key": "a".repeat(64),
+            "payload": {
+                "type": tx_type::TX_TYPE_ADD_NAMESPACE,
+                "sender": "0x1234567890abcdef1234567890abcdef12345678",
+                "namespace_slug": "eld",
+                "registration_fee": "1"
+            }
+        });
+        assert!(validate_transaction_structure(&reserved).is_err());
+    }
+
+    #[test]
+    fn test_validate_hex_string() {
+        // Valid hex strings
+        assert!(validate_hex_string("1234567890abcdef", 8).is_ok());
+        assert!(validate_hex_string("", 0).is_err()); // Empty string
+        assert!(validate_hex_string("1234567890abcdef", 4).is_err()); // Too long
+        assert!(validate_hex_string("1234567890abcde", 8).is_err()); // Odd length
+        assert!(validate_hex_string("1234567890abcdefg", 8).is_err()); // Invalid characters
+        assert!(validate_hex_string("1234567890ABCDEF", 8).is_ok()); // Uppercase is valid
+    }
+
+    #[test]
+    fn test_validate_json_string() {
+        // Valid JSON
+        assert!(validate_json_string(r#"{"key": "value"}"#, 100, 5).is_ok());
+        assert!(validate_json_string(r#"{"nested": {"key": "value"}}"#, 100, 5).is_ok());
+
+        // Invalid cases
+        assert!(validate_json_string("", 100, 5).is_err()); // Empty
+        assert!(validate_json_string("invalid json", 100, 5).is_err()); // Invalid JSON
+        assert!(validate_json_string(&"x".repeat(200), 100, 5).is_err()); // Too large
+
+        // Test nesting depth - simpler test
+        let nested_5 = r#"{"a":{"b":{"c":{"d":{"e":"v"}}}}}"#;
+        assert!(validate_json_string(nested_5, 1000, 3).is_err()); // Too deep
+        assert!(validate_json_string(nested_5, 1000, 10).is_ok()); // Within limit
+
+        // Test mismatched brackets
+        assert!(validate_json_string(r#"{"key": "value""#, 100, 5).is_err()); // Missing }
+        assert!(validate_json_string(r#"{"key": "value"}"#, 100, 5).is_ok()); // Valid
+    }
+
+    #[test]
+    fn test_validate_transaction_structure() {
+        // Valid transaction structure
+        let valid_tx = serde_json::json!({
+            "sig": "a".repeat(128), // 64 bytes = 128 hex chars
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64), // 32 bytes = 64 hex chars
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&valid_tx).is_ok());
+
+        // Missing required field
+        let missing_field = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64)
+            // Missing fee
+        });
+        assert!(validate_transaction_structure(&missing_field).is_err());
+
+        // Invalid field type
+        let invalid_type = serde_json::json!({
+            "sig": 123, // Should be string
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&invalid_type).is_err());
+
+        // Invalid payload type
+        let invalid_payload_type = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": "InvalidType"
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&invalid_payload_type).is_err());
+
+        // Not an object
+        let not_object = serde_json::json!("not an object");
+        assert!(validate_transaction_structure(&not_object).is_err());
+
+        // Invalid signature length
+        let invalid_sig = serde_json::json!({
+            "sig": "short", // Too short
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&invalid_sig).is_err());
+
+        // Invalid public key length
+        let invalid_pubkey = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "short", // Too short
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&invalid_pubkey).is_err());
+
+        // Negative nonce
+        let negative_nonce = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": -1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&negative_nonce).is_err());
+
+        // Negative fee
+        let negative_fee = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": -100
+        });
+        assert!(validate_transaction_structure(&negative_fee).is_err());
+    }
+
+    #[test]
+    fn test_validate_transfer_payload() {
+        // Valid transfer payload
+        let valid_tx = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&valid_tx).is_ok());
+
+        // Missing sender
+        let missing_sender = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&missing_sender).is_err());
+
+        // Invalid sender address
+        let invalid_sender = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "invalid_address",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&invalid_sender).is_err());
+
+        // Same sender and recipient
+        let same_addresses = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x1234567890123456789012345678901234567890",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&same_addresses).is_err());
+
+        // Zero amount
+        let zero_amount = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": 0
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&zero_amount).is_err());
+
+        // Test string amount (u128 serialization format)
+        let string_amount_tx = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_TRANSFER,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "recipient": "0x0987654321098765432109876543210987654321",
+                "amount": "77777777777"
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&string_amount_tx).is_ok());
+    }
+
+    #[test]
+    fn test_validate_stake_payload() {
+        // Valid stake payload
+        let valid_tx = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_STAKE,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "amount": 1000
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&valid_tx).is_ok());
+
+        // Valid stake payload with public key
+        let valid_tx_with_pk = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_STAKE,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "amount": 1000,
+                "public_key": "a".repeat(64)
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&valid_tx_with_pk).is_ok());
+
+        // Zero amount
+        let zero_amount = serde_json::json!({
+            "sig": "a".repeat(128),
+            "nonce": 1,
+            "payload": {
+                "type": tx_type::TX_TYPE_STAKE,
+                "sender": "0x1234567890123456789012345678901234567890",
+                "amount": 0
+            },
+            "public_key": "a".repeat(64),
+            "fee": 100
+        });
+        assert!(validate_transaction_structure(&zero_amount).is_err());
+    }
+
+    #[test]
+    fn test_safe_bincode_deserialize() {
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Serialize, Deserialize, PartialEq)]
+        struct TestStruct {
+            value: String,
+            number: u32,
+        }
+
+        let test_data = TestStruct {
+            value: "test".to_string(),
+            number: 42,
+        };
+
+        // Test successful deserialization
+        let serialized = bincode::serialize(&test_data).unwrap();
+        let deserialized =
+            safe_bincode_deserialize::<TestStruct>(&serialized, 1024, "test_struct").unwrap();
+        assert_eq!(deserialized, test_data);
+
+        // Test empty data
+        assert!(safe_bincode_deserialize::<TestStruct>(&[], 1024, "empty_data").is_err());
+
+        // Test oversized data
+        let large_data = vec![0u8; 2048];
+        assert!(
+            safe_bincode_deserialize::<TestStruct>(&large_data, 1024, "oversized_data").is_err()
+        );
+
+        // Test malformed data
+        let malformed_data = b"this is not valid bincode data";
+        assert!(
+            safe_bincode_deserialize::<TestStruct>(malformed_data, 1024, "malformed_data").is_err()
+        );
+    }
+
+    #[test]
+    fn test_safe_deserialize_cado_data() {
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Serialize, Deserialize, PartialEq)]
+        struct TestCado {
+            id: String,
+            data: Vec<u8>,
+        }
+
+        let test_cado = TestCado {
+            id: "test_id".to_string(),
+            data: vec![1, 2, 3, 4, 5],
+        };
+
+        // Test successful deserialization
+        let serialized = bincode::serialize(&test_cado).unwrap();
+        let deserialized =
+            safe_deserialize_cado_data::<TestCado>(&serialized, "test_cado").unwrap();
+        assert_eq!(deserialized, test_cado);
+
+        // Test oversized data (exceeds 1MB limit)
+        let oversized_cado = TestCado {
+            id: "oversized".to_string(),
+            data: vec![0u8; 2 * 1024 * 1024], // 2MB
+        };
+        let oversized_serialized = bincode::serialize(&oversized_cado).unwrap();
+        assert!(
+            safe_deserialize_cado_data::<TestCado>(&oversized_serialized, "oversized_cado")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn test_verify_cado_deletion_signature() {
+        use ed25519_dalek::{Signer, SigningKey};
+
+        // Generate a keypair for testing
+        let signing_key = SigningKey::from_bytes(&[1u8; 32]);
+        let verifying_key = signing_key.verifying_key();
+
+        let path = "/test/cado/path";
+        let owner = "test_owner";
+        let chain_id = "test_chain";
+
+        // Create the message to sign: path + owner + chain_id
+        let message = format!("{path}:{owner}:{chain_id}");
+        let signature = signing_key.sign(message.as_bytes());
+        let signature_hex = hex::encode(signature.to_bytes());
+        let public_key_hex = hex::encode(verifying_key.to_bytes());
+
+        // Test valid signature
+        assert!(verify_cado_deletion_signature(
+            path,
+            owner,
+            &signature_hex,
+            &public_key_hex,
+            chain_id
+        )
+        .is_ok());
+
+        // Test invalid signature
+        let invalid_signature = "a".repeat(128); // 64 bytes hex = 128 chars
+        assert!(verify_cado_deletion_signature(
+            path,
+            owner,
+            &invalid_signature,
+            &public_key_hex,
+            chain_id
+        )
+        .is_err());
+
+        // Test invalid public key
+        let invalid_public_key = "a".repeat(64); // 32 bytes hex = 64 chars
+        assert!(verify_cado_deletion_signature(
+            path,
+            owner,
+            &signature_hex,
+            &invalid_public_key,
+            chain_id
+        )
+        .is_err());
+
+        // Test wrong owner
+        assert!(verify_cado_deletion_signature(
+            path,
+            "wrong_owner",
+            &signature_hex,
+            &public_key_hex,
+            chain_id
+        )
+        .is_err());
+
+        // Test wrong path
+        assert!(verify_cado_deletion_signature(
+            "/wrong/path",
+            owner,
+            &signature_hex,
+            &public_key_hex,
+            chain_id
+        )
+        .is_err());
+
+        // Test wrong chain_id
+        assert!(verify_cado_deletion_signature(
+            path,
+            owner,
+            &signature_hex,
+            &public_key_hex,
+            "wrong_chain"
+        )
+        .is_err());
+    }
 }

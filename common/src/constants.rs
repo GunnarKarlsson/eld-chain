@@ -278,64 +278,64 @@ pub mod cado {
 
         #[test]
         fn path_prefixes_match_scope_and_type_segments() {
-            assert_eq!(PATH_PREFIX_ELD_ROOT_SCOPE, format!("/{}/", SCOPE_ELD_ROOT));
-            assert_eq!(PATH_PREFIX_TEST_SCOPE, format!("/{}/", SCOPE_TEST));
-            assert_eq!(PATH_PREFIX_OTHER_SCOPE, format!("/{}/", SCOPE_OTHER));
+            assert_eq!(PATH_PREFIX_ELD_ROOT_SCOPE, format!("/{SCOPE_ELD_ROOT}/"));
+            assert_eq!(PATH_PREFIX_TEST_SCOPE, format!("/{SCOPE_TEST}/"));
+            assert_eq!(PATH_PREFIX_OTHER_SCOPE, format!("/{SCOPE_OTHER}/"));
             assert_eq!(
                 PATH_PREFIX_ACCOUNT,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_ACCOUNT)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_ACCOUNT}/")
             );
             assert_eq!(
                 PATH_PREFIX_STAKING_ACCOUNT,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_STAKING_ACCOUNT)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_STAKING_ACCOUNT}/")
             );
             assert_eq!(
                 PATH_PREFIX_CONTRACT_INFO,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_CONTRACT_INFO)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_CONTRACT_INFO}/")
             );
             assert_eq!(
                 PATH_PREFIX_CONTRACT_STATE,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_CONTRACT_STATE)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_CONTRACT_STATE}/")
             );
             assert_eq!(
                 PATH_PREFIX_CADO_MAP,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_CADO_MAP)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_CADO_MAP}/")
             );
             assert_eq!(
                 PATH_PREFIX_ACCOUNT_CONTENT,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_ACCOUNT_CONTENT)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_ACCOUNT_CONTENT}/")
             );
             assert_eq!(
                 PATH_PREFIX_APP_STATE_SNAPSHOT,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_APP_STATE_SNAPSHOT)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_APP_STATE_SNAPSHOT}/")
             );
             assert_eq!(
                 PATH_PREFIX_SNAPSHOT_METADATA,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_SNAPSHOT_METADATA)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_SNAPSHOT_METADATA}/")
             );
             assert_eq!(
                 PATH_PREFIX_SNAPSHOT_CHUNK,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_SNAPSHOT_CHUNK)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_SNAPSHOT_CHUNK}/")
             );
             assert_eq!(
                 PATH_PREFIX_CHUNK_REFERENCE,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_CHUNK_REFERENCE)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_CHUNK_REFERENCE}/")
             );
             assert_eq!(
                 PATH_PREFIX_APP_STATE_TIP,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_APP_STATE_TIP)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_APP_STATE_TIP}/")
             );
             assert_eq!(
                 PATH_PREFIX_EPOCH_RECORD,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_EPOCH_RECORD)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_EPOCH_RECORD}/")
             );
             assert_eq!(
                 PATH_PREFIX_NAMESPACE_REGISTRY,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_NAMESPACE)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_NAMESPACE}/")
             );
             assert_eq!(
                 PATH_PREFIX_CONTENT_MANIFEST,
-                format!("/{}/{}/", SCOPE_ELD_ROOT, TYPE_CONTENT_MANIFEST)
+                format!("/{SCOPE_ELD_ROOT}/{TYPE_CONTENT_MANIFEST}/")
             );
             assert_eq!(
                 PATH_PREFIX_PINBOARD,

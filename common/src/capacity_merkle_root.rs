@@ -127,7 +127,8 @@ impl<'de> Deserialize<'de> for CapacityMerkleRoot {
             type Value = CapacityMerkleRoot;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a 64-digit hex capacity merkle root string (optional 0x prefix)")
+                formatter
+                    .write_str("a 64-digit hex capacity merkle root string (optional 0x prefix)")
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -173,8 +174,7 @@ mod tests {
 
     #[test]
     fn serde_json_roundtrip() {
-        let root: CapacityMerkleRoot =
-            serde_json::from_str(&format!("\"{SAMPLE}\"")).expect("de");
+        let root: CapacityMerkleRoot = serde_json::from_str(&format!("\"{SAMPLE}\"")).expect("de");
         assert_eq!(root.to_hex(), SAMPLE);
         let json = serde_json::to_string(&root).expect("ser");
         assert_eq!(json, format!("\"{SAMPLE}\""));

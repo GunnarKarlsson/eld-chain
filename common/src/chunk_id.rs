@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn serde_json_roundtrip() {
-        let id: ChunkId = serde_json::from_str(&format!("\"{}\"", SAMPLE)).expect("de");
+        let id: ChunkId = serde_json::from_str(&format!("\"{SAMPLE}\"")).expect("de");
         assert_eq!(id.to_string(), SAMPLE);
     }
 }

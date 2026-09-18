@@ -1,10 +1,10 @@
 use crate::address::Address;
 use crate::constants::cado::{
     FOUR_PART_PATH_TYPES, SCOPE_CONTRACT, SCOPE_ELD, SCOPE_ELD_ROOT, SCOPE_OTHER, SCOPE_PUBLIC,
-    SCOPE_TEST, SCOPE_USER, TYPE_ACCOUNT, TYPE_CADO_MAP, TYPE_CHUNK_REFERENCE, TYPE_CONTRACT_INFO,
-    TYPE_CONTRACT_STATE, TYPE_EPOCH_RECORD, TYPE_NAMESPACE, TYPE_SNAPSHOT_CHUNK,
-    TYPE_SNAPSHOT_METADATA, TYPE_STAKING_ACCOUNT, TYPE_APP_STATE_TIP, TYPE_STORAGE_STAKING_ACCOUNT,
-    TYPE_APP_STATE_SNAPSHOT, VALID_TYPES,
+    SCOPE_TEST, SCOPE_USER, TYPE_ACCOUNT, TYPE_APP_STATE_SNAPSHOT, TYPE_APP_STATE_TIP,
+    TYPE_CADO_MAP, TYPE_CHUNK_REFERENCE, TYPE_CONTRACT_INFO, TYPE_CONTRACT_STATE,
+    TYPE_EPOCH_RECORD, TYPE_NAMESPACE, TYPE_SNAPSHOT_CHUNK, TYPE_SNAPSHOT_METADATA,
+    TYPE_STAKING_ACCOUNT, TYPE_STORAGE_STAKING_ACCOUNT, VALID_TYPES,
 };
 use crate::error::EldError;
 use crate::logging::{LogSanitizer, SanitizedLoggable};
@@ -1038,13 +1038,13 @@ mod tests {
 
         let app_state_snapshot_path = CadoPath::new(
             CadoType::AppStateSnapshot,
-            CadoPathKey::Name(
-                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            ),
+            CadoPathKey::Name("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
         )
         .expect("app state snapshot path");
         assert!(app_state_snapshot_path.is_infrastructure());
-        assert!(is_infrastructure_cado_path(app_state_snapshot_path.as_str()));
+        assert!(is_infrastructure_cado_path(
+            app_state_snapshot_path.as_str()
+        ));
 
         let latest_app_state_tip = CadoPath::new(CadoType::AppStateTip, CadoPathKey::Name(LATEST))
             .expect("app state tip path");

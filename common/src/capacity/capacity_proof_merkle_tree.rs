@@ -1,5 +1,5 @@
-use blake3::Hasher as Blake3Hasher;
 use crate::capacity_merkle_root::CapacityMerkleRoot;
+use blake3::Hasher as Blake3Hasher;
 
 // ============================================================================
 // CAPACITY PROOF MERKLE TREE
@@ -250,11 +250,7 @@ mod tests {
         // Generate proof for each leaf
         for i in 0..leaves.len() {
             let proof = tree.generate_proof(i);
-            assert!(
-                !proof.is_empty(),
-                "Proof should not be empty for leaf {}",
-                i
-            );
+            assert!(!proof.is_empty(), "Proof should not be empty for leaf {i}");
         }
     }
 
@@ -269,7 +265,7 @@ mod tests {
         for (i, leaf) in leaves.iter().enumerate() {
             let proof = tree.generate_proof(i);
             let is_valid = CapacityProofMerkleTree::verify_proof(leaf, &proof, &root, i);
-            assert!(is_valid, "Merkle proof for leaf {} should be valid", i);
+            assert!(is_valid, "Merkle proof for leaf {i} should be valid");
         }
     }
 
@@ -357,7 +353,7 @@ mod tests {
         for &idx in &[0, 10, 50, 99] {
             let proof = tree.generate_proof(idx);
             let is_valid = CapacityProofMerkleTree::verify_proof(&leaves[idx], &proof, &root, idx);
-            assert!(is_valid, "Proof for leaf {} should be valid", idx);
+            assert!(is_valid, "Proof for leaf {idx} should be valid");
         }
     }
 
@@ -382,8 +378,7 @@ mod tests {
             let proof2 = tree2.generate_proof(i);
             assert_eq!(
                 proof1, proof2,
-                "Proofs should be deterministic for leaf {}",
-                i
+                "Proofs should be deterministic for leaf {i}"
             );
         }
     }

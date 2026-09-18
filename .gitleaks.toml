@@ -1,0 +1,13 @@
+title = "eld-chain"
+
+minVersion = "v8.25.0"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Rust build artifacts and git internals"
+paths = [
+  '''(^|/)target/''',
+  '''(^|/)\.git/''',
+]

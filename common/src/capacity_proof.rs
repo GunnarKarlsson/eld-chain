@@ -68,8 +68,9 @@ pub fn capacity_challenge_response_signing_bytes(
         provider_pubkey,
     };
 
-    serde_json::to_vec(&payload)
-        .map_err(|e| format!("failed to serialize capacity challenge response signing payload: {e}"))
+    serde_json::to_vec(&payload).map_err(|e| {
+        format!("failed to serialize capacity challenge response signing payload: {e}")
+    })
 }
 
 /// Signs a capacity challenge response with the provider's Ed25519 key.
@@ -92,6 +93,7 @@ pub fn sign_capacity_challenge_response(
 }
 
 /// Verifies the provider signature on a P2P capacity challenge response.
+#[allow(clippy::too_many_arguments)]
 pub fn verify_capacity_challenge_response(
     challenge_id: &str,
     provider_id: &Address,
@@ -106,8 +108,8 @@ pub fn verify_capacity_challenge_response(
         return Err("capacity challenge response missing provider signature".to_string());
     }
 
-    let pubkey_bytes = hex::decode(provider_pubkey)
-        .map_err(|e| format!("invalid provider_pubkey hex: {e}"))?;
+    let pubkey_bytes =
+        hex::decode(provider_pubkey).map_err(|e| format!("invalid provider_pubkey hex: {e}"))?;
     let verifying_key = VerifyingKey::from_bytes(
         &pubkey_bytes
             .try_into()
@@ -237,8 +239,9 @@ mod tests {
         let signing_key = SigningKey::from_bytes(&[7u8; 32]);
         let other_key = SigningKey::from_bytes(&[8u8; 32]);
         let challenge_proof = sample_challenge_proof(&signing_key);
-        let (_, provider_signature) = sign_capacity_challenge_response(&signing_key, &challenge_proof)
-            .expect("sign response");
+        let (_, provider_signature) =
+            sign_capacity_challenge_response(&signing_key, &challenge_proof)
+                .expect("sign response");
         let wrong_pubkey = hex::encode(other_key.verifying_key().to_bytes());
 
         let err = verify_capacity_challenge_response(

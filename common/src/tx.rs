@@ -1312,7 +1312,6 @@ impl std::fmt::Display for VerifiedProofTx {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(try_from = "AddNamespaceTxUnchecked")]
@@ -1525,7 +1524,6 @@ impl HasAmount for PostMessageTx {
         0
     }
 }
-
 
 impl HasSender for AddNamespaceTx {
     fn sender(&self) -> Address {
@@ -1977,7 +1975,7 @@ mod tests {
                 );
                 assert_eq!(t.amount, 1000);
             }
-            _ => assert!(false, "Wrong payload type after deserialization"),
+            _ => panic!("Wrong payload type after deserialization"),
         }
     }
 
@@ -2064,7 +2062,7 @@ mod tests {
                 assert_eq!(s.amount, 1000);
                 assert_eq!(s.public_key, Some(hex::encode(verifying_key.to_bytes())));
             }
-            _ => assert!(false, "Wrong payload type after deserialization"),
+            _ => panic!("Wrong payload type after deserialization"),
         }
     }
 
@@ -2143,7 +2141,7 @@ mod tests {
                 assert_eq!(u.sender, sender);
                 assert_eq!(u.amount, 1000);
             }
-            _ => assert!(false, "Wrong payload type after deserialization"),
+            _ => panic!("Wrong payload type after deserialization"),
         }
     }
 

@@ -1,6 +1,8 @@
 /target
 **/*.rs.bk
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 .idea/
 .vscode/
 .DS_Store
@@ -14,3 +16,4 @@ config/config.json
 config/consensus_config.json
 TODO.md
 **/TODO.md
+MISC.md

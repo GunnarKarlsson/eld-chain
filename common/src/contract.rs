@@ -13,7 +13,7 @@ pub struct ContractInfo {
     /// here. Changing to `Address` would break that path and existing bincode/JSON blobs.
     pub owner: String,
     pub bytecode: Vec<u8>,
-    pub active: bool,      // For potential deactivation
+    pub active: bool, // For potential deactivation
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Hash, PartialEq)]

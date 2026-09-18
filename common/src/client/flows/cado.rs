@@ -5,8 +5,8 @@ use crate::account::Account;
 use crate::app_api::AppApi;
 use crate::client::ChainClient;
 use crate::constants::cado::{
-    PATH_PREFIX_ACCOUNT, PATH_PREFIX_ACCOUNT_CONTENT, PATH_PREFIX_CADO_MAP,
-    PATH_PREFIX_STAKING_ACCOUNT, PATH_PREFIX_APP_STATE_SNAPSHOT,
+    PATH_PREFIX_ACCOUNT, PATH_PREFIX_ACCOUNT_CONTENT, PATH_PREFIX_APP_STATE_SNAPSHOT,
+    PATH_PREFIX_CADO_MAP, PATH_PREFIX_STAKING_ACCOUNT,
 };
 use crate::staking_account::StakingAccount;
 use tracing::{error, info};

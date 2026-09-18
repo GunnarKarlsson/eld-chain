@@ -21,8 +21,7 @@ impl Address {
     const PREFIXED_HEX_CHAR_LEN: usize = Self::HEX_CHAR_LEN + Self::PREFIX_LEN;
 
     fn has_hex_prefix(s: &str) -> bool {
-        s.len() >= Self::PREFIX_LEN
-            && matches!(&s.as_bytes()[..Self::PREFIX_LEN], b"0x" | b"0X")
+        s.len() >= Self::PREFIX_LEN && matches!(&s.as_bytes()[..Self::PREFIX_LEN], b"0x" | b"0X")
     }
 
     pub fn from_public_key(public_key: &VerifyingKey) -> Result<Self, EldError> {
@@ -127,10 +126,7 @@ impl Address {
                 .map_err(|_| EldError::ValidationError {
                     field: "public_key".to_string(),
                     value: pubkey_hex.to_string(),
-                    details: format!(
-                        "Public key must be exactly {} bytes",
-                        PublicKey::LEN
-                    ),
+                    details: format!("Public key must be exactly {} bytes", PublicKey::LEN),
                 })?;
 
         if self.is_from_public_key(&public_key) {
@@ -238,7 +234,7 @@ mod tests {
     #[test]
     fn test_derive_pubk_and_address() {
         let pk_hex = "f48fcb2922784d0390cebc129d9a726ebb875eba131c0bc4d705627dc1a58698";
-        let pk: [u8; PublicKey::LEN] = hex::decode(&pk_hex)
+        let pk: [u8; PublicKey::LEN] = hex::decode(pk_hex)
             .expect("can decode hex")
             .try_into()
             .map_err(|_| format!("Private key must be {} bytes", PublicKey::LEN))
@@ -332,7 +328,7 @@ mod tests {
 
         // Test address derivation works with both methods
         let address1 = Address::from_public_key(&verifying_key).expect("Address from pubk");
-        let hash = Sha256::digest(&pk_bytes);
+        let hash = Sha256::digest(pk_bytes);
         let hash_prefix: [u8; 20] = hash[..20]
             .try_into()
             .expect("hash prefix should always be 20 bytes");
@@ -388,8 +384,8 @@ mod tests {
 
     #[test]
     fn test_address_parse_hex_str_and_matches_str() {
-        let address = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678")
-            .expect("valid");
+        let address =
+            Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678").expect("valid");
         assert!(address.matches_str("1234567890abcdef1234567890abcdef12345678"));
         assert!(address.matches_str("0x1234567890abcdef1234567890abcdef12345678"));
         assert!(!address.matches_str("0x1234567890abcdef1234567890abcdef12345679"));
@@ -410,8 +406,8 @@ mod tests {
 
     #[test]
     fn test_address_parse_hex_str_error_messages() {
-        let too_short = Address::parse_hex_str("0x")
-            .expect_err("too-short address should fail early");
+        let too_short =
+            Address::parse_hex_str("0x").expect_err("too-short address should fail early");
         assert!(matches!(
             too_short,
             EldError::ValidationError {
@@ -422,10 +418,9 @@ mod tests {
                 && details == "Address must be at least 40 hexadecimal characters"
         ));
 
-        let prefixed_length_without_prefix = Address::parse_hex_str(
-            "1234567890abcdef1234567890abcdef1234567890",
-        )
-        .expect_err("42-char unprefixed address should fail early");
+        let prefixed_length_without_prefix =
+            Address::parse_hex_str("1234567890abcdef1234567890abcdef1234567890")
+                .expect_err("42-char unprefixed address should fail early");
         assert!(matches!(
             prefixed_length_without_prefix,
             EldError::ValidationError {
@@ -486,12 +481,10 @@ mod tests {
         let address = Address::from_public_key(&verifying_key).expect("Address from pubk");
 
         assert!(address.verify_derives_from_pubkey_hex(&pubkey_hex).is_ok());
-        assert!(
-            address
-                .verify_derives_from_pubkey_hex(
-                    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-                )
-                .is_err()
-        );
+        assert!(address
+            .verify_derives_from_pubkey_hex(
+                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            )
+            .is_err());
     }
 }
