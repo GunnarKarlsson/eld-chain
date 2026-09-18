@@ -143,7 +143,6 @@ pub struct CapacityValidatorInfo {
     pub address: Address,
     pub stake: Coin,
     /// Ed25519 public key frozen on first RegisterCapacity (outer tx pubkey).
-    #[serde(default)]
     pub public_key: PublicKey,
     pub storage_capacity: u64, // Total storage capacity in bytes
     // Capacity proof fields
@@ -333,5 +332,24 @@ mod tests {
         let bytes = account.serialize_bin().expect("serialize bin");
         let from_bin = StorageStakingAccount::deserialize_bin(&bytes).expect("deserialize bin");
         assert_eq!(from_bin, account);
+    }
+
+    #[test]
+    fn capacity_validator_info_json_requires_public_key() {
+        let json = serde_json::json!({
+            "address": VALIDATOR,
+            "stake": "100",
+            "storage_capacity": 1024,
+            "merkle_root": null,
+            "seed": null,
+            "chunk_count": null,
+            "registered_at": null,
+            "last_merkle_root_update": null,
+            "registered_block": 0,
+            "registration_duration": 0
+        });
+        let err = serde_json::from_value::<CapacityValidatorInfo>(json)
+            .expect_err("missing public_key must not deserialize to a dummy key");
+        assert!(err.to_string().contains("public_key"));
     }
 }

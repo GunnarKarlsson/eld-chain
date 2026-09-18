@@ -9,6 +9,10 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 
 /// 32-byte Ed25519 verifying key stored on capacity-validator registry entries.
+///
+/// There is no [`Default`]: the verifying key of the all-zero Ed25519 seed is a
+/// valid key, so a default would look real and is a footgun. Construct from
+/// validated bytes or an Ed25519 verifying key.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PublicKey {
     bytes: [u8; 32],
@@ -60,13 +64,6 @@ impl PublicKey {
     pub fn to_verifying_key(&self) -> VerifyingKey {
         VerifyingKey::from_bytes(&self.bytes)
             .expect("PublicKey invariant: bytes are valid Ed25519 verifying key")
-    }
-}
-
-impl Default for PublicKey {
-    fn default() -> Self {
-        let signing_key = ed25519_dalek::SigningKey::from_bytes(&[0u8; 32]);
-        PublicKey::from(signing_key.verifying_key())
     }
 }
 
