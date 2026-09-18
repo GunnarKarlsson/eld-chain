@@ -1,7 +1,7 @@
 use crate::account::Account;
 use crate::address::Address;
 use crate::cado::CadoType;
-use crate::cado::{CADOType, CadoPath, CadoPathKey};
+use crate::cado::{CadoBody, CadoPath, CadoPathKey};
 use crate::error::EldError;
 use crate::logging::SanitizedLog;
 use crate::staking_account::StakingAccount;
@@ -169,7 +169,7 @@ impl AbciHttpApi {
         }
 
         // Parse CADO response
-        let cado: CADOType =
+        let cado: CadoBody =
             serde_json::from_str(&response.info).map_err(|e| EldError::ValidationError {
                 field: "account_cado_response".to_string(),
                 value: response.info.clone(),
@@ -178,8 +178,8 @@ impl AbciHttpApi {
 
         // Extract account data from CADO
         let account_data = match cado {
-            CADOType::Mutable(cado_mut) => cado_mut.data().to_vec(),
-            CADOType::Immutable(cado) => cado.data().to_vec(),
+            CadoBody::Mutable(cado_mut) => cado_mut.data().to_vec(),
+            CadoBody::Immutable(cado) => cado.data().to_vec(),
         };
 
         // Deserialize account data
@@ -217,7 +217,7 @@ impl AbciHttpApi {
         }
 
         // Parse CADO response
-        let cado: CADOType =
+        let cado: CadoBody =
             serde_json::from_str(&response.info).map_err(|e| EldError::ValidationError {
                 field: "staking_account_cado_response".to_string(),
                 value: response.info.clone(),
@@ -226,8 +226,8 @@ impl AbciHttpApi {
 
         // Extract staking account data from CADO
         let staking_account_data = match cado {
-            CADOType::Mutable(cado_mut) => cado_mut.data().to_vec(),
-            CADOType::Immutable(cado) => cado.data().to_vec(),
+            CadoBody::Mutable(cado_mut) => cado_mut.data().to_vec(),
+            CadoBody::Immutable(cado) => cado.data().to_vec(),
         };
 
         // Deserialize staking account data
@@ -357,7 +357,7 @@ impl AbciHttpApi {
         })
     }
 
-    pub async fn get_cados_by_prefix(&self, prefix: String) -> Result<Vec<CADOType>, EldError> {
+    pub async fn get_cados_by_prefix(&self, prefix: String) -> Result<Vec<CadoBody>, EldError> {
         let response = self
             .client
             .abci_query(

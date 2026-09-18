@@ -15,7 +15,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
 
-/// CADO type enum for type-safe operations
+/// Path-kind for a CADO (account, namespace, epoch record, and so on).
+///
+/// This is the `type` segment of a [`CadoPath`]. It is not the stored object;
+/// that envelope is [`CadoBody`] (`Immutable` / `Mutable`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CadoType {
     Account,
@@ -213,8 +216,11 @@ pub struct CADOMut {
     latest_hash: [u8; 32], // Sha256(current_data)
 }
 
+/// Stored CADO envelope: an immutable or mutable body.
+///
+/// Distinct from [`CadoType`], which is the path kind (account, namespace, …).
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
-pub enum CADOType {
+pub enum CadoBody {
     Immutable(CADO),
     Mutable(CADOMut),
 }
@@ -369,7 +375,7 @@ impl CADOMut {
     }
 }
 
-impl CADOType {
+impl CadoBody {
     /// Immutable CADO from data + metadata.
     pub fn immutable(data: Vec<u8>, metadata: CADOMetadata) -> Self {
         Self::Immutable(CADO::new(data, metadata))
@@ -388,35 +394,35 @@ impl CADOType {
     pub fn serialize_bin(&self) -> Result<Vec<u8>, EldError> {
         bincode::serialize(self).map_err(|e| EldError::StorageError {
             operation: "serialize_cado_type".to_string(),
-            details: format!("Failed to serialize CADOType: {e}"),
+            details: format!("Failed to serialize CadoBody: {e}"),
         })
     }
 
     pub fn deserialize_bin(data: &[u8]) -> Result<Self, EldError> {
         bincode::deserialize(data).map_err(|e| EldError::StorageError {
             operation: "deserialize_cado_type".to_string(),
-            details: format!("Failed to deserialize CADOType: {e}"),
+            details: format!("Failed to deserialize CadoBody: {e}"),
         })
     }
 
     pub fn metadata(&self) -> &CADOMetadata {
         match self {
-            CADOType::Immutable(c) => c.metadata(),
-            CADOType::Mutable(m) => m.metadata(),
+            CadoBody::Immutable(c) => c.metadata(),
+            CadoBody::Mutable(m) => m.metadata(),
         }
     }
 
     pub fn data(&self) -> &[u8] {
         match self {
-            CADOType::Immutable(c) => c.data(),
-            CADOType::Mutable(m) => m.data(),
+            CadoBody::Immutable(c) => c.data(),
+            CadoBody::Mutable(m) => m.data(),
         }
     }
 
     pub fn hash_bytes(&self) -> [u8; 32] {
         match self {
-            CADOType::Immutable(c) => c.hash_bytes(),
-            CADOType::Mutable(m) => m.hash_bytes(),
+            CadoBody::Immutable(c) => c.hash_bytes(),
+            CadoBody::Mutable(m) => m.hash_bytes(),
         }
     }
 
@@ -427,15 +433,15 @@ impl CADOType {
 
     pub fn latest_hash(&self) -> Option<[u8; 32]> {
         match self {
-            CADOType::Immutable(_) => None,
-            CADOType::Mutable(m) => Some(m.latest_hash()),
+            CadoBody::Immutable(_) => None,
+            CadoBody::Mutable(m) => Some(m.latest_hash()),
         }
     }
 
     pub fn into_data(self) -> Vec<u8> {
         match self {
-            CADOType::Immutable(c) => c.data,
-            CADOType::Mutable(m) => m.data,
+            CadoBody::Immutable(c) => c.data,
+            CadoBody::Mutable(m) => m.data,
         }
     }
 }
@@ -474,9 +480,9 @@ impl DeserializableBin for Vec<String> {
     }
 }
 
-impl DeserializableBin for CADOType {
+impl DeserializableBin for CadoBody {
     fn deserialize_bin(data: &[u8]) -> Result<Self, EldError> {
-        CADOType::deserialize_bin(data)
+        CadoBody::deserialize_bin(data)
     }
 }
 
@@ -869,11 +875,11 @@ impl std::fmt::Display for CADOMut {
     }
 }
 
-impl std::fmt::Display for CADOType {
+impl std::fmt::Display for CadoBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CADOType::Immutable(cado) => write!(f, "{cado}"),
-            CADOType::Mutable(cado) => write!(f, "{cado}"),
+            CadoBody::Immutable(cado) => write!(f, "{cado}"),
+            CadoBody::Mutable(cado) => write!(f, "{cado}"),
         }
     }
 }
@@ -934,11 +940,11 @@ impl SanitizedLoggable for CADOMut {
     }
 }
 
-impl SanitizedLoggable for CADOType {
+impl SanitizedLoggable for CadoBody {
     fn sanitized_log(&self) -> String {
         match self {
-            CADOType::Immutable(cado) => cado.sanitized_log(),
-            CADOType::Mutable(cado_mut) => cado_mut.sanitized_log(),
+            CadoBody::Immutable(cado) => cado.sanitized_log(),
+            CadoBody::Mutable(cado_mut) => cado_mut.sanitized_log(),
         }
     }
 }

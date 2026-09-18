@@ -1,4 +1,4 @@
-use crate::cado::CADOType;
+use crate::cado::CadoBody;
 use crate::error::EldError;
 use crate::logging::{SanitizedLog, SanitizedLoggable};
 use crate::namespace_api::{NamespaceNotRegisteredResponse, NamespaceRegisteredResponse};
@@ -55,7 +55,7 @@ impl AppApi {
             })?;
         let option_cadotype =
             response
-                .json::<Option<CADOType>>()
+                .json::<Option<CadoBody>>()
                 .await
                 .map_err(|e| EldError::ValidationError {
                     field: "cado".to_string(),
@@ -64,10 +64,10 @@ impl AppApi {
                 })?;
         match option_cadotype {
             Some(cado_type) => match cado_type {
-                CADOType::Immutable(cado) => {
+                CadoBody::Immutable(cado) => {
                     info!("cado: {}", cado.metadata().sanitized_log())
                 }
-                CADOType::Mutable(cado_mut) => {
+                CadoBody::Mutable(cado_mut) => {
                     info!("cado_mut: {}", cado_mut.metadata().sanitized_log())
                 }
             },
