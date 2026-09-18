@@ -80,19 +80,19 @@ impl ChainClient {
         crate::client::tx_broadcast::send_tx_rpc(&self.config, hex_encoded).await
     }
 
-    pub async fn get_block(&self, height: u64) -> Response {
+    pub async fn get_block(&self, height: u64) -> Result<Response, EldError> {
         crate::client::query::get_block(&self.config, height).await
     }
 
-    pub async fn get_abci_info(&self) -> AbciInfoWrapper {
+    pub async fn get_abci_info(&self) -> Result<AbciInfoWrapper, EldError> {
         crate::client::flows::get_abci_info(self).await
     }
 
-    pub async fn get_account(&self, address: String) {
+    pub async fn get_account(&self, address: String) -> Result<(), EldError> {
         crate::client::flows::get_account(self, address).await
     }
 
-    pub async fn get_staking_account(&self, address: String) {
+    pub async fn get_staking_account(&self, address: String) -> Result<(), EldError> {
         crate::client::flows::get_staking_account(self, address).await
     }
 
@@ -257,39 +257,44 @@ impl ChainClient {
         crate::client::wallets::get_wallet_by_address(address).await
     }
 
-    pub async fn display_wallet_by_name(&self, name: String) {
+    pub async fn display_wallet_by_name(&self, name: String) -> Result<(), EldError> {
         crate::client::flows::display_wallet_by_name(self, name).await
     }
 
-    pub async fn transfer(&self, wallet_name: String, recipient: String, amount: u128) {
+    pub async fn transfer(
+        &self,
+        wallet_name: String,
+        recipient: String,
+        amount: u128,
+    ) -> Result<(), EldError> {
         crate::client::flows::transfer(self, wallet_name, recipient, amount).await
     }
 
-    pub async fn list_all_transactions(&self) {
+    pub async fn list_all_transactions(&self) -> Result<(), EldError> {
         crate::client::flows::list_all_transactions(self).await
     }
 
-    pub async fn list_transactions(&self, addr: String) {
+    pub async fn list_transactions(&self, addr: String) -> Result<(), EldError> {
         crate::client::flows::list_transactions(self, addr).await
     }
 
-    pub async fn stake(&self, wallet_name: String, amount: u128) {
+    pub async fn stake(&self, wallet_name: String, amount: u128) -> Result<(), EldError> {
         crate::client::flows::stake(self, wallet_name, amount).await
     }
 
-    pub async fn unstake(&self, wallet_name: String, amount: u128) {
+    pub async fn unstake(&self, wallet_name: String, amount: u128) -> Result<(), EldError> {
         crate::client::flows::unstake(self, wallet_name, amount).await
     }
 
-    pub async fn view_active_validators(&self) {
+    pub async fn view_active_validators(&self) -> Result<(), EldError> {
         crate::client::flows::view_active_validators(self).await
     }
 
-    pub async fn view_epoch_info(&self) {
+    pub async fn view_epoch_info(&self) -> Result<(), EldError> {
         crate::client::flows::view_epoch_info(self).await
     }
 
-    pub async fn view_epoch(&self) {
+    pub async fn view_epoch(&self) -> Result<(), EldError> {
         crate::client::flows::view_epoch(self).await
     }
 
@@ -298,40 +303,57 @@ impl ChainClient {
         wallet_name: String,
         namespace_slug: String,
         registration_fee: u128,
-    ) {
+    ) -> Result<(), EldError> {
         crate::client::flows::add_namespace(self, wallet_name, namespace_slug, registration_fee)
             .await
     }
 
-    pub async fn get_namespace(&self, namespace_slug: String) {
+    pub async fn get_namespace(&self, namespace_slug: String) -> Result<(), EldError> {
         crate::client::flows::get_namespace(self, namespace_slug).await
     }
 
-    pub async fn post_pinboard_message(&self, input: crate::pinboard_api::PinboardMessageParams) {
+    pub async fn post_pinboard_message(
+        &self,
+        input: crate::pinboard_api::PinboardMessageParams,
+    ) -> Result<(), EldError> {
         crate::client::flows::post_pinboard_message(self, input).await
     }
 
-    pub async fn get_content(&self, content_id: String) {
+    pub async fn get_content(&self, content_id: String) -> Result<(), EldError> {
         crate::client::flows::get_content(self, content_id).await
     }
 
-    pub async fn get_cado(&self, path: String) {
+    pub async fn get_cado(&self, path: String) -> Result<(), EldError> {
         crate::client::flows::get_cado(self, path).await
     }
 
-    pub async fn pinboard_get_post(&self, wallet: String, message_id: String) {
+    pub async fn pinboard_get_post(
+        &self,
+        wallet: String,
+        message_id: String,
+    ) -> Result<(), EldError> {
         crate::client::flows::pinboard_get_post(self, wallet, message_id).await
     }
 
-    pub async fn pinboard_list_by_wallet(&self, wallet: String, page: usize, page_size: usize) {
+    pub async fn pinboard_list_by_wallet(
+        &self,
+        wallet: String,
+        page: usize,
+        page_size: usize,
+    ) -> Result<(), EldError> {
         crate::client::flows::pinboard_list_by_wallet(self, wallet, page, page_size).await
     }
 
-    pub async fn pinboard_list_by_tag(&self, tag: String, page: usize, page_size: usize) {
+    pub async fn pinboard_list_by_tag(
+        &self,
+        tag: String,
+        page: usize,
+        page_size: usize,
+    ) -> Result<(), EldError> {
         crate::client::flows::pinboard_list_by_tag(self, tag, page, page_size).await
     }
 
-    pub async fn list_cados(&self, search_string: String) {
+    pub async fn list_cados(&self, search_string: String) -> Result<(), EldError> {
         crate::client::flows::list_cados(self, search_string).await
     }
 

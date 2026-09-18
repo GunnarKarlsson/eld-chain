@@ -41,30 +41,39 @@ impl AppApi {
         Self { client, base_url }
     }
 
-    pub async fn get_cado(&self, cado_path: String) {
+    pub async fn get_cado(&self, cado_path: String) -> Result<(), EldError> {
         let url = self.base_url.clone() + "cado/" + &encode(&cado_path);
         info!("url: {}", SanitizedLog::as_path(&url));
-        let result = self.client.get(url).send().await;
-        match result {
-            Ok(response) => {
-                let option_cadotype = response
-                    .json::<Option<CADOType>>()
-                    .await
-                    .expect("can parse cadotype");
-                match option_cadotype {
-                    Some(cado_type) => match cado_type {
-                        CADOType::Immutable(cado) => {
-                            info!("cado: {}", cado.metadata().sanitized_log())
-                        }
-                        CADOType::Mutable(cado_mut) => {
-                            info!("cado_mut: {}", cado_mut.metadata().sanitized_log())
-                        }
-                    },
-                    None => info!("No cado found"),
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| EldError::NetworkError {
+                operation: "get_cado".to_string(),
+                details: e.to_string(),
+            })?;
+        let option_cadotype =
+            response
+                .json::<Option<CADOType>>()
+                .await
+                .map_err(|e| EldError::ValidationError {
+                    field: "cado".to_string(),
+                    value: cado_path,
+                    details: format!("Failed to parse CADO type: {e}"),
+                })?;
+        match option_cadotype {
+            Some(cado_type) => match cado_type {
+                CADOType::Immutable(cado) => {
+                    info!("cado: {}", cado.metadata().sanitized_log())
                 }
-            }
-            Err(e) => error!("Error fetching cado: {}", e.to_string()),
+                CADOType::Mutable(cado_mut) => {
+                    info!("cado_mut: {}", cado_mut.metadata().sanitized_log())
+                }
+            },
+            None => info!("No cado found"),
         }
+        Ok(())
     }
 
     /// Submit a user-signed pinboard message; the node validates and broadcasts `PostMessage` tx.

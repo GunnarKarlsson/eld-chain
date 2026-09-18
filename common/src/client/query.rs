@@ -21,18 +21,14 @@ pub async fn get_account_by_address(
     api.get_account_by_address(&address).await
 }
 
-pub async fn get_block(config: &CliConfig, height: u64) -> Response {
+pub async fn get_block(config: &CliConfig, height: u64) -> Result<Response, EldError> {
     let api = AbciHttpApi::new(config.get_node_url().to_owned());
-    api.get_block(height)
-        .await
-        .expect("Failed to get block from API")
+    api.get_block(height).await
 }
 
-pub async fn get_abci_info(config: &CliConfig) -> AbciInfoWrapper {
+pub async fn get_abci_info(config: &CliConfig) -> Result<AbciInfoWrapper, EldError> {
     let api = AbciHttpApi::new(config.get_node_url().to_owned());
-    api.get_latest_abci_info()
-        .await
-        .expect("Failed to get latest ABCI info")
+    api.get_latest_abci_info().await
 }
 
 pub async fn get_staking_account(

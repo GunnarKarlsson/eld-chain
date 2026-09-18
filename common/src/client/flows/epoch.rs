@@ -2,21 +2,22 @@
 
 use crate::abci_api::AbciHttpApi;
 use crate::client::ChainClient;
+use crate::error::{EldError, ErrorBuilder};
 use crate::logging::SanitizedLog;
-use tracing::{error, info};
+use tracing::{info, warn};
 
-pub(crate) async fn view_active_validators(client: &ChainClient) {
+pub(crate) async fn view_active_validators(client: &ChainClient) -> Result<(), EldError> {
     let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
     info!(
         "Fetching active validators from {}...",
         client.config.get_node_url()
     );
 
-    match api.get_active_validators().await {
-        Ok(Some(active_validators)) => {
+    match api.get_active_validators().await? {
+        Some(active_validators) => {
             if active_validators.validators.is_empty() {
                 info!("No active validators found in the current epoch");
-                return;
+                return Ok(());
             }
 
             info!("Current Epoch: {}", active_validators.current_epoch);
@@ -42,7 +43,7 @@ pub(crate) async fn view_active_validators(client: &ChainClient) {
                         info!("  Liquid Balance: Account not found");
                     }
                     Err(e) => {
-                        error!("  Liquid Balance: Error fetching account: {}", e);
+                        warn!("  Liquid Balance: Error fetching account: {}", e);
                     }
                 }
 
@@ -51,19 +52,21 @@ pub(crate) async fn view_active_validators(client: &ChainClient) {
                     SanitizedLog::as_public_key(hex::encode(&validator.public_key))
                 );
             }
+            Ok(())
         }
-        Ok(None) => {
+        None => {
             info!("No active validators information available");
-        }
-        Err(e) => {
-            error!("Error fetching active validators: {}", e.to_string());
+            Ok(())
         }
     }
 }
 
-pub(crate) async fn view_epoch_info(client: &ChainClient) {
+pub(crate) async fn view_epoch_info(client: &ChainClient) -> Result<(), EldError> {
     let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
-    let epoch_info = api.get_epoch_info().await.unwrap().unwrap();
+    let epoch_info = api
+        .get_epoch_info()
+        .await?
+        .ok_or_else(|| ErrorBuilder::not_found_error("EpochInfo", "current"))?;
 
     info!("Current Epoch: {}", epoch_info.current_epoch);
     info!("Current Block: {}", epoch_info.current_block);
@@ -73,9 +76,10 @@ pub(crate) async fn view_epoch_info(client: &ChainClient) {
         "Blocks Until Next Epoch: {}",
         epoch_info.blocks_until_next_epoch
     );
+    Ok(())
 }
 
-pub(crate) async fn view_epoch(client: &ChainClient) {
+pub(crate) async fn view_epoch(client: &ChainClient) -> Result<(), EldError> {
     let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
 
     let epoch_info_future = api.get_epoch_info();
@@ -84,8 +88,10 @@ pub(crate) async fn view_epoch(client: &ChainClient) {
     let (epoch_info_result, active_validators_result) =
         tokio::join!(epoch_info_future, active_validators_future);
 
-    let epoch_info = epoch_info_result.unwrap().unwrap();
-    let active_validators = active_validators_result.unwrap().unwrap();
+    let epoch_info =
+        epoch_info_result?.ok_or_else(|| ErrorBuilder::not_found_error("EpochInfo", "current"))?;
+    let active_validators = active_validators_result?
+        .ok_or_else(|| ErrorBuilder::not_found_error("ActiveValidators", "current"))?;
 
     info!("╔══════════════════════════════════════════╗");
     info!("║             EPOCH INFORMATION            ║");
@@ -157,4 +163,5 @@ pub(crate) async fn view_epoch(client: &ChainClient) {
         }
     }
     info!("] {:.1}%", progress);
+    Ok(())
 }

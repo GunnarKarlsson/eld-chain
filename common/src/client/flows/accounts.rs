@@ -4,7 +4,7 @@ use crate::abci_api::AbciInfoWrapper;
 use crate::client::ChainClient;
 use crate::error::{EldError, ErrorBuilder};
 use crate::logging::{SanitizedLog, SanitizedLoggable};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 
 pub(crate) async fn display_account(client: &ChainClient, address: String) -> Result<(), EldError> {
     match client.get_account_by_address(address.clone()).await? {
@@ -23,31 +23,30 @@ pub(crate) async fn display_account(client: &ChainClient, address: String) -> Re
     }
 }
 
-pub(crate) async fn get_abci_info(client: &ChainClient) -> AbciInfoWrapper {
-    let abci_info = crate::client::query::get_abci_info(&client.config).await;
+pub(crate) async fn get_abci_info(client: &ChainClient) -> Result<AbciInfoWrapper, EldError> {
+    let abci_info = crate::client::query::get_abci_info(&client.config).await?;
     info!("{}", abci_info);
-    abci_info
+    Ok(abci_info)
 }
 
-pub(crate) async fn get_account(client: &ChainClient, address: String) {
-    match client.display_account(address.clone()).await {
-        Ok(_) => (),
-        Err(e) => error!(%e),
-    }
+pub(crate) async fn get_account(client: &ChainClient, address: String) -> Result<(), EldError> {
+    client.display_account(address).await
 }
 
-pub(crate) async fn get_staking_account(client: &ChainClient, address: String) {
-    match crate::client::query::get_staking_account(&client.config, &address).await {
-        Ok(staking_account) => {
-            if let Some(account) = staking_account {
-                info!(address = %address, "Retrieved staking account");
-                info!("staking_account: {}", account.sanitized_log());
-            } else {
-                warn!(address = %address, "Staking account not found");
-                error!(error = %(ErrorBuilder::not_found_error("Staking Account", &address)));
-            }
+pub(crate) async fn get_staking_account(
+    client: &ChainClient,
+    address: String,
+) -> Result<(), EldError> {
+    match crate::client::query::get_staking_account(&client.config, &address).await? {
+        Some(account) => {
+            info!(address = %address, "Retrieved staking account");
+            info!("staking_account: {}", account.sanitized_log());
+            Ok(())
         }
-        Err(e) => error!(%e),
+        None => {
+            warn!(address = %address, "Staking account not found");
+            Err(ErrorBuilder::not_found_error("Staking Account", &address))
+        }
     }
 }
 
@@ -68,12 +67,20 @@ pub(crate) async fn get_provider_id_for_capacity(
     Ok(wallet.address.hex_with_prefix())
 }
 
-pub(crate) async fn display_wallet_by_name(client: &ChainClient, name: String) {
+pub(crate) async fn display_wallet_by_name(
+    client: &ChainClient,
+    name: String,
+) -> Result<(), EldError> {
     if let Some(wallet) = client.get_wallet_by_name(name.clone()).await {
         info!(wallet_name = %name, "Displaying wallet");
         info!("{}", wallet.terminal_display());
+        Ok(())
     } else {
         warn!(wallet_name = %name, "Couldn't find wallet for display");
-        warn!("Couldn't find wallet");
+        Err(ErrorBuilder::wallet_error(
+            "display",
+            &name,
+            "Couldn't find wallet",
+        ))
     }
 }

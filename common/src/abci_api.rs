@@ -285,43 +285,20 @@ impl AbciHttpApi {
     pub async fn get_transactions_for_account(
         &self,
         address: String,
-    ) -> Vec<tendermint_rpc::endpoint::tx::Response> {
+    ) -> Result<Vec<tendermint_rpc::endpoint::tx::Response>, EldError> {
         // No 'OR' queries allowed by api so we do multiple queries
-        let query_create = format!("Transfer.recipient='{address}'");
-        let mut query_result = self
-            .query_node(query_create.as_str())
-            .await
-            .expect("Failed to query create transactions")
-            .txs;
-        let query_transfer = format!("Transfer.sender='{address}'");
-        let mut query_transfer_result = self
-            .query_node(query_transfer.as_str())
-            .await
-            .expect("Failed to query transfer transactions")
-            .txs;
-        let query_addmetadata = format!("AddMetadata.sender='{address}'");
-        let mut query_addmetadata_result = self
-            .query_node(query_addmetadata.as_str())
-            .await
-            .expect("Failed to query add metadata transactions")
-            .txs;
-        let query_stake = format!("Stake.sender='{address}'");
-        let mut query_stake_result = self
-            .query_node(query_stake.as_str())
-            .await
-            .expect("Failed to query stake transactions")
-            .txs;
-        let query_unstake = format!("Unstake.sender='{address}'");
-        let mut query_unstake_result = self
-            .query_node(query_unstake.as_str())
-            .await
-            .expect("Failed to query unstake transactions")
-            .txs;
-        query_result.append(&mut query_transfer_result);
-        query_result.append(&mut query_addmetadata_result);
-        query_result.append(&mut query_stake_result);
-        query_result.append(&mut query_unstake_result);
-        query_result
+        let queries = [
+            format!("Transfer.recipient='{address}'"),
+            format!("Transfer.sender='{address}'"),
+            format!("AddMetadata.sender='{address}'"),
+            format!("Stake.sender='{address}'"),
+            format!("Unstake.sender='{address}'"),
+        ];
+        let mut txs = Vec::new();
+        for query in queries {
+            txs.append(&mut self.query_node(&query).await?.txs);
+        }
+        Ok(txs)
     }
 
     pub async fn query_node(
