@@ -19,6 +19,9 @@ pub mod protocol {
 
     pub const DEFAULT_TX_FEE: u128 = 5000;
 
+    /// Native units minted to the validator set each block (local-dev).
+    pub const BLOCK_REWARD: u128 = 10;
+
     /// Native units minted to `capacity_provider` on each successful `VerifiedProof`.
     /// Must stay in sync with consensus minting in `process_verified_proof_tx`.
     pub const VERIFIED_PROOF_REWARD_BASE_AMOUNT: u128 = 1000;

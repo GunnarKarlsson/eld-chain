@@ -42,7 +42,7 @@ That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy, build,
 
 CLI/node helpers read JSON config from paths such as `config/config.json` and `wallets/wallets.json`. Those files are not shipped here. Wallet files hold unencrypted Ed25519 private keys; do not commit them.
 
-Protocol constants in `eld_common::constants::protocol` (minimum stake, validators per epoch, blocks per epoch) are local-dev values, not mainnet economics.
+Protocol constants in `eld_common::constants::protocol` (minimum stake, validators per epoch, blocks per epoch, block reward) are local-dev values, not mainnet economics.
 
 ## Usage
 

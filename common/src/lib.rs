@@ -46,7 +46,6 @@ pub mod tx;
 pub mod utils;
 pub mod validation;
 pub mod validator;
-pub mod validator_config;
 pub mod wallet;
 pub mod wallet_store_config;
 
