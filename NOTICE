@@ -1,0 +1,14 @@
+Eld chain
+Copyright (c) 2026 Eld network
+
+This product includes code adapted from:
+
+- rust-cardano (Input Output HK), MIT License
+  https://github.com/input-output-hk/rust-cardano
+  Used in `common/src/coin.rs`.
+
+- Crypto.com modifications to that Coin type, Apache License 2.0
+  Copyright (c) 2018-2020 Crypto.com
+  Used in `common/src/coin.rs`.
+
+See `common/src/coin.rs` for the original file headers.

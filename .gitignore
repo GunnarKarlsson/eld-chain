@@ -1,0 +1,16 @@
+/target
+**/*.rs.bk
+.cursor/
+.idea/
+.vscode/
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
+wallets/
+**/wallets.json
+config/config.json
+config/consensus_config.json
+TODO.md
+**/TODO.md

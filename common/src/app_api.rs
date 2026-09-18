@@ -1,0 +1,228 @@
+use crate::cado::CADOType;
+use crate::error::EldError;
+use crate::logging::{SanitizedLog, SanitizedLoggable};
+use crate::namespace_api::{NamespaceNotRegisteredResponse, NamespaceRegisteredResponse};
+use crate::pinboard_api::{PostMessageSubmitRequest, PostMessageSubmitResponse};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use tracing::{error, info, warn};
+use urlencoding::encode;
+
+/// Standardized API error response structure (matches the server-side structure)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApiErrorResponse {
+    pub code: String,
+    pub message: String,
+    pub details: Option<String>,
+    pub request_id: Option<String>,
+    pub timestamp: String,
+}
+
+/// HTTP client for the node's app REST API (content, pinboard, CADO, health).
+pub struct AppApi {
+    client: Client,
+    base_url: String,
+}
+
+impl AppApi {
+    pub fn new(base_url: String) -> Self {
+        let base_url = if base_url.ends_with('/') {
+            base_url
+        } else {
+            format!("{base_url}/")
+        };
+        let client = reqwest::ClientBuilder::new()
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(10))
+            .build()
+            .expect("Failed to create HTTP client");
+
+        Self { client, base_url }
+    }
+
+    pub async fn get_cado(&self, cado_path: String) {
+        let url = self.base_url.clone() + "cado/" + &encode(&cado_path);
+        info!("url: {}", SanitizedLog::as_path(&url));
+        let result = self.client.get(url).send().await;
+        match result {
+            Ok(response) => {
+                let option_cadotype = response
+                    .json::<Option<CADOType>>()
+                    .await
+                    .expect("can parse cadotype");
+                match option_cadotype {
+                    Some(cado_type) => match cado_type {
+                        CADOType::Immutable(cado) => {
+                            info!("cado: {}", cado.metadata().sanitized_log())
+                        }
+                        CADOType::Mutable(cado_mut) => {
+                            info!("cado_mut: {}", cado_mut.metadata().sanitized_log())
+                        }
+                    },
+                    None => info!("No cado found"),
+                }
+            }
+            Err(e) => error!("Error fetching cado: {}", e.to_string()),
+        }
+    }
+
+    /// Submit a user-signed pinboard message; the node validates and broadcasts `PostMessage` tx.
+    pub async fn submit_pinboard_message(
+        &self,
+        request: PostMessageSubmitRequest,
+    ) -> Result<PostMessageSubmitResponse, EldError> {
+        let url = format!("{}v1/pinboard/messages:submit", self.base_url);
+        info!("Submitting pinboard message to Node...");
+
+        let response = self
+            .client
+            .post(&url)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| EldError::NetworkError {
+                operation: "submit pinboard message".to_string(),
+                details: e.to_string(),
+            })?;
+
+        let status = response.status();
+        if status.is_success() {
+            response
+                .json()
+                .await
+                .map_err(|e| EldError::ValidationError {
+                    field: "response".to_string(),
+                    value: "pinboard submit response".to_string(),
+                    details: e.to_string(),
+                })
+        } else {
+            let error_text = response.text().await.map_err(|e| EldError::NetworkError {
+                operation: "read pinboard error response".to_string(),
+                details: e.to_string(),
+            })?;
+
+            if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
+                let error_msg = if let Some(details) = error_response.details {
+                    format!(
+                        "{}: {} (Details: {})",
+                        error_response.code, error_response.message, details
+                    )
+                } else {
+                    format!("{}: {}", error_response.code, error_response.message)
+                };
+                return Err(EldError::NetworkError {
+                    operation: "submit pinboard message".to_string(),
+                    details: error_msg,
+                });
+            }
+
+            Err(EldError::NetworkError {
+                operation: "submit pinboard message".to_string(),
+                details: format!("Pinboard submit failed with status {status}: {error_text}"),
+            })
+        }
+    }
+
+    /// Look up a namespace slug. Returns `Ok(Some(_))` when registered (HTTP 200),
+    /// `Ok(None)` when not registered (HTTP 404), or an error for other failures.
+    pub async fn get_namespace(
+        &self,
+        namespace_slug: &str,
+    ) -> Result<Option<NamespaceRegisteredResponse>, EldError> {
+        let url = format!(
+            "{}v1/namespace/{}",
+            self.base_url,
+            encode(namespace_slug).into_owned()
+        );
+        info!(
+            "Querying namespace registry for {}",
+            SanitizedLog::new(namespace_slug)
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| EldError::NetworkError {
+                operation: "get namespace".to_string(),
+                details: e.to_string(),
+            })?;
+
+        let status = response.status();
+        if status.is_success() {
+            return response
+                .json::<NamespaceRegisteredResponse>()
+                .await
+                .map(Some)
+                .map_err(|e| EldError::ValidationError {
+                    field: "response".to_string(),
+                    value: "namespace lookup response".to_string(),
+                    details: e.to_string(),
+                });
+        }
+
+        if status == reqwest::StatusCode::NOT_FOUND {
+            let _not_registered: NamespaceNotRegisteredResponse =
+                response
+                    .json()
+                    .await
+                    .map_err(|e| EldError::ValidationError {
+                        field: "response".to_string(),
+                        value: "namespace not registered response".to_string(),
+                        details: e.to_string(),
+                    })?;
+            return Ok(None);
+        }
+
+        let error_text = response.text().await.map_err(|e| EldError::NetworkError {
+            operation: "read namespace error response".to_string(),
+            details: e.to_string(),
+        })?;
+
+        if let Ok(error_response) = serde_json::from_str::<ApiErrorResponse>(&error_text) {
+            let error_msg = if let Some(details) = error_response.details {
+                format!(
+                    "{}: {} (Details: {})",
+                    error_response.code, error_response.message, details
+                )
+            } else {
+                format!("{}: {}", error_response.code, error_response.message)
+            };
+            return Err(EldError::NetworkError {
+                operation: "get namespace".to_string(),
+                details: error_msg,
+            });
+        }
+
+        Err(EldError::NetworkError {
+            operation: "get namespace".to_string(),
+            details: format!("Namespace lookup failed with status {status}: {error_text}"),
+        })
+    }
+
+    /// Check if the app API is healthy
+    pub async fn health_check(&self) -> Result<bool, EldError> {
+        let url = self.base_url.clone();
+
+        match self.client.get(&url).send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    let body = response.text().await.map_err(|e| EldError::NetworkError {
+                        operation: "read health check response".to_string(),
+                        details: e.to_string(),
+                    })?;
+                    Ok(body.trim() == "OK")
+                } else {
+                    warn!("Health check failed with status: {}", response.status());
+                    Ok(false)
+                }
+            }
+            Err(e) => {
+                error!("Health check failed: {}", SanitizedLog::new(e.to_string()));
+                Ok(false)
+            }
+        }
+    }
+}

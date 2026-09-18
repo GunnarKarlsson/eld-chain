@@ -1,0 +1,41 @@
+[package]
+name = "eld_common"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Shared types, transaction wire format, validation, and client helpers for Eld"
+publish = false
+
+[dependencies]
+num-traits = "0.2"
+anyhow = "1.0.95"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.137"
+tendermint = "0.40.0"
+tendermint-rpc = { version = "0.40.0", features = ["cli"] }
+tokio = {"version"= "1.43", features=["full"] }
+ed25519-dalek = { version = "2.2.0", features = ["pem","pkcs8"] }
+base64 = "0.22.1"
+bincode = "1.3.3"
+serde-big-array = "0.5.1"
+abci-rs = { version = "0.11.3"}
+parity-scale-codec = { features = ["derive"], version = "1.3" }
+static_assertions = "1.1.0"
+byteorder = "1.5.0"
+hex = { version = "0.4.3", features = ["serde"] }
+log = "0.4.26"
+simplelog = "0.12.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "time", "json"] }
+tracing-appender = "0.2"
+rand = "0.9.0"
+sha2 = "0.10.8"
+blake3 = "1.5"
+reqwest = { version = "0.12.12", features = ["json"]}
+serde_with = { version = "3.12.0", features = ["hex"] }
+async-trait = "0.1.77"
+url = "2.5.4"
+urlencoding = "2.1.3"
+
+[dev-dependencies]
+tempfile = "3.10.0"
