@@ -41,7 +41,7 @@ pub async fn get_staking_account(
 
 pub async fn get_next_nonce_for_account(config: &CliConfig, address: String) -> Option<Nonce> {
     match get_account_by_address(config, address.clone()).await {
-        Ok(Some(account)) => Some(account.nonce().next()),
+        Ok(Some(account)) => account.nonce().next(),
         Ok(None) | Err(_) => None,
     }
 }
@@ -80,7 +80,7 @@ pub async fn get_next_nonce_for_account_cado(config: &CliConfig, address: String
                             .collect();
 
                         if let Ok(account) = Account::deserialize_bin(&data_bytes) {
-                            return Some(account.nonce().next());
+                            return account.nonce().next();
                         }
                     }
                 }
