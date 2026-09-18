@@ -4,7 +4,9 @@
 
 Do not open a public issue for key material or live-network impact.
 
-Once this repository is on GitHub, report consensus, transaction, wallet, or capacity-proof bugs through GitHub Security Advisories. Until then, report privately to the Eld network maintainers.
+Report consensus, transaction, wallet, or capacity-proof bugs through [GitHub Security Advisories](https://github.com/eldnetwork/eld-chain/security/advisories/new).
+
+You can also email [gunnar.h.karlsson@gmail.com](mailto:gunnar.h.karlsson@gmail.com).
 
 ## Wallets
 
