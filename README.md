@@ -60,4 +60,6 @@ let address = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678
 
 ## License
 
-MIT. Copyright Eld network. Third-party notices are in [NOTICE](NOTICE).
+MIT. Copyright Eld network.
+
+`common/src/coin.rs` is adapted from IOHK rust-cardano (MIT) and Crypto.com (Apache-2.0). See [NOTICE](NOTICE) and the file header. This crate does not ship CosmWasm / CW20 bytecode.
