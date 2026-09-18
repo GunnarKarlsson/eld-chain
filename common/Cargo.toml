@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Shared types, transaction wire format, validation, and client helpers for Eld"
+repository = "https://github.com/eldnetwork/eld-chain"
+homepage = "https://github.com/eldnetwork/eld-chain"
 publish = false
 
 [dependencies]
