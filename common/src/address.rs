@@ -233,13 +233,8 @@ mod tests {
 
     #[test]
     fn test_derive_pubk_and_address() {
-        let pk_hex = "f48fcb2922784d0390cebc129d9a726ebb875eba131c0bc4d705627dc1a58698";
-        let pk: [u8; PublicKey::LEN] = hex::decode(pk_hex)
-            .expect("can decode hex")
-            .try_into()
-            .map_err(|_| format!("Private key must be {} bytes", PublicKey::LEN))
-            .expect("can convert bytes into public key array");
-        let signing_key = SigningKey::from_bytes(&pk); // Construct SigningKey
+        // Documented throwaway seed (all 0x02). Not a live-network key.
+        let signing_key = SigningKey::from_bytes(&[0x02u8; PublicKey::LEN]);
         let verifying_key = signing_key.verifying_key();
         let _address = Address::from_public_key(&verifying_key).expect("Address from pubk");
         let _wallet = Wallet::from_signing_key("wallet1".into(), signing_key.clone());

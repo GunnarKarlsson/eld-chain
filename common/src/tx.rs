@@ -1843,19 +1843,14 @@ mod tests {
 
     use super::*;
 
+    /// Documented throwaway seed (all 0x01). Not a live-network key.
+    fn throwaway_signing_key() -> SigningKey {
+        SigningKey::from_bytes(&[1u8; 32])
+    }
+
     #[test]
     fn test_tx_with_transfer_sign_verify() {
-        let secret_bytes = [
-            184, 23, 137, 134, 250, 123, 19, 125, 107, 168, 117, 168, 205, 21, 219, 239, 221, 49,
-            150, 157, 155, 28, 30, 101, 120, 166, 23, 166, 126, 171, 152, 206, 190, 210, 254, 163,
-            46, 119, 115, 151, 69, 17, 11, 15, 20, 167, 75, 189, 148, 79, 216, 64, 254, 239, 40,
-            72, 28, 103, 23, 74, 216, 118, 108, 34,
-        ];
-        let signing_key = SigningKey::from_bytes(
-            &secret_bytes[..32]
-                .try_into()
-                .expect("Failed to convert secret bytes to array"),
-        );
+        let signing_key = throwaway_signing_key();
         let verifying_key = signing_key.verifying_key();
         let sender = Address::from_public_key(&verifying_key)
             .expect("Failed to derive address from public key in test");
@@ -1897,17 +1892,7 @@ mod tests {
     #[test]
     fn test_transfer_tx_hex_json_serialization() {
         // Create a signing key for testing using known test bytes
-        let secret_bytes = [
-            184, 23, 137, 134, 250, 123, 19, 125, 107, 168, 117, 168, 205, 21, 219, 239, 221, 49,
-            150, 157, 155, 28, 30, 101, 120, 166, 23, 166, 126, 171, 152, 206, 190, 210, 254, 163,
-            46, 119, 115, 151, 69, 17, 11, 15, 20, 167, 75, 189, 148, 79, 216, 64, 254, 239, 40,
-            72, 28, 103, 23, 74, 216, 118, 108, 34,
-        ];
-        let signing_key = SigningKey::from_bytes(
-            &secret_bytes[..32]
-                .try_into()
-                .expect("Failed to convert secret bytes to array in test"),
-        );
+        let signing_key = throwaway_signing_key();
         let verifying_key = signing_key.verifying_key();
         let sender = Address::from_public_key(&verifying_key)
             .expect("Failed to derive address from public key in test");
@@ -1984,17 +1969,7 @@ mod tests {
     #[test]
     fn test_stake_tx_hex_json_serialization() {
         // Create a signing key for testing using known test bytes
-        let secret_bytes = [
-            184, 23, 137, 134, 250, 123, 19, 125, 107, 168, 117, 168, 205, 21, 219, 239, 221, 49,
-            150, 157, 155, 28, 30, 101, 120, 166, 23, 166, 126, 171, 152, 206, 190, 210, 254, 163,
-            46, 119, 115, 151, 69, 17, 11, 15, 20, 167, 75, 189, 148, 79, 216, 64, 254, 239, 40,
-            72, 28, 103, 23, 74, 216, 118, 108, 34,
-        ];
-        let signing_key = SigningKey::from_bytes(
-            &secret_bytes[..32]
-                .try_into()
-                .expect("Failed to convert secret bytes to array in test"),
-        );
+        let signing_key = throwaway_signing_key();
         let verifying_key = signing_key.verifying_key();
         let sender = Address::from_public_key(&verifying_key)
             .expect("Failed to derive address from public key in test");
@@ -2071,17 +2046,7 @@ mod tests {
     #[test]
     fn test_unstake_tx_hex_json_serialization() {
         // Create a signing key for testing using known test bytes
-        let secret_bytes = [
-            184, 23, 137, 134, 250, 123, 19, 125, 107, 168, 117, 168, 205, 21, 219, 239, 221, 49,
-            150, 157, 155, 28, 30, 101, 120, 166, 23, 166, 126, 171, 152, 206, 190, 210, 254, 163,
-            46, 119, 115, 151, 69, 17, 11, 15, 20, 167, 75, 189, 148, 79, 216, 64, 254, 239, 40,
-            72, 28, 103, 23, 74, 216, 118, 108, 34,
-        ];
-        let signing_key = SigningKey::from_bytes(
-            &secret_bytes[..32]
-                .try_into()
-                .expect("Failed to convert secret bytes to array in test"),
-        );
+        let signing_key = throwaway_signing_key();
         let verifying_key = signing_key.verifying_key();
         let sender = Address::from_public_key(&verifying_key)
             .expect("Failed to derive address from public key in test");
@@ -2149,15 +2114,7 @@ mod tests {
 
     #[test]
     fn test_chain_id_verification() {
-        let secret_bytes = [
-            184, 23, 137, 134, 250, 123, 19, 125, 107, 168, 117, 168, 205, 21, 219, 239, 221, 49,
-            150, 157, 155, 28, 30, 101, 120, 166, 23, 166, 126, 171, 152, 206,
-        ];
-        let signing_key = SigningKey::from_bytes(
-            &secret_bytes[..32]
-                .try_into()
-                .expect("Failed to convert secret bytes to array"),
-        );
+        let signing_key = throwaway_signing_key();
         let verifying_key = signing_key.verifying_key();
         let sender = Address::from_public_key(&verifying_key)
             .expect("Failed to derive address from public key in test");
@@ -2405,17 +2362,7 @@ mod tests {
 
     #[test]
     fn test_add_namespace_tx_sign_verify_hex_json() {
-        let secret_bytes = [
-            184, 23, 137, 134, 250, 123, 19, 125, 107, 168, 117, 168, 205, 21, 219, 239, 221, 49,
-            150, 157, 155, 28, 30, 101, 120, 166, 23, 166, 126, 171, 152, 206, 190, 210, 254, 163,
-            46, 119, 115, 151, 69, 17, 11, 15, 20, 167, 75, 189, 148, 79, 216, 64, 254, 239, 40,
-            72, 28, 103, 23, 74, 216, 118, 108, 34,
-        ];
-        let signing_key = SigningKey::from_bytes(
-            &secret_bytes[..32]
-                .try_into()
-                .expect("Failed to convert secret bytes to array in test"),
-        );
+        let signing_key = throwaway_signing_key();
         let verifying_key = signing_key.verifying_key();
         let sender = Address::from_public_key(&verifying_key)
             .expect("Failed to derive address from public key in test");

@@ -518,14 +518,13 @@ mod tests {
 
     #[test]
     fn validation_error_redacts_private_key_field() {
-        let err = EldError::make_validation_error(
-            "private_key",
-            "1118b5a7a442926ec901c5f12b20c7f883ca2de8bf9ad8555e39e26f5e4e70ad",
-            "invalid",
-        );
+        // Documented throwaway hex (repeating 0x01). Not a live-network key.
+        const THROWAWAY_SEED_HEX: &str =
+            "0101010101010101010101010101010101010101010101010101010101010101";
+        let err = EldError::make_validation_error("private_key", THROWAWAY_SEED_HEX, "invalid");
         let msg = err.to_string();
 
-        assert!(!msg.contains("1118b5a7"));
+        assert!(!msg.contains("01010101"));
         assert!(msg.contains(REDACTED_VALIDATION_VALUE));
     }
 }
