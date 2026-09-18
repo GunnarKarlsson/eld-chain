@@ -11,9 +11,7 @@ use std::path::Path;
 /// Error handling strategy for configuration loading
 #[derive(Debug, Clone, Copy)]
 pub enum ErrorStrategy {
-    /// Exit the process on error (for CLI applications)
-    ExitOnError,
-    /// Return Result on error (for library usage)
+    /// Return Result on error (for library and CLI usage)
     ReturnError,
     /// Panic on error (for tests)
     PanicOnError,
@@ -92,18 +90,18 @@ impl ConfigLoader {
         Ok(config)
     }
 
-    /// Load configuration with CLI-specific error handling (exits on error)
-    pub fn load_for_cli<T>(file_path: &str) -> T
+    /// Load configuration from a file. Callers (including the CLI) handle the error.
+    pub fn load_for_cli<T>(file_path: &str) -> Result<T, EldError>
     where
         T: DeserializeOwned + ConfigValidator,
     {
         let options = ConfigLoadOptions {
-            error_strategy: ErrorStrategy::ExitOnError,
+            error_strategy: ErrorStrategy::ReturnError,
             validate: true,
             error_context: Some("CLI configuration".to_string()),
         };
 
-        Self::load(file_path, options).unwrap_or_else(|_| std::process::exit(1))
+        Self::load(file_path, options)
     }
 
     /// Load configuration with library-specific error handling (returns Result)
@@ -159,12 +157,7 @@ impl ConfigLoader {
     /// Handle errors according to the specified strategy
     fn handle_error(error_msg: &str, strategy: ErrorStrategy) {
         match strategy {
-            ErrorStrategy::ExitOnError => {
-                tracing::error!("Configuration loading failed: {}", error_msg);
-                std::process::exit(1);
-            }
             ErrorStrategy::ReturnError => {
-                // Error is already returned as Result, just log it
                 tracing::error!("Configuration loading failed: {}", error_msg);
             }
             ErrorStrategy::PanicOnError => {
@@ -183,8 +176,8 @@ pub trait ConfigValidator {
 
 /// Helper trait for configuration types that can be loaded from file
 pub trait ConfigLoadable: DeserializeOwned + ConfigValidator {
-    /// Load configuration from file with CLI error handling
-    fn from_file(file: &str) -> Self {
+    /// Load configuration from file
+    fn from_file(file: &str) -> Result<Self, EldError> {
         ConfigLoader::load_for_cli(file)
     }
 
@@ -267,6 +260,12 @@ mod tests {
     #[test]
     fn test_load_nonexistent_file() {
         let result: Result<TestConfig, EldError> = ConfigLoader::load_secure("nonexistent.json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_for_cli_returns_err_when_file_missing() {
+        let result: Result<TestConfig, EldError> = ConfigLoader::load_for_cli("nonexistent.json");
         assert!(result.is_err());
     }
 

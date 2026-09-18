@@ -10,7 +10,7 @@ This workspace currently has one crate, `eld_common`. The node, CLI, and contrac
 
 The JSON transaction signing encoding (`serde_json` of the tx plus `chain_id`) is the current client/node wire format, not a frozen spec. A later canonical encoding would be a breaking change.
 
-HTTP RPC helpers, CLI command flows, process-wide logging setup, config loaders that read `config/*.json` from the working directory, and on-disk capacity slot files are local operator/node code. They live in this crate today because the node and CLI are not here yet. They are not a frozen public API. A library function should not call `std::process::exit`; that will move to the CLI. CosmWasm / on-chain contract execution is not part of this crate.
+HTTP RPC helpers, CLI command flows, process-wide logging setup, config loaders that read `config/*.json` from the working directory, and on-disk capacity slot files are local operator/node code. They live in this crate today because the node and CLI are not here yet. They are not a frozen public API. Config loaders return `Result`; the CLI can exit after it sees an error. CosmWasm / on-chain contract execution is not part of this crate.
 
 Intended split once sibling crates exist:
 

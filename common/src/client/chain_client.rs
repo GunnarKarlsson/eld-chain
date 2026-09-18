@@ -21,15 +21,15 @@ pub struct ChainClient {
 }
 
 impl ChainClient {
-    pub fn new(config: CliConfig) -> Self {
-        let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH);
+    pub fn new(config: CliConfig) -> Result<Self, EldError> {
+        let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH)?;
         let fee_config = consensus_config.fee_config;
 
-        Self {
+        Ok(Self {
             config,
             fee_config,
             wallet_store: None,
-        }
+        })
     }
 
     /// Creates a client with wallets loaded from `wallet_path` via [`WalletStoreConfig`].
@@ -37,7 +37,7 @@ impl ChainClient {
         config: CliConfig,
         wallet_path: impl AsRef<Path>,
     ) -> Result<Self, EldError> {
-        let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH);
+        let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH)?;
         let fee_config = consensus_config.fee_config;
 
         Ok(Self {

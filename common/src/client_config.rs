@@ -20,7 +20,7 @@ pub struct ConsensusConfig {
 pub use crate::fee::FeeConfig;
 
 impl ConsensusConfig {
-    pub fn from_file(file: &str) -> Self {
+    pub fn from_file(file: &str) -> Result<Self, crate::error::EldError> {
         crate::config_loader::ConfigLoader::load_for_cli(file)
     }
 
@@ -87,7 +87,7 @@ pub struct CliConfig {
 }
 
 impl CliConfig {
-    pub fn from_file(file: &str) -> Self {
+    pub fn from_file(file: &str) -> Result<Self, crate::error::EldError> {
         crate::config_loader::ConfigLoader::load_for_cli(file)
     }
 
@@ -158,26 +158,22 @@ impl crate::config_loader::ConfigValidator for CliConfig {
 
 impl crate::config_loader::ConfigLoadable for CliConfig {}
 
-pub fn get_config() -> CliConfig {
-    let mut config = CliConfig::from_file(DEFAULT_CONFIG_PATH);
-    let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH);
-    config.chain_id = consensus_config.chain_id;
-    if config.chain_id.is_empty() {
-        error!("Chain ID cannot be empty");
-        panic!("The config chain_id is empty");
-    }
-    config
+pub fn get_config() -> Result<CliConfig, crate::error::EldError> {
+    get_config_from_arg(DEFAULT_CONFIG_PATH)
 }
 
-pub fn get_config_from_arg(config_path: &str) -> CliConfig {
-    let mut config = CliConfig::from_file(config_path);
-    let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH);
+pub fn get_config_from_arg(config_path: &str) -> Result<CliConfig, crate::error::EldError> {
+    let mut config = CliConfig::from_file(config_path)?;
+    let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH)?;
     config.chain_id = consensus_config.chain_id;
     if config.chain_id.is_empty() {
-        error!("Chain ID cannot be empty");
-        panic!("The config chain_id is empty");
+        return Err(crate::error::EldError::make_validation_error(
+            "chain_id",
+            "empty",
+            "Chain ID cannot be empty",
+        ));
     }
-    config
+    Ok(config)
 }
 
 #[cfg(test)]
@@ -444,7 +440,7 @@ mod tests {
         );
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, valid_config).unwrap();
-        let config = ConsensusConfig::from_file(temp_file.path().to_str().unwrap());
+        let config = ConsensusConfig::from_file(temp_file.path().to_str().unwrap()).unwrap();
         assert_eq!(config.chain_id, MOCK_CHAIN_ID);
         assert_eq!(config.fee_config.base_fee, 1000);
         assert_eq!(config.fee_config.transfer_multiplier, 1.0);
@@ -494,6 +490,18 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, invalid_config).unwrap();
         ConsensusConfig::from_file_for_test(temp_file.path().to_str().unwrap());
+    }
+
+    #[test]
+    fn test_cli_config_from_file_returns_err_when_missing() {
+        let result = CliConfig::from_file("/nonexistent/eld-chain-config.json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_config_from_arg_returns_err_when_missing() {
+        let result = get_config_from_arg("/nonexistent/eld-chain-config.json");
+        assert!(result.is_err());
     }
 
     #[test]
