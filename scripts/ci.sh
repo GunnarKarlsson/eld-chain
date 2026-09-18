@@ -7,6 +7,10 @@ step() {
   printf '\n==> %s\n' "$1"
 }
 
+# Workspace crates deny rustc warnings via [workspace.lints.rust] (`warnings = "deny"`).
+# Clippy also gets `-D warnings` so Clippy lints cannot stay warn-level.
+# Do not set RUSTFLAGS=-D warnings here: that fails on third-party crates too.
+
 step "cargo fmt --all -- --check"
 cargo fmt --all -- --check
 

@@ -2,3 +2,6 @@
 resolver = "2"
 members = ["common"]
 default-members = ["common"]
+
+[workspace.lints.rust]
+warnings = "deny"

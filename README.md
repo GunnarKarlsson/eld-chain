@@ -25,7 +25,7 @@ Rust 1.88.0 (see `rust-toolchain.toml`). Install [gitleaks](https://github.com/g
 ./scripts/ci.sh
 ```
 
-That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy (`-D warnings`), build, test, and gitleaks.
+That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy, build, test, and gitleaks. Rustc and Clippy warnings are treated as errors.
 
 ## Configuration
 

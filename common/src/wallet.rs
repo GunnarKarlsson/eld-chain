@@ -173,7 +173,6 @@ impl Wallet {
     }
 
     /// Validator-signed outer [`Tx`] wrapping [`crate::tx::PostMessageTx`] (submission to chain).
-    #[allow(clippy::too_many_arguments)]
     pub fn sign_post_message_chain_tx(
         &self,
         message_bytes: &[u8],

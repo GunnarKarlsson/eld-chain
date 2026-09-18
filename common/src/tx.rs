@@ -817,6 +817,7 @@ impl TryFrom<PostMessageTxUnchecked> for PostMessageTx {
 }
 
 impl PostMessageTx {
+    /// Field list matches the wire payload; a params struct would be an extra public type.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         sender: Address,
@@ -1202,6 +1203,7 @@ impl VerifiedProofTx {
     ///
     /// `proofs` / `provider_pubkey` / `provider_signature` / `generated_at` are the same fields the
     /// CP puts on a signed P2P `CapacityChallengeResponse` (verified again in consensus).
+    /// Field list matches that wire payload.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         sender: Address,

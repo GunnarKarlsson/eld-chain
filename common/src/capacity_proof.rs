@@ -93,6 +93,7 @@ pub fn sign_capacity_challenge_response(
 }
 
 /// Verifies the provider signature on a P2P capacity challenge response.
+/// Arguments match the signed P2P response fields; grouping them would hide that wire shape.
 #[allow(clippy::too_many_arguments)]
 pub fn verify_capacity_challenge_response(
     challenge_id: &str,
