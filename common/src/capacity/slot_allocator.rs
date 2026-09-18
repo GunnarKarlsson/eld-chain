@@ -426,7 +426,7 @@ impl SlotAllocator {
             use std::process::Command;
             if let Some(capacity_file_str) = self.capacity_file.to_str() {
                 let _ = Command::new("chattr")
-                    .args(&["-i", capacity_file_str])
+                    .args(["-i", capacity_file_str])
                     .output();
             }
         }
