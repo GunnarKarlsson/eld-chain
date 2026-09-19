@@ -1,129 +1,27 @@
-//! # Logging Module
+//! Console logging via `tracing`, plus helpers to redact sensitive values in log fields.
 //!
-//! This module provides centralized logging configuration for the Eld blockchain system
-//! using the `tracing` framework for structured logging.
+//! `init_default_logging` installs a stderr subscriber. Level defaults to `eld=info` unless
+//! `RUST_LOG` is set. There is no JSON formatter, log file, or rotation.
 
 use crate::error::EldError;
 use std::fmt;
-use std::path::PathBuf;
-use tracing::Level;
 use tracing_subscriber::{fmt::time::UtcTime, prelude::*, EnvFilter};
 
-/// Logging format options
-#[derive(Debug, Clone, Copy)]
-pub enum LogFormat {
-    /// Human-readable format for development
-    Human,
-    /// JSON format for production and log aggregation
-    Json,
-}
+/// Initialize stderr logging for node/CLI/faucet binaries.
+pub fn init_default_logging() -> Result<(), EldError> {
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("eld=info"));
 
-/// Log rotation configuration
-#[derive(Debug, Clone)]
-pub struct LogRotation {
-    /// Maximum file size in bytes before rotation
-    pub max_size: usize,
-    /// Maximum number of files to keep
-    pub max_files: usize,
-    /// Whether to compress old log files
-    pub compress: bool,
-}
-
-impl Default for LogRotation {
-    fn default() -> Self {
-        Self {
-            max_size: 100 * 1024 * 1024, // 100MB
-            max_files: 10,
-            compress: true,
-        }
-    }
-}
-
-/// Centralized logging configuration
-#[derive(Debug, Clone)]
-pub struct LoggingConfig {
-    /// Log level for the application
-    pub level: Level,
-    /// Optional log file path for file-based logging
-    pub log_file: Option<PathBuf>,
-    /// Log rotation configuration
-    pub rotation: LogRotation,
-    /// Log format (human-readable or JSON)
-    pub format: LogFormat,
-    /// Whether to enable console output
-    pub console_output: bool,
-    /// Whether to show file paths in logs
-    pub show_file: bool,
-    /// Whether to show line numbers in logs
-    pub show_line_number: bool,
-    /// Whether to show target (module path) in logs
-    pub show_target: bool,
-}
-
-impl Default for LoggingConfig {
-    fn default() -> Self {
-        Self {
-            level: Level::INFO,
-            log_file: None,
-            rotation: LogRotation::default(),
-            console_output: true,
-            format: LogFormat::Human,
-            show_file: false,
-            show_line_number: false,
-            show_target: false,
-        }
-    }
-}
-
-/// Structured logging categories for different components
-#[derive(Debug, Clone, Copy)]
-pub enum LogCategory {
-    Consensus,
-    Storage,
-    Network,
-    Validation,
-    Transaction,
-    Device,
-    CLI,
-    API,
-    General,
-}
-
-impl std::fmt::Display for LogCategory {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LogCategory::Consensus => write!(f, "consensus"),
-            LogCategory::Storage => write!(f, "storage"),
-            LogCategory::Network => write!(f, "network"),
-            LogCategory::Validation => write!(f, "validation"),
-            LogCategory::Transaction => write!(f, "transaction"),
-            LogCategory::Device => write!(f, "device"),
-            LogCategory::CLI => write!(f, "cli"),
-            LogCategory::API => write!(f, "api"),
-            LogCategory::General => write!(f, "general"),
-        }
-    }
-}
-
-/// Initialize the logging system with the given configuration
-pub fn init_logging(config: &LoggingConfig) -> Result<(), EldError> {
-    // Create environment filter
-    // Create environment filter
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(format!("eld={}", config.level)));
-
-    // Create the subscriber builder
     let subscriber = tracing_subscriber::registry().with(env_filter).with(
         tracing_subscriber::fmt::layer()
             .with_timer(UtcTime::rfc_3339())
-            .with_target(config.show_target)
+            .with_target(false)
             .with_thread_ids(true)
             .with_thread_names(true)
-            .with_file(config.show_file)
-            .with_line_number(config.show_line_number),
+            .with_file(false)
+            .with_line_number(false),
     );
 
-    // Set the global default subscriber
     tracing::subscriber::set_global_default(subscriber).map_err(|e| {
         EldError::InitializationError {
             component: "logging system".to_string(),
@@ -131,51 +29,9 @@ pub fn init_logging(config: &LoggingConfig) -> Result<(), EldError> {
         }
     })?;
 
-    tracing::info!(
-        level = %config.level,
-        format = ?config.format,
-        console_output = config.console_output,
-        log_file = ?config.log_file,
-        "Logging system initialized"
-    );
+    tracing::info!("Logging system initialized");
 
     Ok(())
-}
-
-/// Initialize logging with default configuration
-pub fn init_default_logging() -> Result<(), EldError> {
-    let config = LoggingConfig::default();
-    init_logging(&config)
-}
-
-/// Initialize logging for development environment
-pub fn init_dev_logging() -> Result<(), EldError> {
-    let config = LoggingConfig {
-        level: Level::DEBUG,
-        format: LogFormat::Human,
-        console_output: true,
-        log_file: None,
-        rotation: LogRotation::default(),
-        show_file: true,
-        show_line_number: true,
-        show_target: true,
-    };
-    init_logging(&config)
-}
-
-/// Initialize logging for production environment
-pub fn init_prod_logging(log_file: Option<PathBuf>) -> Result<(), EldError> {
-    let config = LoggingConfig {
-        level: Level::INFO,
-        format: LogFormat::Json,
-        console_output: false,
-        log_file,
-        rotation: LogRotation::default(),
-        show_file: false,
-        show_line_number: false,
-        show_target: false,
-    };
-    init_logging(&config)
 }
 
 /// Sanitizes sensitive data for logging by truncating or masking sensitive information
@@ -357,32 +213,6 @@ mod tests {
 
     /// Example home config path for path-sanitizer tests (not a real on-disk location).
     const EXAMPLE_USER_CONFIG_PATH: &str = "/home/user/.eld/config.json";
-
-    #[test]
-    fn test_log_category_display() {
-        assert_eq!(LogCategory::Consensus.to_string(), "consensus");
-        assert_eq!(LogCategory::Storage.to_string(), "storage");
-        assert_eq!(LogCategory::Transaction.to_string(), "transaction");
-    }
-
-    #[test]
-    fn test_default_logging_config() {
-        let config = LoggingConfig::default();
-        assert_eq!(config.level, Level::INFO);
-        assert!(config.console_output);
-        assert!(config.log_file.is_none());
-        assert!(!config.show_file);
-        assert!(!config.show_line_number);
-        assert!(!config.show_target);
-    }
-
-    #[test]
-    fn test_default_log_rotation() {
-        let rotation = LogRotation::default();
-        assert_eq!(rotation.max_size, 100 * 1024 * 1024);
-        assert_eq!(rotation.max_files, 10);
-        assert!(rotation.compress);
-    }
 
     #[test]
     fn test_sanitize_cado_key() {
