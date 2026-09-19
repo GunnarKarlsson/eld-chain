@@ -1,6 +1,7 @@
 //! Canonical Ed25519 verifying key for on-chain capacity-validator registry entries.
 
 use crate::error::EldError;
+use crate::hex_encoding::decode_fixed_hex;
 use crate::tx::TxPublicKey;
 use ed25519_dalek::VerifyingKey;
 use serde::de::{Error, Visitor};
@@ -31,27 +32,9 @@ impl PublicKey {
         Ok(Self { bytes })
     }
 
-    /// Parses a hex-encoded Ed25519 public key (optional `0x` prefix).
+    /// Parses a hex-encoded Ed25519 public key (optional `0x` / `0X` prefix).
     pub fn from_hex(hex_str: &str) -> Result<Self, EldError> {
-        let cleaned = hex_str.strip_prefix("0x").unwrap_or(hex_str);
-        let decoded = hex::decode(cleaned).map_err(|e| EldError::ValidationError {
-            field: "public_key".to_string(),
-            value: hex_str.to_string(),
-            details: format!("invalid public_key hex: {e}"),
-        })?;
-        let array: [u8; 32] =
-            decoded
-                .as_slice()
-                .try_into()
-                .map_err(|_| EldError::ValidationError {
-                    field: "public_key".to_string(),
-                    value: hex_str.to_string(),
-                    details: format!(
-                        "invalid public_key length: {}, expected {}",
-                        decoded.len(),
-                        Self::LEN
-                    ),
-                })?;
+        let array = decode_fixed_hex::<{ Self::LEN }>(hex_str, "public_key")?;
         Self::new(array)
     }
 

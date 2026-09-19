@@ -3,6 +3,7 @@
 //! See `TYPE_DESIGN.md` at the workspace root for ID representation conventions.
 
 use crate::error::EldError;
+use crate::hex_encoding::decode_fixed_hex;
 use hex;
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -10,7 +11,10 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
-/// Manifest identifier: `0x` + 64 lowercase hex digits on the wire; 32 raw bytes inside.
+/// Manifest identifier: 32 raw bytes inside.
+///
+/// Parsing accepts an optional `0x` / `0X` prefix. Canonical [`fmt::Display`] / serde output is
+/// `0x` + 64 lowercase hex digits so existing clients keep the same wire form.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ManifestId {
     bytes: [u8; Self::LEN],
@@ -26,48 +30,16 @@ impl ManifestId {
         Self { bytes }
     }
 
-    /// Parses `0x` followed by 64 hexadecimal digits (case-insensitive). Canonical [`fmt::Display`] output is lowercase.
+    /// Parses 64 hexadecimal digits (case-insensitive). Optional `0x` / `0X` prefix is accepted.
     ///
+    /// Canonical [`fmt::Display`] output is `0x` + lowercase.
     /// Prefer [`str::parse`] or [`FromStr::from_str`].
     ///
     /// # Errors
     ///
     /// Returns [`EldError::ValidationError`] if the string is not valid manifest-id hex.
     pub fn parse_hex(s: &str) -> Result<Self, EldError> {
-        if !s.starts_with("0x") {
-            return Err(EldError::ValidationError {
-                field: "manifest ID".to_string(),
-                value: s.to_string(),
-                details: "Manifest ID must start with 0x".to_string(),
-            });
-        }
-        let hex_str = &s[2..];
-        if hex_str.is_empty() {
-            return Err(EldError::ValidationError {
-                field: "manifest ID".to_string(),
-                value: s.to_string(),
-                details: "Manifest ID cannot be empty after 0x prefix".to_string(),
-            });
-        }
-        let decoded = hex::decode(hex_str).map_err(|_| EldError::ValidationError {
-            field: "manifest ID".to_string(),
-            value: s.to_string(),
-            details: "Manifest ID must be valid hex after 0x prefix".to_string(),
-        })?;
-        if decoded.len() != Self::LEN {
-            return Err(EldError::ValidationError {
-                field: "manifest ID".to_string(),
-                value: s.to_string(),
-                details: format!(
-                    "Manifest ID must be {} bytes ({} hex digits), got {} bytes",
-                    Self::LEN,
-                    Self::LEN * 2,
-                    decoded.len()
-                ),
-            });
-        }
-        let mut bytes = [0u8; Self::LEN];
-        bytes.copy_from_slice(&decoded);
+        let bytes = decode_fixed_hex::<{ Self::LEN }>(s, "manifest ID")?;
         Ok(Self { bytes })
     }
 
@@ -130,7 +102,7 @@ impl<'de> Deserialize<'de> for ManifestId {
             type Value = ManifestId;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a 0x-prefixed 64-digit hex manifest ID string")
+                formatter.write_str("a 64-digit hex manifest ID string (optional 0x prefix)")
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -161,6 +133,25 @@ mod tests {
     #[test]
     fn from_str_rejects_wrong_length() {
         assert!("0x00".parse::<ManifestId>().is_err());
+        assert!(SAMPLE[2..].parse::<ManifestId>().is_ok());
+    }
+
+    #[test]
+    fn parse_hex_accepts_optional_prefix_canonical_display_keeps_0x() {
+        let bare = &SAMPLE[2..];
+        let from_bare: ManifestId = bare.parse().expect("bare hex");
+        let from_0x: ManifestId = SAMPLE.parse().expect("0x hex");
+        let from_0x_upper = format!("0X{}", bare.to_ascii_uppercase())
+            .parse::<ManifestId>()
+            .expect("0X hex");
+        assert_eq!(from_bare, from_0x);
+        assert_eq!(from_bare, from_0x_upper);
+        assert_eq!(from_bare.to_string(), SAMPLE);
+        let json = serde_json::to_string(&from_bare).expect("ser");
+        assert_eq!(json, format!("\"{SAMPLE}\""));
+        let from_json: ManifestId =
+            serde_json::from_str(&format!("\"{bare}\"")).expect("de without prefix");
+        assert_eq!(from_json, from_bare);
     }
 
     #[test]

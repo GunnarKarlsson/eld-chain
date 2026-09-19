@@ -1,4 +1,5 @@
 use crate::error::EldError;
+use crate::hex_encoding::decode_fixed_hex;
 use crate::public_key::PublicKey;
 use ed25519_dalek::VerifyingKey;
 use hex;
@@ -16,13 +17,6 @@ pub struct Address {
 
 impl Address {
     const LENGTH: usize = 20;
-    const PREFIX_LEN: usize = 2;
-    const HEX_CHAR_LEN: usize = 40;
-    const PREFIXED_HEX_CHAR_LEN: usize = Self::HEX_CHAR_LEN + Self::PREFIX_LEN;
-
-    fn has_hex_prefix(s: &str) -> bool {
-        s.len() >= Self::PREFIX_LEN && matches!(&s.as_bytes()[..Self::PREFIX_LEN], b"0x" | b"0X")
-    }
 
     pub fn from_public_key(public_key: &VerifyingKey) -> Result<Self, EldError> {
         let pk_bytes = public_key.to_bytes();
@@ -55,47 +49,11 @@ impl Address {
     /// Accepts an optional `0x` or `0X` prefix followed by exactly 40 hexadecimal
     /// characters (20 bytes). Hex digits may be upper or lower case.
     ///
-    /// Examples: `"0x1234…"`, `"1234…"` (without prefix).
+    /// Examples: `"0x1234…"`, `"1234…"` (without prefix). Canonical [`fmt::Display`] /
+    /// serde output stays `0x` + lowercase.
     pub fn parse_hex_str(s: &str) -> Result<Self, EldError> {
-        if s.len() < Self::HEX_CHAR_LEN {
-            return Err(EldError::ValidationError {
-                field: "address".to_string(),
-                value: s.to_string(),
-                details: format!(
-                    "Address must be at least {} hexadecimal characters",
-                    Self::HEX_CHAR_LEN
-                ),
-            });
-        }
-
-        if s.len() == Self::PREFIXED_HEX_CHAR_LEN && !Self::has_hex_prefix(s) {
-            return Err(EldError::ValidationError {
-                field: "address".to_string(),
-                value: s.to_string(),
-                details: "Address must start with 0x".to_string(),
-            });
-        }
-
-        let hex_body = if Self::has_hex_prefix(s) {
-            &s[Self::PREFIX_LEN..]
-        } else {
-            s
-        };
-
-        if hex_body.is_empty() {
-            return Err(EldError::ValidationError {
-                field: "address".to_string(),
-                value: s.to_string(),
-                details: "Address hex payload cannot be empty".to_string(),
-            });
-        }
-
-        let bytes = hex::decode(hex_body).map_err(|e| EldError::ValidationError {
-            field: "address".to_string(),
-            value: s.to_string(),
-            details: format!("Invalid hex format: {e}"),
-        })?;
-        Self::from_slice(bytes.as_slice())
+        let value = decode_fixed_hex::<{ Self::LENGTH }>(s, "address")?;
+        Ok(Address { value })
     }
 
     /// Builds an address from exactly 20 bytes.
@@ -405,46 +363,34 @@ mod tests {
             Address::parse_hex_str("0x").expect_err("too-short address should fail early");
         assert!(matches!(
             too_short,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address"
-                && details == "Address must be at least 40 hexadecimal characters"
+            EldError::ValidationError { field, details, .. }
+                if field == "address" && details == "address hex cannot be empty"
         ));
 
         let prefixed_length_without_prefix =
             Address::parse_hex_str("1234567890abcdef1234567890abcdef1234567890")
-                .expect_err("42-char unprefixed address should fail early");
+                .expect_err("42-char unprefixed address should fail");
         assert!(matches!(
             prefixed_length_without_prefix,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details == "Address must start with 0x"
+            EldError::ValidationError { field, details, .. }
+                if field == "address" && details.contains("must be 20 bytes")
         ));
 
         let short = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef123456")
             .expect_err("short address should fail");
         assert!(matches!(
             short,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details.contains("Invalid address length")
+            EldError::ValidationError { field, details, .. }
+                if field == "address"
+                    && (details.contains("must be 20 bytes") || details.contains("valid hex"))
         ));
 
         let invalid_hex = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef1234567g")
             .expect_err("invalid hex should fail");
         assert!(matches!(
             invalid_hex,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details.contains("Invalid hex format")
+            EldError::ValidationError { field, details, .. }
+                if field == "address" && details.contains("valid hex")
         ));
     }
 

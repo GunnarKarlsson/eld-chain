@@ -30,6 +30,7 @@ pub mod device;
 pub mod endpoint;
 pub mod error;
 pub mod fee;
+mod hex_encoding;
 pub mod logging;
 pub mod manifest_id;
 pub mod missing_content;

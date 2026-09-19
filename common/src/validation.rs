@@ -93,28 +93,13 @@ pub(crate) fn validate_chunk_id(chunk_id: &str) -> Result<(), EldError> {
     Ok(())
 }
 
-/// Validate that an address is properly formatted
+/// Validate that an address is properly formatted (optional `0x` / `0X` prefix).
 pub fn validate_address(address: &str) -> Result<(), EldError> {
     parse_validated_address(address).map(|_| ())
 }
 
-/// Parse an address string that must use canonical `0x`-prefixed form.
+/// Parse an address string. Prefix is optional; canonical display remains `0x` + lowercase.
 fn parse_validated_address(address: &str) -> Result<Address, EldError> {
-    if !address.starts_with("0x") {
-        return EldError::validation_error("address", address, "Address must start with 0x")
-            .map(|_| unreachable!());
-    }
-
-    let hex_str = &address[2..];
-    if hex_str.is_empty() {
-        return EldError::validation_error(
-            "address",
-            address,
-            "Address cannot be empty after 0x prefix",
-        )
-        .map(|_| unreachable!());
-    }
-
     Address::parse_hex_str(address)
 }
 
@@ -122,46 +107,7 @@ fn parse_validated_address(address: &str) -> Result<Address, EldError> {
 /// Contract IDs are 32 bytes (64 hex characters) - different from addresses which are 20 bytes
 #[cfg(test)]
 pub(crate) fn validate_contract_id(contract_id: &str) -> Result<(), EldError> {
-    if !contract_id.starts_with("0x") {
-        return EldError::validation_error(
-            "contract_id",
-            contract_id,
-            "Contract ID must start with 0x",
-        );
-    }
-
-    let hex_str = &contract_id[2..];
-    if hex_str.is_empty() {
-        return EldError::validation_error(
-            "contract_id",
-            contract_id,
-            "Contract ID cannot be empty after 0x prefix",
-        );
-    }
-
-    match hex::decode(hex_str) {
-        Ok(bytes) => {
-            if bytes.len() != 32 {
-                return EldError::validation_error(
-                    "contract_id",
-                    contract_id,
-                    &format!(
-                        "Contract ID must be 32 bytes (64 hex characters), got {} bytes",
-                        bytes.len()
-                    ),
-                );
-            }
-        }
-        Err(_) => {
-            return EldError::validation_error(
-                "contract_id",
-                contract_id,
-                "Contract ID must be valid hex after 0x prefix",
-            );
-        }
-    }
-
-    Ok(())
+    crate::contract_id::ContractId::from_input(contract_id).map(|_| ())
 }
 
 /// Validate that a string is safe for storage (no injection attacks)
@@ -1610,8 +1556,8 @@ mod tests {
         let valid_chunk_id = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
         assert!(validate_chunk_id(valid_chunk_id).is_ok());
 
-        let invalid_prefix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        assert!(validate_chunk_id(invalid_prefix).is_err());
+        let without_prefix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        assert!(validate_chunk_id(without_prefix).is_ok());
 
         // Short chunk ID (20 bytes = 40 hex chars, should fail)
         let short_chunk_id = "0xabcdef1234567890abcdef1234567890abcdef12";
@@ -1634,9 +1580,8 @@ mod tests {
         let valid_address = "0x1234567890abcdef1234567890abcdef12345678";
         assert!(validate_address(valid_address).is_ok());
 
-        // Missing 0x prefix
-        let invalid_prefix = "1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_address(invalid_prefix).is_err());
+        let without_prefix = "1234567890abcdef1234567890abcdef12345678";
+        assert!(validate_address(without_prefix).is_ok());
 
         // Wrong length (19 bytes)
         let short_address = "0x1234567890abcdef1234567890abcdef1234567";
@@ -1652,29 +1597,18 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_address_requires_prefix() {
+    fn test_validate_address_accepts_optional_prefix() {
         let valid_address = "0x1234567890abcdef1234567890abcdef12345678";
         assert!(validate_address(valid_address).is_ok());
         assert!(Address::parse_hex_str(valid_address).is_ok());
 
-        let invalid_prefix = "1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_address(invalid_prefix).is_err());
-        assert!(Address::parse_hex_str(invalid_prefix).is_ok());
+        let without_prefix = "1234567890abcdef1234567890abcdef12345678";
+        assert!(validate_address(without_prefix).is_ok());
+        assert!(Address::parse_hex_str(without_prefix).is_ok());
     }
 
     #[test]
     fn test_validate_address_error_messages() {
-        let missing_prefix = validate_address("1234567890abcdef1234567890abcdef12345678")
-            .expect_err("missing prefix should fail");
-        assert!(matches!(
-            missing_prefix,
-            EldError::ValidationError {
-                field,
-                details,
-                ..
-            } if field == "address" && details == "Address must start with 0x"
-        ));
-
         let short = validate_address("0x1234567890abcdef1234567890abcdef123456")
             .expect_err("short address should fail");
         assert!(matches!(
@@ -1683,7 +1617,8 @@ mod tests {
                 field,
                 details,
                 ..
-            } if field == "address" && details.contains("Invalid address length")
+            } if field == "address"
+                && (details.contains("must be 20 bytes") || details.contains("valid hex"))
         ));
 
         let invalid_hex = validate_address("0x1234567890abcdef1234567890abcdef1234567g")
@@ -1694,7 +1629,7 @@ mod tests {
                 field,
                 details,
                 ..
-            } if field == "address" && details.contains("Invalid hex format")
+            } if field == "address" && details.contains("valid hex")
         ));
 
         let empty = validate_address("0x").expect_err("empty address should fail");
@@ -1704,7 +1639,7 @@ mod tests {
                 field,
                 details,
                 ..
-            } if field == "address" && details == "Address cannot be empty after 0x prefix"
+            } if field == "address" && details == "address hex cannot be empty"
         ));
     }
 
@@ -1715,9 +1650,8 @@ mod tests {
             "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
         assert!(validate_contract_id(valid_contract_id).is_ok());
 
-        // Invalid: missing 0x prefix
-        let invalid_prefix = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-        assert!(validate_contract_id(invalid_prefix).is_err());
+        let without_prefix = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        assert!(validate_contract_id(without_prefix).is_ok());
 
         // Invalid: too short (20 bytes instead of 32)
         let short_contract_id = "0x1234567890abcdef1234567890abcdef12345678";

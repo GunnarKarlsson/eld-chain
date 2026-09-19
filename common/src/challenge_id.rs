@@ -7,6 +7,7 @@
 //! See `TYPE_DESIGN.md` for ID representation and edge-stability conventions.
 
 use crate::error::EldError;
+use crate::hex_encoding::decode_fixed_hex;
 use hex;
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -30,7 +31,7 @@ impl ChallengeId {
         Self { bytes }
     }
 
-    /// Parses 64 hexadecimal digits (case-insensitive). Optional `0x` prefix is accepted.
+    /// Parses 64 hexadecimal digits (case-insensitive). Optional `0x` / `0X` prefix is accepted.
     ///
     /// Canonical [`fmt::Display`] / [`Self::to_hex`] output is lowercase hex **without** `0x`,
     /// matching `VerifiedProofTx` / SyncMsg challenge id encoding.
@@ -39,33 +40,7 @@ impl ChallengeId {
     ///
     /// Returns [`EldError::ValidationError`] if the string is not valid 32-byte hex.
     pub fn parse_hex(s: &str) -> Result<Self, EldError> {
-        let cleaned = s.strip_prefix("0x").unwrap_or(s);
-        if cleaned.is_empty() {
-            return Err(EldError::ValidationError {
-                field: "challenge ID".to_string(),
-                value: s.to_string(),
-                details: "challenge ID hex cannot be empty".to_string(),
-            });
-        }
-        let decoded = hex::decode(cleaned).map_err(|e| EldError::ValidationError {
-            field: "challenge ID".to_string(),
-            value: s.to_string(),
-            details: format!("invalid challenge ID hex: {e}"),
-        })?;
-        if decoded.len() != Self::LEN {
-            return Err(EldError::ValidationError {
-                field: "challenge ID".to_string(),
-                value: s.to_string(),
-                details: format!(
-                    "challenge ID must be {} bytes ({} hex digits), got {} bytes",
-                    Self::LEN,
-                    Self::LEN * 2,
-                    decoded.len()
-                ),
-            });
-        }
-        let mut bytes = [0u8; Self::LEN];
-        bytes.copy_from_slice(&decoded);
+        let bytes = decode_fixed_hex::<{ Self::LEN }>(s, "challenge ID")?;
         Ok(Self { bytes })
     }
 
@@ -157,6 +132,10 @@ mod tests {
         let prefixed = format!("0x{upper}");
         let id2 = ChallengeId::parse_hex(&prefixed).expect("valid with 0x");
         assert_eq!(id2, id);
+        let id3 = ChallengeId::parse_hex(&format!("0X{upper}")).expect("valid with 0X");
+        assert_eq!(id3, id);
+        let json = serde_json::to_string(&id2).expect("ser");
+        assert_eq!(json, format!("\"{SAMPLE}\""));
     }
 
     #[test]

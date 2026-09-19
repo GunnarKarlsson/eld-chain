@@ -6,6 +6,7 @@
 //! See `TYPE_DESIGN.md` for ID representation and edge-stability conventions.
 
 use crate::error::EldError;
+use crate::hex_encoding::decode_fixed_hex;
 use hex;
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -29,7 +30,7 @@ impl CapacitySeed {
         Self { bytes }
     }
 
-    /// Parses 64 hexadecimal digits (case-insensitive). Optional `0x` prefix is accepted.
+    /// Parses 64 hexadecimal digits (case-insensitive). Optional `0x` / `0X` prefix is accepted.
     ///
     /// Canonical [`fmt::Display`] / [`Self::to_hex`] output is lowercase hex **without** `0x`,
     /// matching capacity tx / validator edge encoding.
@@ -38,33 +39,7 @@ impl CapacitySeed {
     ///
     /// Returns [`EldError::ValidationError`] if the string is not valid 32-byte hex.
     pub fn parse_hex(s: &str) -> Result<Self, EldError> {
-        let cleaned = s.strip_prefix("0x").unwrap_or(s);
-        if cleaned.is_empty() {
-            return Err(EldError::ValidationError {
-                field: "capacity seed".to_string(),
-                value: s.to_string(),
-                details: "capacity seed hex cannot be empty".to_string(),
-            });
-        }
-        let decoded = hex::decode(cleaned).map_err(|e| EldError::ValidationError {
-            field: "capacity seed".to_string(),
-            value: s.to_string(),
-            details: format!("invalid capacity seed hex: {e}"),
-        })?;
-        if decoded.len() != Self::LEN {
-            return Err(EldError::ValidationError {
-                field: "capacity seed".to_string(),
-                value: s.to_string(),
-                details: format!(
-                    "capacity seed must be {} bytes ({} hex digits), got {} bytes",
-                    Self::LEN,
-                    Self::LEN * 2,
-                    decoded.len()
-                ),
-            });
-        }
-        let mut bytes = [0u8; Self::LEN];
-        bytes.copy_from_slice(&decoded);
+        let bytes = decode_fixed_hex::<{ Self::LEN }>(s, "capacity seed")?;
         Ok(Self { bytes })
     }
 
