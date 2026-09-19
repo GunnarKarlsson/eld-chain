@@ -86,95 +86,93 @@ impl fmt::Display for EldError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             EldError::NetworkError { operation, details } => {
-                writeln!(f, "🌐 Network Error during {operation}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "network error during {operation}: {details}")
             }
             EldError::AuthError { operation, details } => {
-                writeln!(f, "🔐 Authentication Error during {operation}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "authentication error during {operation}: {details}")
             }
             EldError::ValidationError {
                 field,
                 value,
                 details,
             } => {
-                writeln!(f, "❌ Validation Error for field '{field}'")?;
-                writeln!(f, "   Value: {}", sanitize_validation_value(field, value))?;
-                writeln!(f, "   Details: {details}")?;
+                write!(
+                    f,
+                    "validation error for field '{field}' (value: {}): {details}",
+                    sanitize_validation_value(field, value)
+                )
             }
             EldError::BasicValidationError { details } => {
-                writeln!(f, "❌ Validation Error")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "validation error: {details}")
             }
             EldError::NotFoundError {
                 resource_type,
                 identifier,
             } => {
-                writeln!(f, "🔍 {resource_type} not found")?;
-                writeln!(f, "   Identifier: {identifier}")?;
+                write!(f, "{resource_type} not found: {identifier}")
             }
             EldError::InsufficientResourceError {
                 resource_type,
                 required,
                 available,
             } => {
-                writeln!(f, "💰 Insufficient {resource_type}")?;
-                writeln!(f, "   Required: {required}")?;
-                writeln!(f, "   Available: {available}")?;
+                write!(
+                    f,
+                    "insufficient {resource_type}: required {required}, available {available}"
+                )
             }
             EldError::ConfigError { file, details } => {
-                writeln!(f, "⚙️  Configuration Error in {file}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "configuration error in {file}: {details}")
             }
             EldError::FileSystemError {
                 operation,
                 path,
                 details,
             } => {
-                writeln!(f, "📁 File System Error during {operation}")?;
-                writeln!(f, "   Path: {path}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(
+                    f,
+                    "file system error during {operation} (path: {path}): {details}"
+                )
             }
             EldError::TransactionError { tx_type, details } => {
-                writeln!(f, "📝 Transaction Error for {tx_type}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "transaction error for {tx_type}: {details}")
             }
             EldError::WalletError {
                 operation,
                 wallet_name,
                 details,
             } => {
-                writeln!(f, "👛 Wallet Error during {operation} for '{wallet_name}'")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(
+                    f,
+                    "wallet error during {operation} for '{wallet_name}': {details}"
+                )
             }
             EldError::DeviceError {
                 operation,
                 device_id,
                 details,
-            } => {
-                writeln!(f, "📱 Device Error during {operation}")?;
-                if let Some(id) = device_id {
-                    writeln!(f, "   Device ID: {id}")?;
+            } => match device_id {
+                Some(id) => {
+                    write!(
+                        f,
+                        "device error during {operation} (device id: {id}): {details}"
+                    )
                 }
-                writeln!(f, "   Details: {details}")?;
-            }
+                None => write!(f, "device error during {operation}: {details}"),
+            },
             EldError::InitializationError { component, details } => {
-                writeln!(f, "🚀 Initialization Error for {component}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "initialization error for {component}: {details}")
             }
             EldError::StorageError { operation, details } => {
-                writeln!(f, "💾 Storage Error during {operation}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "storage error during {operation}: {details}")
             }
             EldError::CoinError { details } => {
-                writeln!(f, "🪙 Coin Error: {details}")?;
+                write!(f, "coin error: {details}")
             }
             EldError::FeeError { operation, details } => {
-                writeln!(f, "💰 Fee Error during {operation}")?;
-                writeln!(f, "   Details: {details}")?;
+                write!(f, "fee error during {operation}: {details}")
             }
         }
-        Ok(())
     }
 }
 
@@ -488,5 +486,16 @@ mod tests {
 
         assert!(!msg.contains("01010101"));
         assert!(msg.contains(REDACTED_VALIDATION_VALUE));
+    }
+
+    #[test]
+    fn display_is_single_line_without_emoji() {
+        let err = EldError::NetworkError {
+            operation: "abci_info".to_string(),
+            details: "timed out".to_string(),
+        };
+        let msg = err.to_string();
+        assert_eq!(msg, "network error during abci_info: timed out");
+        assert!(!msg.contains('\n'));
     }
 }

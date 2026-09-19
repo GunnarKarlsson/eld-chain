@@ -16,131 +16,32 @@ pub fn to_json_bytes<T: Serialize>(value: &T) -> Result<Vec<u8>, EldError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Serialize;
 
-    fn vec_u8_to_u32(bytes: Vec<u8>) -> u32 {
-        assert!(
-            bytes.len() <= 4,
-            "Vec<u8> must not be larger than 4 bytes to convert to u32"
-        );
-        let mut result: u32 = 0;
-        for &byte in &bytes {
-            result = (result << 8) | (byte as u32);
-        }
-        result
-    }
-
-    fn vec_u8_to_u32_safe(bytes: Vec<u8>) -> Result<u32, EldError> {
-        if bytes.len() > 4 {
-            return Err(EldError::ValidationError {
-                field: "bytes".to_string(),
-                value: format!("{} bytes", bytes.len()),
-                details: "Vec<u8> must not be larger than 4 bytes to convert to u32".to_string(),
-            });
-        }
-        let mut result: u32 = 0;
-        for &byte in &bytes {
-            result = (result << 8) | (byte as u32);
-        }
-        Ok(result)
-    }
-
-    fn vec_u8_to_u32_little_endian(bytes: Vec<u8>) -> u32 {
-        assert!(
-            bytes.len() <= 4,
-            "Vec<u8> must not be larger than 4 bytes to convert to u32"
-        );
-        let mut result: u32 = 0;
-        for &byte in bytes.iter().rev() {
-            result = (result << 8) | (byte as u32);
-        }
-        result
+    #[derive(Serialize)]
+    struct Sample {
+        name: String,
+        count: u32,
     }
 
     #[test]
-    fn test_vec_u8_to_u32_basic() {
-        assert_eq!(vec_u8_to_u32(vec![0x12]), 0x12);
-        assert_eq!(vec_u8_to_u32(vec![0x12, 0x34]), 0x1234);
-        assert_eq!(vec_u8_to_u32(vec![0x12, 0x34, 0x56]), 0x123456);
-        assert_eq!(vec_u8_to_u32(vec![0x12, 0x34, 0x56, 0x78]), 0x12345678);
-        assert_eq!(vec_u8_to_u32(vec![]), 0); // Empty vector
+    fn to_json_string_serializes_struct() {
+        let sample = Sample {
+            name: "eld".to_string(),
+            count: 2,
+        };
+        let json = to_json_string(&sample).expect("serialize to string");
+        assert_eq!(json, r#"{"name":"eld","count":2}"#);
     }
 
     #[test]
-    #[should_panic(expected = "Vec<u8> must not be larger than 4 bytes")]
-    fn test_vec_u8_to_u32_too_long() {
-        vec_u8_to_u32(vec![0x12, 0x34, 0x56, 0x78, 0x90]);
-    }
-
-    #[test]
-    fn test_vec_u8_to_u32_safe() {
-        assert_eq!(
-            vec_u8_to_u32_safe(vec![0x12]).expect("Failed to convert single byte to u32"),
-            0x12
-        );
-        assert_eq!(
-            vec_u8_to_u32_safe(vec![0x12, 0x34]).expect("Failed to convert two bytes to u32"),
-            0x1234
-        );
-        assert_eq!(
-            vec_u8_to_u32_safe(vec![0x12, 0x34, 0x56])
-                .expect("Failed to convert three bytes to u32"),
-            0x123456
-        );
-        assert_eq!(
-            vec_u8_to_u32_safe(vec![0x12, 0x34, 0x56, 0x78])
-                .expect("Failed to convert four bytes to u32"),
-            0x12345678
-        );
-        assert_eq!(
-            vec_u8_to_u32_safe(vec![]).expect("Failed to convert empty vector to u32"),
-            0
-        );
-
-        assert!(vec_u8_to_u32_safe(vec![0x12, 0x34, 0x56, 0x78, 0x90]).is_err());
-        match vec_u8_to_u32_safe(vec![0x12, 0x34, 0x56, 0x78, 0x90]).unwrap_err() {
-            EldError::ValidationError {
-                field,
-                value,
-                details,
-            } => {
-                assert_eq!(field, "bytes");
-                assert_eq!(value, "5 bytes");
-                assert_eq!(
-                    details,
-                    "Vec<u8> must not be larger than 4 bytes to convert to u32"
-                );
-            }
-            _ => panic!("Expected ValidationError"),
-        }
-    }
-
-    #[test]
-    fn test_vec_u8_to_u32_little_endian() {
-        assert_eq!(vec_u8_to_u32_little_endian(vec![0x12]), 0x12);
-        assert_eq!(vec_u8_to_u32_little_endian(vec![0x12, 0x34]), 0x3412);
-        assert_eq!(
-            vec_u8_to_u32_little_endian(vec![0x12, 0x34, 0x56]),
-            0x563412
-        );
-        assert_eq!(
-            vec_u8_to_u32_little_endian(vec![0x12, 0x34, 0x56, 0x78]),
-            0x78563412
-        );
-        assert_eq!(vec_u8_to_u32_little_endian(vec![]), 0);
-    }
-
-    #[test]
-    #[should_panic(expected = "Vec<u8> must not be larger than 4 bytes")]
-    fn test_vec_u8_to_u32_little_endian_too_long() {
-        vec_u8_to_u32_little_endian(vec![0x12, 0x34, 0x56, 0x78, 0x90]);
-    }
-
-    #[test]
-    fn test_max_values() {
-        // Test maximum u8 value (255) in different positions
-        assert_eq!(vec_u8_to_u32(vec![0xFF]), 0xFF);
-        assert_eq!(vec_u8_to_u32(vec![0xFF, 0xFF]), 0xFFFF);
-        assert_eq!(vec_u8_to_u32(vec![0xFF, 0xFF, 0xFF]), 0xFFFFFF);
-        assert_eq!(vec_u8_to_u32(vec![0xFF, 0xFF, 0xFF, 0xFF]), 0xFFFFFFFF);
+    fn to_json_bytes_matches_string_utf8() {
+        let sample = Sample {
+            name: "eld".to_string(),
+            count: 2,
+        };
+        let bytes = to_json_bytes(&sample).expect("serialize to bytes");
+        let json = to_json_string(&sample).expect("serialize to string");
+        assert_eq!(bytes, json.as_bytes());
     }
 }
