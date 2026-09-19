@@ -307,7 +307,7 @@ fn estimate_gas_usage(payload: &PayloadInner) -> Result<u64, EldError> {
         PayloadInner::Stake(_) => 50_000,
         PayloadInner::Unstake(_) => 50_000,
 
-        // TODO: Should depend on message size
+        // Fixed local-dev estimate; not scaled by message size.
         PayloadInner::PostMessage(_) => 120_000,
 
         PayloadInner::VerifiedProof(_) => 50_000, // Simpler than chunk proof, just recording verification

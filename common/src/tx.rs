@@ -647,7 +647,7 @@ impl RegisterCapacityTx {
                 details: "RegisterCapacity capacity_bytes must be greater than zero".to_string(),
             });
         }
-        // TODO: what invariant enforce for chunk count
+        // `chunk_count` is stored as declared; JSON validation requires it to be >= 1.
 
         Ok(Self {
             sender,
@@ -770,7 +770,7 @@ pub fn canonicalize_post_message_tags(tags: &[String]) -> Result<Vec<String>, El
             });
         }
 
-        // TODO: Not use error as control flow
+        // Tags that parse as addresses are canonicalized; parse failure means a normal tag.
         let normalized = match Address::parse_hex_str(tag) {
             Ok(addr) => addr.hex_with_prefix(),
             Err(_) => tag.clone(),
@@ -1539,8 +1539,7 @@ impl TryFrom<UnregisterCapacityTxUnchecked> for UnregisterCapacityTx {
 
 impl UnregisterCapacityTx {
     pub fn new(sender: Address, unregister: bool) -> Result<Self, EldError> {
-        // TODO: this is weird but the field exists to make the serde serialization
-        // recognize difference between register and unregister
+        // `unregister` must be true so this payload deserializes as a distinct tx type.
         if !unregister {
             return Err(EldError::ValidationError {
                 field: "unregister".to_string(),

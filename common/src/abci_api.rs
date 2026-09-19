@@ -22,11 +22,9 @@ use tendermint_rpc::query::Query;
 use tendermint_rpc::{Client, HttpClient, Order};
 use tracing::{debug, error};
 
-// custom type to deserialize the data field in tendermint's Info type
+/// Placeholder for Tendermint ABCI Info `data` JSON. Currently unused (empty object).
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AppInfoData {
-    // TODO: what use is this?
-}
+pub struct AppInfoData {}
 
 pub struct AbciHttpApi {
     client: HttpClient,

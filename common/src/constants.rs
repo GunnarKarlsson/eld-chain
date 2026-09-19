@@ -7,7 +7,8 @@ pub mod token {
 
 /// Consensus / staking / capacity protocol parameters (epoch geometry and limits).
 pub mod protocol {
-    pub const MIN_STAKE_AMOUNT: u128 = 5; //TODO: Should be much larger for production
+    /// Local-dev stake floor; not mainnet economics.
+    pub const MIN_STAKE_AMOUNT: u128 = 5;
     pub const VALIDATORS_PER_EPOCH: usize = 4; // N = 4 validators per epoch
     pub const BLOCKS_PER_EPOCH: i64 = 20; // M = 20 blocks per epoch
     pub const ACTIVE_STORAGE_VALIDATOR_PER_EPOCH: usize = 1; // Only one storage validator per epoch
@@ -59,7 +60,7 @@ pub mod p2p {
 }
 
 pub mod test {
-    // Chain ID for transaction signing/verification in tests
+    /// Documented mock chain ID for unit tests (`Tx::sign` / `verify`). Not a secret.
     pub const MOCK_CHAIN_ID: &str = "eld-testnet-tempelhof";
 }
 

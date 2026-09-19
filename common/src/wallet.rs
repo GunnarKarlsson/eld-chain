@@ -238,45 +238,32 @@ mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
     use rand::RngCore;
-    use tracing::debug;
+
+    fn fixture_wallet(name: &str, seed: u8) -> Wallet {
+        Wallet::from_signing_key(name.to_string(), SigningKey::from_bytes(&[seed; 32]))
+    }
 
     #[test]
-    fn test_decode_str_keys() {
-        // Throwaway fixture: repeating 0x80 is not a live-network key.
-        let pk = hex::encode([0x80u8; 32]);
-        let _ = hex::decode(&pk).expect("Can decode public key hex string into bytes");
-        debug!("pk len: {}", pk.len()); //32 bytes
-
-        let _: [u8; 32] = hex::decode(&pk)
-            .expect("Failed to decode public key hex string")
+    fn public_key_hex_roundtrip_is_32_bytes() {
+        let wallet = fixture_wallet("pk-roundtrip", 0x80);
+        let pk_hex = hex::encode(wallet.public_key);
+        let decoded: [u8; 32] = hex::decode(&pk_hex)
+            .expect("public key hex")
             .try_into()
-            .map_err(|_| "Public key must be 32 bytes")
-            .expect("Failed to convert public key bytes to 32-byte array");
+            .expect("public key must be 32 bytes");
+        assert_eq!(decoded, wallet.public_key);
+        assert_eq!(pk_hex.len(), 64);
     }
 
     #[test]
-    fn test_wallet_sign_verify() {
-        let mut rng = rand::rng(); // Thread-local RNG
-        let mut secret_bytes = [0u8; 32]; // Ed25519 secret key is 32 bytes
-        rng.fill_bytes(&mut secret_bytes); // Fill with random bytes
-        let signing_key = SigningKey::from_bytes(&secret_bytes); // Construct SigningKey
-        let _ = signing_key.verifying_key();
-
-        let _ = Wallet::from_signing_key("TestWallet".to_string(), signing_key);
-
-        // TODO: Add test to sign and verify with wallet
-    }
-
-    #[test]
-    fn test_display_wallet() {
-        let mut rng = rand::rng(); // Thread-local RNG
-        let mut secret_bytes = [0u8; 32]; // Ed25519 secret key is 32 bytes
-        rng.fill_bytes(&mut secret_bytes); // Fill with random bytes
-        let signing_key = SigningKey::from_bytes(&secret_bytes); // Construct SigningKey
-        let _ = signing_key.verifying_key();
-
-        let wallet = Wallet::from_signing_key("TestWallet".to_string(), signing_key);
-        debug!("wallet:\n{}", wallet);
+    fn wallet_display_includes_name_and_address() {
+        let wallet = fixture_wallet("TestWallet", 3);
+        let display = wallet.to_string();
+        assert!(display.contains("TestWallet"));
+        assert!(display.contains(&wallet.address.to_string()));
+        let terminal = wallet.terminal_display();
+        assert!(terminal.contains("TestWallet"));
+        assert!(terminal.contains(&wallet.address.hex_with_prefix()));
     }
 
     #[test]
@@ -349,10 +336,6 @@ mod tests {
             signing_key.verifying_key().to_bytes(),
             expected.verifying_key().to_bytes()
         );
-    }
-
-    fn fixture_wallet(name: &str, seed: u8) -> Wallet {
-        Wallet::from_signing_key(name.to_string(), SigningKey::from_bytes(&[seed; 32]))
     }
 
     #[test]
