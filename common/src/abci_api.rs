@@ -568,7 +568,7 @@ impl fmt::Display for QueryWrapper {
 mod tests {
     use super::{decode_eld_tx_from_block_tx_bytes, decode_eld_tx_from_wire, AbciInfoWrapper};
     use crate::address::Address;
-    use crate::tx::{Payload, TransferTx, Tx, TxAmount};
+    use crate::tx::{Payload, TransferTx, Tx, TxAmount, TxPublicKey, TxSig};
     use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
     use base64::Engine;
     use ed25519_dalek::SigningKey;
@@ -582,13 +582,13 @@ mod tests {
         let recipient = Address::parse_hex_str("0xfedcba0987654321fedcba0987654321fedcba09")
             .expect("recipient");
         Tx {
-            sig: "0".repeat(128).into(),
+            sig: TxSig::new("0".repeat(128)).expect("64-byte zero signature hex"),
             nonce: 0u32.into(),
             fee: TxAmount::from(0u128),
             payload: Payload::new(
                 TransferTx::new(sender, recipient, TxAmount::from(1u128)).expect("valid transfer"),
             ),
-            public_key: hex::encode(signing_key.verifying_key().to_bytes()).into(),
+            public_key: TxPublicKey::from(signing_key.verifying_key()),
         }
     }
 

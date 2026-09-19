@@ -29,11 +29,7 @@ pub(crate) async fn transfer(
     )?;
 
     let transfer = TransferTx::new(wallet.address, recipient_address, amount.into())?;
-    let mut tx = Tx::new(
-        next_nonce,
-        Payload::new(transfer),
-        hex::encode(wallet.public_key),
-    );
+    let mut tx = Tx::new(next_nonce, Payload::new(transfer), wallet.verifying_key());
 
     let dynamic_fee = crate::fee::calculate_dynamic_fee(&tx, &client.fee_config).map_err(|e| {
         ErrorBuilder::transaction_error(
@@ -45,7 +41,7 @@ pub(crate) async fn transfer(
 
     info!("Calculated dynamic fee: {} units", dynamic_fee);
 
-    wallet.sign(&mut tx, &client.config.chain_id);
+    wallet.sign(&mut tx, &client.config.chain_id)?;
     let json = serde_json::to_string(&tx).map_err(|e| {
         ErrorBuilder::transaction_error(
             tx_type::TX_TYPE_TRANSFER,
@@ -55,7 +51,7 @@ pub(crate) async fn transfer(
     info!("Rust JSON: {}", json);
     let hex = hex::encode(&json);
 
-    if !wallet.verify(&tx, &client.config.chain_id) {
+    if !wallet.verify(&tx, &client.config.chain_id)? {
         return Err(ErrorBuilder::transaction_error(
             "Transfer",
             "Transaction verification failed",
@@ -141,11 +137,7 @@ pub(crate) async fn stake(
         Some(hex::encode(wallet.public_key)),
     )?;
 
-    let mut tx = Tx::new(
-        next_nonce,
-        Payload::new(stake_tx),
-        hex::encode(wallet.public_key),
-    );
+    let mut tx = Tx::new(next_nonce, Payload::new(stake_tx), wallet.verifying_key());
 
     let dynamic_fee = crate::fee::calculate_dynamic_fee(&tx, &client.fee_config).map_err(|e| {
         ErrorBuilder::transaction_error(
@@ -157,7 +149,7 @@ pub(crate) async fn stake(
 
     info!("Calculated dynamic fee: {} units", dynamic_fee);
 
-    wallet.sign(&mut tx, &client.config.chain_id);
+    wallet.sign(&mut tx, &client.config.chain_id)?;
     let json = serde_json::to_string(&tx).map_err(|e| {
         ErrorBuilder::transaction_error(
             tx_type::TX_TYPE_STAKE,
@@ -167,7 +159,7 @@ pub(crate) async fn stake(
     info!("Rust JSON: {}", json);
     let hex = hex::encode(&json);
 
-    if !wallet.verify(&tx, &client.config.chain_id) {
+    if !wallet.verify(&tx, &client.config.chain_id)? {
         return Err(ErrorBuilder::transaction_error(
             "Stake",
             "Transaction verification failed",
@@ -194,11 +186,7 @@ pub(crate) async fn unstake(
 
     let unstake_tx = UnstakeTx::new(wallet.address, amount.into())?;
 
-    let mut tx = Tx::new(
-        next_nonce,
-        Payload::new(unstake_tx),
-        hex::encode(wallet.public_key),
-    );
+    let mut tx = Tx::new(next_nonce, Payload::new(unstake_tx), wallet.verifying_key());
 
     let dynamic_fee = crate::fee::calculate_dynamic_fee(&tx, &client.fee_config).map_err(|e| {
         ErrorBuilder::transaction_error("Unstake", &format!("Failed to calculate dynamic fee: {e}"))
@@ -207,14 +195,14 @@ pub(crate) async fn unstake(
 
     info!("Calculated dynamic fee: {} units", dynamic_fee);
 
-    wallet.sign(&mut tx, &client.config.chain_id);
+    wallet.sign(&mut tx, &client.config.chain_id)?;
     let json = serde_json::to_string(&tx).map_err(|e| {
         ErrorBuilder::transaction_error("Unstake", &format!("Failed to serialize transaction: {e}"))
     })?;
     info!("Rust JSON: {}", json);
     let hex = hex::encode(&json);
 
-    if !wallet.verify(&tx, &client.config.chain_id) {
+    if !wallet.verify(&tx, &client.config.chain_id)? {
         return Err(ErrorBuilder::transaction_error(
             "Unstake",
             "Transaction verification failed",

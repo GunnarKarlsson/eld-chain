@@ -67,19 +67,39 @@ pub struct TxPublicKey(String);
 impl TxPublicKey {
     pub const LEN: usize = 32;
 
-    pub fn new(value: String) -> Result<Self, String> {
-        let bytes = hex::decode(&value).map_err(|e| format!("invalid public_key hex: {e}"))?;
+    pub fn new(value: String) -> Result<Self, EldError> {
+        let bytes = hex::decode(&value).map_err(|e| {
+            EldError::make_validation_error(
+                "public_key",
+                &value,
+                format!("invalid public_key hex: {e}"),
+            )
+        })?;
         if bytes.len() != Self::LEN {
-            return Err(format!(
-                "public_key must be {} bytes, got {} bytes",
-                Self::LEN,
-                bytes.len()
+            return Err(EldError::make_validation_error(
+                "public_key",
+                &value,
+                format!(
+                    "public_key must be {} bytes, got {} bytes",
+                    Self::LEN,
+                    bytes.len()
+                ),
             ));
         }
-        let array: [u8; Self::LEN] = bytes
-            .try_into()
-            .map_err(|_| format!("public_key must be {} bytes", Self::LEN))?;
-        VerifyingKey::from_bytes(&array).map_err(|e| format!("invalid ed25519 public_key: {e}"))?;
+        let array: [u8; Self::LEN] = bytes.try_into().map_err(|_| {
+            EldError::make_validation_error(
+                "public_key",
+                &value,
+                format!("public_key must be {} bytes", Self::LEN),
+            )
+        })?;
+        VerifyingKey::from_bytes(&array).map_err(|e| {
+            EldError::make_validation_error(
+                "public_key",
+                &value,
+                format!("invalid ed25519 public_key: {e}"),
+            )
+        })?;
         Ok(Self(value))
     }
 
@@ -87,12 +107,28 @@ impl TxPublicKey {
         &self.0
     }
 
-    pub fn to_verifying_key(&self) -> Result<VerifyingKey, String> {
-        let bytes = hex::decode(&self.0).map_err(|e| format!("invalid public_key hex: {e}"))?;
-        let array: [u8; Self::LEN] = bytes
-            .try_into()
-            .map_err(|_| format!("public_key must be {} bytes", Self::LEN))?;
-        VerifyingKey::from_bytes(&array).map_err(|e| format!("invalid ed25519 public_key: {e}"))
+    pub fn to_verifying_key(&self) -> Result<VerifyingKey, EldError> {
+        let bytes = hex::decode(&self.0).map_err(|e| {
+            EldError::make_validation_error(
+                "public_key",
+                &self.0,
+                format!("invalid public_key hex: {e}"),
+            )
+        })?;
+        let array: [u8; Self::LEN] = bytes.try_into().map_err(|_| {
+            EldError::make_validation_error(
+                "public_key",
+                &self.0,
+                format!("public_key must be {} bytes", Self::LEN),
+            )
+        })?;
+        VerifyingKey::from_bytes(&array).map_err(|e| {
+            EldError::make_validation_error(
+                "public_key",
+                &self.0,
+                format!("invalid ed25519 public_key: {e}"),
+            )
+        })
     }
 }
 
@@ -139,9 +175,19 @@ impl From<TxPublicKey> for String {
     }
 }
 
-impl From<String> for TxPublicKey {
-    fn from(value: String) -> Self {
-        TxPublicKey::new(value).expect("TxPublicKey::from received invalid public key")
+impl TryFrom<String> for TxPublicKey {
+    type Error = EldError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl TryFrom<&str> for TxPublicKey {
+    type Error = EldError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new(value.to_string())
     }
 }
 
@@ -151,18 +197,28 @@ pub struct TxSig(String);
 impl TxSig {
     pub const LEN: usize = 64;
 
-    pub fn new(value: String) -> Result<Self, String> {
-        let bytes = hex::decode(&value).map_err(|e| format!("invalid signature hex: {e}"))?;
+    pub fn new(value: String) -> Result<Self, EldError> {
+        let bytes = hex::decode(&value).map_err(|e| {
+            EldError::make_validation_error("sig", &value, format!("invalid signature hex: {e}"))
+        })?;
         if bytes.len() != Self::LEN {
-            return Err(format!(
-                "signature must be {} bytes, got {} bytes",
-                Self::LEN,
-                bytes.len()
+            return Err(EldError::make_validation_error(
+                "sig",
+                &value,
+                format!(
+                    "signature must be {} bytes, got {} bytes",
+                    Self::LEN,
+                    bytes.len()
+                ),
             ));
         }
-        let array: [u8; Self::LEN] = bytes
-            .try_into()
-            .map_err(|_| format!("signature must be {} bytes", Self::LEN))?;
+        let array: [u8; Self::LEN] = bytes.try_into().map_err(|_| {
+            EldError::make_validation_error(
+                "sig",
+                &value,
+                format!("signature must be {} bytes", Self::LEN),
+            )
+        })?;
         let _ = Signature::from_bytes(&array);
         Ok(Self(value))
     }
@@ -175,11 +231,17 @@ impl TxSig {
         &self.0
     }
 
-    pub fn to_signature(&self) -> Result<Signature, String> {
-        let bytes = hex::decode(&self.0).map_err(|e| format!("invalid signature hex: {e}"))?;
-        let array: [u8; Self::LEN] = bytes
-            .try_into()
-            .map_err(|_| format!("signature must be {} bytes", Self::LEN))?;
+    pub fn to_signature(&self) -> Result<Signature, EldError> {
+        let bytes = hex::decode(&self.0).map_err(|e| {
+            EldError::make_validation_error("sig", &self.0, format!("invalid signature hex: {e}"))
+        })?;
+        let array: [u8; Self::LEN] = bytes.try_into().map_err(|_| {
+            EldError::make_validation_error(
+                "sig",
+                &self.0,
+                format!("signature must be {} bytes", Self::LEN),
+            )
+        })?;
         Ok(Signature::from_bytes(&array))
     }
 }
@@ -224,12 +286,22 @@ impl From<TxSig> for String {
     }
 }
 
-impl From<String> for TxSig {
-    fn from(value: String) -> Self {
+impl TryFrom<String> for TxSig {
+    type Error = EldError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.is_empty() {
-            return TxSig::empty();
+            return Ok(Self::empty());
         }
-        TxSig::new(value).expect("TxSig::from received invalid signature")
+        Self::new(value)
+    }
+}
+
+impl TryFrom<&str> for TxSig {
+    type Error = EldError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from(value.to_string())
     }
 }
 
@@ -1094,10 +1166,11 @@ pub fn validate_message_and_build_post_message_tx(
     let mut tx = Tx::new(
         Nonce::new(validator_tx_nonce),
         Payload::new(post_message),
-        hex::encode(validator_pubkey.to_bytes()),
+        validator_pubkey,
     );
     tx.fee = tx_fee.into();
-    tx.sign(validator_signing_key, chain_id);
+    tx.sign(validator_signing_key, chain_id)
+        .map_err(|e| e.to_string())?;
 
     Ok(tx)
 }
@@ -1758,10 +1831,12 @@ impl Tx {
         }
     }
 
-    pub fn sign(&mut self, signing_key: &SigningKey, chain_id: &str) -> String {
+    pub fn sign(&mut self, signing_key: &SigningKey, chain_id: &str) -> Result<String, EldError> {
         self.sig = TxSig::empty();
-        let json = serde_json::to_string(self)
-            .expect("Failed to serialize transaction to JSON for signing");
+        let json = serde_json::to_string(self).map_err(|e| EldError::TransactionError {
+            tx_type: "sign".to_string(),
+            details: format!("Failed to serialize transaction to JSON for signing: {e}"),
+        })?;
 
         // Create the signing bytes: JSON bytes + chain_id bytes
         let mut all_bytes = json.as_bytes().to_vec();
@@ -1769,10 +1844,10 @@ impl Tx {
 
         let signature = signing_key.sign(&all_bytes);
         self.sig = signature.into();
-        self.sig.as_str().to_string()
+        Ok(self.sig.as_str().to_string())
     }
 
-    pub fn verify(&self, chain_id: &str) -> bool {
+    pub fn verify(&self, chain_id: &str) -> Result<bool, EldError> {
         // Step 1: Verify the signature using public key
         let tx_to_verify = Tx {
             sig: TxSig::empty(),
@@ -1782,38 +1857,34 @@ impl Tx {
             fee: self.fee,
         };
 
-        let json = serde_json::to_string(&tx_to_verify)
-            .expect("Failed to serialize transaction to JSON for verification");
+        let json =
+            serde_json::to_string(&tx_to_verify).map_err(|e| EldError::TransactionError {
+                tx_type: "verify".to_string(),
+                details: format!("Failed to serialize transaction to JSON for verification: {e}"),
+            })?;
 
         // Create the verification bytes: JSON bytes + chain_id bytes
         let mut all_bytes = json.as_bytes().to_vec();
         all_bytes.extend_from_slice(chain_id.as_bytes());
 
-        let public_key = self
-            .public_key
-            .to_verifying_key()
-            .expect("Failed to create verifying key from public key");
-        let signature = self
-            .sig
-            .to_signature()
-            .expect("Failed to decode signature bytes");
+        let public_key = self.public_key.to_verifying_key()?;
+        let signature = self.sig.to_signature()?;
 
         let sig_valid = public_key.verify(&all_bytes, &signature).is_ok();
         if !sig_valid {
             warn!("signature is not valid");
-            return false;
+            return Ok(false);
         }
 
         // Step 2: Verify the sender address is derived from the public key
-        let derived_address = Address::from_public_key(&public_key)
-            .expect("Failed to derive address from public key");
+        let derived_address = Address::from_public_key(&public_key)?;
         let payload_sender = self.payload.inner.sender();
 
         let addr_valid = payload_sender == derived_address;
         if !addr_valid {
             warn!("address is not valid");
         }
-        addr_valid
+        Ok(addr_valid)
     }
 }
 
@@ -1862,11 +1933,11 @@ mod tests {
             sig: TxSig::empty(),
             nonce: 1u32.into(),
             payload: Payload::new(transfer),
-            public_key: hex::encode(verifying_key.to_bytes()).into(),
+            public_key: TxPublicKey::from(&verifying_key),
             fee: DEFAULT_TX_FEE.into(),
         };
 
-        tx.sign(&signing_key, MOCK_CHAIN_ID);
+        tx.sign(&signing_key, MOCK_CHAIN_ID).expect("sign");
         let json =
             serde_json::to_string(&tx).expect("Failed to serialize transaction to JSON in test");
         info!("Rust JSON: {}", json);
@@ -1874,7 +1945,7 @@ mod tests {
         info!("Rust Hex: {}", hex);
 
         assert!(
-            tx.verify(MOCK_CHAIN_ID),
+            tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Verification failed for original tx"
         );
 
@@ -1884,7 +1955,7 @@ mod tests {
         let decoded_tx: Tx = serde_json::from_str(&decoded_json)
             .expect("Failed to deserialize JSON to transaction in test");
         assert!(
-            decoded_tx.verify(MOCK_CHAIN_ID),
+            decoded_tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Verification failed for decoded tx"
         );
     }
@@ -1910,16 +1981,16 @@ mod tests {
             sig: TxSig::empty(),
             nonce: 1u32.into(),
             payload,
-            public_key: hex::encode(verifying_key.to_bytes()).into(),
+            public_key: TxPublicKey::from(&verifying_key),
             fee: DEFAULT_TX_FEE.into(),
         };
 
         // Sign the transaction
-        tx.sign(&signing_key, MOCK_CHAIN_ID);
+        tx.sign(&signing_key, MOCK_CHAIN_ID).expect("sign");
 
         // Verify the original transaction
         assert!(
-            tx.verify(MOCK_CHAIN_ID),
+            tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Original transaction verification failed"
         );
 
@@ -1936,7 +2007,7 @@ mod tests {
 
         // Verify the decoded transaction
         assert!(
-            decoded_tx.verify(MOCK_CHAIN_ID),
+            decoded_tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Decoded transaction verification failed"
         );
 
@@ -1990,16 +2061,16 @@ mod tests {
             sig: TxSig::empty(),
             nonce: 1u32.into(),
             payload,
-            public_key: hex::encode(verifying_key.to_bytes()).into(),
+            public_key: TxPublicKey::from(&verifying_key),
             fee: DEFAULT_TX_FEE.into(),
         };
 
         // Sign the transaction
-        tx.sign(&signing_key, MOCK_CHAIN_ID);
+        tx.sign(&signing_key, MOCK_CHAIN_ID).expect("sign");
 
         // Verify the original transaction
         assert!(
-            tx.verify(MOCK_CHAIN_ID),
+            tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Original transaction verification failed"
         );
 
@@ -2016,7 +2087,7 @@ mod tests {
 
         // Verify the decoded transaction
         assert!(
-            decoded_tx.verify(MOCK_CHAIN_ID),
+            decoded_tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Decoded transaction verification failed"
         );
 
@@ -2059,12 +2130,12 @@ mod tests {
             sig: TxSig::empty(),
             nonce: 1u32.into(),
             payload: Payload::new(unstake),
-            public_key: hex::encode(verifying_key.to_bytes()).into(),
+            public_key: TxPublicKey::from(&verifying_key),
             fee: DEFAULT_TX_FEE.into(),
         };
 
         // Sign the transaction
-        tx.sign(&signing_key, MOCK_CHAIN_ID);
+        tx.sign(&signing_key, MOCK_CHAIN_ID).expect("sign");
 
         // Convert to hex-encoded JSON
         let tx_json = serde_json::to_string(&tx).expect("Failed to serialize tx to JSON");
@@ -2086,7 +2157,7 @@ mod tests {
 
         // Verify the decoded transaction
         assert!(
-            decoded_tx.verify(MOCK_CHAIN_ID),
+            decoded_tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Decoded transaction verification failed"
         );
 
@@ -2127,28 +2198,28 @@ mod tests {
             sig: TxSig::empty(),
             nonce: 1u32.into(),
             payload: Payload::new(transfer),
-            public_key: hex::encode(verifying_key.to_bytes()).into(),
+            public_key: TxPublicKey::from(&verifying_key),
             fee: DEFAULT_TX_FEE.into(),
         };
 
         // Sign with MOCK_CHAIN_ID
-        tx.sign(&signing_key, MOCK_CHAIN_ID);
+        tx.sign(&signing_key, MOCK_CHAIN_ID).expect("sign");
 
         // Verify with same chain ID should succeed
         assert!(
-            tx.verify(MOCK_CHAIN_ID),
+            tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Transaction should verify with correct chain ID"
         );
 
         // Verify with different chain ID should fail
         assert!(
-            !tx.verify("different-chain"),
+            !tx.verify("different-chain").expect("verify"),
             "Transaction should not verify with wrong chain ID"
         );
 
         // Verify with empty chain ID should fail
         assert!(
-            !tx.verify(""),
+            !tx.verify("").expect("verify"),
             "Transaction should not verify with empty chain ID"
         );
     }
@@ -2204,7 +2275,10 @@ mod tests {
             tx_type::TX_TYPE_POST_MESSAGE.to_string(),
             "Unexpected tx payload type"
         );
-        assert!(tx.verify(MOCK_CHAIN_ID), "Built tx should verify");
+        assert!(
+            tx.verify(MOCK_CHAIN_ID).expect("verify"),
+            "Built tx should verify"
+        );
 
         match tx.payload.inner {
             PayloadInner::PostMessage(post_message_tx) => {
@@ -2373,13 +2447,13 @@ mod tests {
             sig: TxSig::empty(),
             nonce: 1u32.into(),
             payload: Payload::new(add_namespace),
-            public_key: hex::encode(verifying_key.to_bytes()).into(),
+            public_key: TxPublicKey::from(&verifying_key),
             fee: DEFAULT_TX_FEE.into(),
         };
 
-        tx.sign(&signing_key, MOCK_CHAIN_ID);
+        tx.sign(&signing_key, MOCK_CHAIN_ID).expect("sign");
         assert!(
-            tx.verify(MOCK_CHAIN_ID),
+            tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Original AddNamespace transaction verification failed"
         );
         assert_eq!(
@@ -2395,7 +2469,7 @@ mod tests {
         .expect("deserialize tx");
 
         assert!(
-            decoded_tx.verify(MOCK_CHAIN_ID),
+            decoded_tx.verify(MOCK_CHAIN_ID).expect("verify"),
             "Decoded AddNamespace transaction verification failed"
         );
 
@@ -2407,5 +2481,43 @@ mod tests {
             }
             _ => panic!("Wrong payload type after AddNamespace deserialization"),
         }
+    }
+
+    #[test]
+    fn tx_public_key_try_from_rejects_invalid_hex() {
+        let err = TxPublicKey::try_from("not-hex").expect_err("invalid hex");
+        assert!(err.to_string().contains("public_key"));
+    }
+
+    #[test]
+    fn tx_sig_try_from_rejects_wrong_length() {
+        let err = TxSig::try_from("aa").expect_err("too short");
+        assert!(err.to_string().contains("signature"));
+    }
+
+    #[test]
+    fn tx_sig_try_from_empty_is_unsigned() {
+        let sig = TxSig::try_from("").expect("empty signature is unsigned");
+        assert_eq!(sig, TxSig::empty());
+    }
+
+    #[test]
+    fn verify_returns_err_for_unsigned_tx() {
+        let signing_key = throwaway_signing_key();
+        let verifying_key = signing_key.verifying_key();
+        let sender = Address::from_public_key(&verifying_key)
+            .expect("Failed to derive address from public key in test");
+        let recipient = Address::parse_hex_str("0x0987654321098765432109876543210987654321")
+            .expect("valid recipient in test");
+        let transfer = TransferTx::new(sender, recipient, 1.into()).expect("valid transfer");
+        let tx = Tx {
+            sig: TxSig::empty(),
+            nonce: 1u32.into(),
+            payload: Payload::new(transfer),
+            public_key: TxPublicKey::from(&verifying_key),
+            fee: DEFAULT_TX_FEE.into(),
+        };
+
+        assert!(tx.verify(MOCK_CHAIN_ID).is_err());
     }
 }

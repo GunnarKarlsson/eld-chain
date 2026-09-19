@@ -4,6 +4,7 @@ use crate::tx::{PostMessageUserRequest, Tx};
 use crate::Address;
 use ed25519_dalek::Signer;
 use ed25519_dalek::SigningKey;
+use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use tracing::debug;
@@ -140,8 +141,12 @@ impl Wallet {
         }
     }
 
-    pub fn sign(&self, tx: &mut Tx, chain_id: &str) -> String {
-        // TODO: Change to Result
+    /// Ed25519 verifying key corresponding to this wallet.
+    pub fn verifying_key(&self) -> VerifyingKey {
+        self.signing_key.verifying_key()
+    }
+
+    pub fn sign(&self, tx: &mut Tx, chain_id: &str) -> Result<String, EldError> {
         tx.sign(&self.signing_key, chain_id)
     }
 
@@ -158,8 +163,7 @@ impl Wallet {
         crate::capacity_proof::sign_capacity_challenge_response(&self.signing_key, challenge_proof)
     }
 
-    pub fn verify(&self, tx: &Tx, chain_id: &str) -> bool {
-        // TODO: Change to Result
+    pub fn verify(&self, tx: &Tx, chain_id: &str) -> Result<bool, EldError> {
         tx.verify(chain_id)
     }
 
@@ -402,9 +406,9 @@ mod tests {
                 ed25519_dalek::VerifyingKey::from_bytes(&wallet.public_key).unwrap()
             });
             let chain_id = "eld-testnet-tempelhof";
-            wallet.sign(&mut tx, chain_id);
+            wallet.sign(&mut tx, chain_id).expect("sign");
             assert!(
-                wallet.verify(&tx, chain_id),
+                wallet.verify(&tx, chain_id).expect("verify"),
                 "wallet-capacity-validator-{i} tx verify failed"
             );
         }

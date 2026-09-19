@@ -53,7 +53,7 @@ pub(crate) async fn add_namespace(
     let mut tx = Tx::new(
         next_nonce,
         Payload::new(add_namespace_tx),
-        hex::encode(wallet.public_key),
+        wallet.verifying_key(),
     );
 
     let dynamic_fee = crate::fee::calculate_dynamic_fee(&tx, &client.fee_config).map_err(|e| {
@@ -71,7 +71,7 @@ pub(crate) async fn add_namespace(
         "Submitting AddNamespace transaction"
     );
 
-    wallet.sign(&mut tx, &client.config.chain_id);
+    wallet.sign(&mut tx, &client.config.chain_id)?;
     let json = serde_json::to_string(&tx).map_err(|e| {
         ErrorBuilder::transaction_error(
             tx_type::TX_TYPE_ADD_NAMESPACE,
@@ -80,7 +80,7 @@ pub(crate) async fn add_namespace(
     })?;
     let hex = hex::encode(&json);
 
-    if !wallet.verify(&tx, &client.config.chain_id) {
+    if !wallet.verify(&tx, &client.config.chain_id)? {
         return Err(ErrorBuilder::transaction_error(
             tx_type::TX_TYPE_ADD_NAMESPACE,
             "Transaction verification failed",

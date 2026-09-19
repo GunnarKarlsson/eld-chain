@@ -341,9 +341,8 @@ fn estimate_gas_usage(payload: &PayloadInner) -> Result<u64, EldError> {
 mod tests {
     use super::*;
     use crate::address::Address;
-    use crate::tx::{Payload, PayloadInner, TransferTx, Tx};
+    use crate::tx::{Payload, PayloadInner, TransferTx, Tx, TxPublicKey, TxSig};
     use ed25519_dalek::SigningKey;
-    use hex;
 
     fn create_test_fee_config() -> FeeConfig {
         FeeConfig {
@@ -361,7 +360,7 @@ mod tests {
     fn create_test_transfer_tx() -> Tx {
         let signing_key = SigningKey::from_bytes(&[1u8; 32]);
         Tx {
-            sig: "0".repeat(128).into(),
+            sig: TxSig::new("0".repeat(128)).expect("64-byte zero signature hex"),
             nonce: 1u32.into(),
             fee: 1000.into(),
             payload: Payload::new(
@@ -374,7 +373,7 @@ mod tests {
                 )
                 .expect("valid test transfer"),
             ),
-            public_key: hex::encode(signing_key.verifying_key().to_bytes()).into(),
+            public_key: TxPublicKey::from(signing_key.verifying_key()),
         }
     }
 

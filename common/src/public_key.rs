@@ -131,13 +131,7 @@ impl TryFrom<&TxPublicKey> for PublicKey {
     type Error = EldError;
 
     fn try_from(value: &TxPublicKey) -> Result<Self, Self::Error> {
-        let verifying_key = value
-            .to_verifying_key()
-            .map_err(|e| EldError::ValidationError {
-                field: "public_key".to_string(),
-                value: value.as_str().to_string(),
-                details: e,
-            })?;
+        let verifying_key = value.to_verifying_key()?;
         Ok(PublicKey::from(verifying_key))
     }
 }
