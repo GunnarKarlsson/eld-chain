@@ -14,7 +14,4 @@ wallets/
 **/wallets.json
 config/config.json
 config/consensus_config.json
-TODO.md
-**/TODO.md
-MISC.md
-PLAN*
+dev-docs/
