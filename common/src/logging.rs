@@ -84,7 +84,6 @@ pub enum LogCategory {
     Validation,
     Transaction,
     Device,
-    Contract,
     CLI,
     API,
     General,
@@ -99,7 +98,6 @@ impl std::fmt::Display for LogCategory {
             LogCategory::Validation => write!(f, "validation"),
             LogCategory::Transaction => write!(f, "transaction"),
             LogCategory::Device => write!(f, "device"),
-            LogCategory::Contract => write!(f, "contract"),
             LogCategory::CLI => write!(f, "cli"),
             LogCategory::API => write!(f, "api"),
             LogCategory::General => write!(f, "general"),
@@ -272,19 +270,6 @@ impl LogSanitizer {
         )
     }
 
-    /// Sanitizes a contract address by showing only the first 6 and last 4 characters
-    /// Example: "contract_1234567890abcdef1234567890abcdef" -> "contra...cdef"
-    pub fn sanitize_contract_address(contract_addr: &str) -> String {
-        if contract_addr.len() <= 10 {
-            return contract_addr.to_string();
-        }
-        format!(
-            "{}...{}",
-            &contract_addr[..6],
-            &contract_addr[contract_addr.len() - 4..]
-        )
-    }
-
     /// Generic sanitization that attempts to identify the type of data and sanitize accordingly
     pub fn sanitize_generic(data: &str) -> String {
         if data.starts_with("0x") && data.len() > 10 {
@@ -345,11 +330,6 @@ impl SanitizedLog {
 
     pub fn as_manifest_id<T: ToString>(data: T) -> Self {
         let sanitized = LogSanitizer::sanitize_manifest_id(&data.to_string());
-        Self { sanitized }
-    }
-
-    pub fn as_contract_address<T: ToString>(data: T) -> Self {
-        let sanitized = LogSanitizer::sanitize_contract_address(&data.to_string());
         Self { sanitized }
     }
 }
@@ -473,15 +453,6 @@ mod tests {
             "manifest...cdef"
         );
         assert_eq!(LogSanitizer::sanitize_manifest_id("short"), "short");
-    }
-
-    #[test]
-    fn test_sanitize_contract_address() {
-        assert_eq!(
-            LogSanitizer::sanitize_contract_address("contract_1234567890abcdef1234567890abcdef"),
-            "contra...cdef"
-        );
-        assert_eq!(LogSanitizer::sanitize_contract_address("short"), "short");
     }
 
     #[test]

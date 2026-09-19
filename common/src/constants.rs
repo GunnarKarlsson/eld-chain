@@ -117,7 +117,6 @@ pub mod cado {
     pub const SCOPE_ELD_ROOT: &str = "@eld";
     pub const SCOPE_USER: &str = "@user";
     pub const SCOPE_PUBLIC: &str = "@public";
-    pub const SCOPE_CONTRACT: &str = "@contract";
     pub const SCOPE_TEST: &str = "@test";
     pub const SCOPE_OTHER: &str = "@other";
     pub const SCOPE_ELD: &str = "@eld";
@@ -125,8 +124,6 @@ pub mod cado {
     /// CADO type constants
     pub const TYPE_ACCOUNT: &str = "account";
     pub const TYPE_STAKING_ACCOUNT: &str = "staking_account";
-    pub const TYPE_CONTRACT_INFO: &str = "contract_info";
-    pub const TYPE_CONTRACT_STATE: &str = "contract_state";
     pub const TYPE_CADO_MAP: &str = "cado_map";
     pub const TYPE_APP_STATE_TIP: &str = "app_state_tip";
     pub const TYPE_EPOCH_RECORD: &str = "epoch_record";
@@ -153,10 +150,6 @@ pub mod cado {
     pub const PATH_PREFIX_ACCOUNT: &str = "/@eld/account/";
     /// `/{SCOPE_ELD_ROOT}/{TYPE_STAKING_ACCOUNT}/`
     pub const PATH_PREFIX_STAKING_ACCOUNT: &str = "/@eld/staking_account/";
-    /// `/{SCOPE_ELD_ROOT}/{TYPE_CONTRACT_INFO}/`
-    pub const PATH_PREFIX_CONTRACT_INFO: &str = "/@eld/contract_info/";
-    /// `/{SCOPE_ELD_ROOT}/{TYPE_CONTRACT_STATE}/`
-    pub const PATH_PREFIX_CONTRACT_STATE: &str = "/@eld/contract_state/";
     /// `/{SCOPE_ELD_ROOT}/{TYPE_CADO_MAP}/`
     pub const PATH_PREFIX_CADO_MAP: &str = "/@eld/cado_map/";
     /// `/{SCOPE_ELD_ROOT}/{TYPE_ACCOUNT_CONTENT}/`
@@ -187,7 +180,6 @@ pub mod cado {
         SCOPE_ELD_ROOT, // System and core functionality
         SCOPE_USER,     // User-specific data
         SCOPE_PUBLIC,   // Publicly accessible data
-        SCOPE_CONTRACT, // Smart contract data
         SCOPE_TEST,     // Testing purposes
         SCOPE_OTHER,    // Other/miscellaneous data
         SCOPE_ELD,      // Eld network data
@@ -200,9 +192,6 @@ pub mod cado {
         TYPE_ACCOUNT,
         TYPE_STAKING_ACCOUNT,
         TYPE_STORAGE_STAKING_ACCOUNT,
-        // Contract-related types
-        TYPE_CONTRACT_INFO,
-        TYPE_CONTRACT_STATE,
         TYPE_CADO_MAP,
         // System and state types
         TYPE_APP_STATE_TIP,
@@ -223,8 +212,6 @@ pub mod cado {
 
     /// CADO types that require 32-byte hex identifiers
     pub const HASH_TYPES: &[&str] = &[
-        TYPE_CONTRACT_INFO,
-        TYPE_CONTRACT_STATE,
         TYPE_CADO_MAP,
         TYPE_APP_STATE_TIP,
         TYPE_EPOCH_RECORD,
@@ -291,14 +278,6 @@ pub mod cado {
             assert_eq!(
                 PATH_PREFIX_STAKING_ACCOUNT,
                 format!("/{SCOPE_ELD_ROOT}/{TYPE_STAKING_ACCOUNT}/")
-            );
-            assert_eq!(
-                PATH_PREFIX_CONTRACT_INFO,
-                format!("/{SCOPE_ELD_ROOT}/{TYPE_CONTRACT_INFO}/")
-            );
-            assert_eq!(
-                PATH_PREFIX_CONTRACT_STATE,
-                format!("/{SCOPE_ELD_ROOT}/{TYPE_CONTRACT_STATE}/")
             );
             assert_eq!(
                 PATH_PREFIX_CADO_MAP,

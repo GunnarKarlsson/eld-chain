@@ -66,12 +66,6 @@ pub enum EldError {
         wallet_name: String,
         details: String,
     },
-    /// Contract-related issues
-    ContractError {
-        operation: String,
-        contract_id: Option<String>,
-        details: String,
-    },
     /// Device-related issues
     DeviceError {
         operation: String,
@@ -151,17 +145,6 @@ impl fmt::Display for EldError {
                 details,
             } => {
                 writeln!(f, "👛 Wallet Error during {operation} for '{wallet_name}'")?;
-                writeln!(f, "   Details: {details}")?;
-            }
-            EldError::ContractError {
-                operation,
-                contract_id,
-                details,
-            } => {
-                writeln!(f, "📜 Contract Error during {operation}")?;
-                if let Some(id) = contract_id {
-                    writeln!(f, "   Contract ID: {id}")?;
-                }
                 writeln!(f, "   Details: {details}")?;
             }
             EldError::DeviceError {
@@ -327,19 +310,6 @@ impl EldError {
         })
     }
 
-    /// Create a contract error and return it as a Result
-    pub fn contract_error(
-        operation: &str,
-        contract_id: Option<&str>,
-        details: &str,
-    ) -> Result<(), Self> {
-        Err(Self::ContractError {
-            operation: operation.to_string(),
-            contract_id: contract_id.map(|s| s.to_string()),
-            details: details.to_string(),
-        })
-    }
-
     /// Create a device error and return it as a Result
     pub fn device_error(
         operation: &str,
@@ -442,14 +412,6 @@ impl ErrorBuilder {
         EldError::WalletError {
             operation: operation.to_string(),
             wallet_name: wallet_name.to_string(),
-            details: details.to_string(),
-        }
-    }
-
-    pub fn contract_error(operation: &str, contract_id: Option<&str>, details: &str) -> EldError {
-        EldError::ContractError {
-            operation: operation.to_string(),
-            contract_id: contract_id.map(|s| s.to_string()),
             details: details.to_string(),
         }
     }

@@ -2,7 +2,6 @@
 
 use crate::abci_api::AbciHttpApi;
 use crate::account::Account;
-use crate::app_api::AppApi;
 use crate::client::ChainClient;
 use crate::constants::cado::{
     PATH_PREFIX_ACCOUNT, PATH_PREFIX_ACCOUNT_CONTENT, PATH_PREFIX_APP_STATE_SNAPSHOT,
@@ -13,18 +12,6 @@ use crate::staking_account::StakingAccount;
 use tracing::info;
 
 pub(crate) async fn get_cado(client: &ChainClient, path: String) -> Result<(), EldError> {
-    if path.contains("contract_info") || path.contains("contract_state") {
-        let api = AppApi::new(
-            client
-                .config
-                .get_app_base_url()
-                .trim_end_matches('/')
-                .to_string(),
-        );
-        api.get_cado(path).await?;
-        return Ok(());
-    }
-
     let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
     let response = api.get_cado(path.clone()).await?;
     {

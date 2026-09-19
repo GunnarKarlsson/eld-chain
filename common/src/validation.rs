@@ -95,13 +95,6 @@ fn parse_validated_address(address: &str) -> Result<Address, EldError> {
     Address::parse_hex_str(address)
 }
 
-/// Validate that a contract ID is properly formatted
-/// Contract IDs are 32 bytes (64 hex characters) - different from addresses which are 20 bytes
-#[cfg(test)]
-pub(crate) fn validate_contract_id(contract_id: &str) -> Result<(), EldError> {
-    crate::contract_id::ContractId::from_input(contract_id).map(|_| ())
-}
-
 /// Validate that a string is safe for storage (no injection attacks)
 pub(crate) fn validate_safe_string(input: &str, max_length: usize) -> Result<(), EldError> {
     if input.is_empty() {
@@ -1609,34 +1602,6 @@ mod tests {
                 ..
             } if field == "address" && details == "address hex cannot be empty"
         ));
-    }
-
-    #[test]
-    fn test_validate_contract_id() {
-        // Valid 32-byte contract ID (64 hex characters)
-        let valid_contract_id =
-            "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-        assert!(validate_contract_id(valid_contract_id).is_ok());
-
-        let without_prefix = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-        assert!(validate_contract_id(without_prefix).is_ok());
-
-        // Invalid: too short (20 bytes instead of 32)
-        let short_contract_id = "0x1234567890abcdef1234567890abcdef12345678";
-        assert!(validate_contract_id(short_contract_id).is_err());
-
-        // Invalid: too long
-        let long_contract_id =
-            "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12";
-        assert!(validate_contract_id(long_contract_id).is_err());
-
-        // Invalid: invalid hex
-        let invalid_hex = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdefg";
-        assert!(validate_contract_id(invalid_hex).is_err());
-
-        // Invalid: empty
-        let empty_contract_id = "0x";
-        assert!(validate_contract_id(empty_contract_id).is_err());
     }
 
     #[test]

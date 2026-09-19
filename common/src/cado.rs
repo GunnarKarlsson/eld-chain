@@ -1,10 +1,9 @@
 use crate::address::Address;
 use crate::constants::cado::{
-    FOUR_PART_PATH_TYPES, SCOPE_CONTRACT, SCOPE_ELD, SCOPE_ELD_ROOT, SCOPE_OTHER, SCOPE_PUBLIC,
-    SCOPE_TEST, SCOPE_USER, TYPE_ACCOUNT, TYPE_APP_STATE_SNAPSHOT, TYPE_APP_STATE_TIP,
-    TYPE_CADO_MAP, TYPE_CHUNK_REFERENCE, TYPE_CONTRACT_INFO, TYPE_CONTRACT_STATE,
-    TYPE_EPOCH_RECORD, TYPE_NAMESPACE, TYPE_SNAPSHOT_CHUNK, TYPE_SNAPSHOT_METADATA,
-    TYPE_STAKING_ACCOUNT, TYPE_STORAGE_STAKING_ACCOUNT, VALID_TYPES,
+    FOUR_PART_PATH_TYPES, SCOPE_ELD, SCOPE_ELD_ROOT, SCOPE_OTHER, SCOPE_PUBLIC, SCOPE_TEST,
+    SCOPE_USER, TYPE_ACCOUNT, TYPE_APP_STATE_SNAPSHOT, TYPE_APP_STATE_TIP, TYPE_CADO_MAP,
+    TYPE_CHUNK_REFERENCE, TYPE_EPOCH_RECORD, TYPE_NAMESPACE, TYPE_SNAPSHOT_CHUNK,
+    TYPE_SNAPSHOT_METADATA, TYPE_STAKING_ACCOUNT, TYPE_STORAGE_STAKING_ACCOUNT, VALID_TYPES,
 };
 use crate::error::EldError;
 use crate::logging::{LogSanitizer, SanitizedLoggable};
@@ -24,8 +23,6 @@ pub enum CadoType {
     Account,
     StakingAccount,
     StorageStakingAccount,
-    ContractInfo,
-    ContractState,
     CadoMap,
     AppStateTip,
     SnapshotMetadata,
@@ -42,7 +39,6 @@ pub enum CadoScope {
     EldRoot,
     User,
     Public,
-    Contract,
     Test,
     Other,
     Eld,
@@ -55,8 +51,6 @@ impl CadoType {
             CadoType::Account => TYPE_ACCOUNT,
             CadoType::StakingAccount => TYPE_STAKING_ACCOUNT,
             CadoType::StorageStakingAccount => TYPE_STORAGE_STAKING_ACCOUNT,
-            CadoType::ContractInfo => TYPE_CONTRACT_INFO,
-            CadoType::ContractState => TYPE_CONTRACT_STATE,
             CadoType::CadoMap => TYPE_CADO_MAP,
             CadoType::AppStateTip => TYPE_APP_STATE_TIP,
             CadoType::SnapshotMetadata => TYPE_SNAPSHOT_METADATA,
@@ -127,8 +121,6 @@ impl FromStr for CadoType {
             TYPE_ACCOUNT => Ok(CadoType::Account),
             TYPE_STAKING_ACCOUNT => Ok(CadoType::StakingAccount),
             TYPE_STORAGE_STAKING_ACCOUNT => Ok(CadoType::StorageStakingAccount),
-            TYPE_CONTRACT_INFO => Ok(CadoType::ContractInfo),
-            TYPE_CONTRACT_STATE => Ok(CadoType::ContractState),
             TYPE_CADO_MAP => Ok(CadoType::CadoMap),
             TYPE_APP_STATE_TIP => Ok(CadoType::AppStateTip),
             TYPE_SNAPSHOT_METADATA => Ok(CadoType::SnapshotMetadata),
@@ -155,7 +147,6 @@ impl CadoScope {
             CadoScope::EldRoot => SCOPE_ELD_ROOT,
             CadoScope::User => SCOPE_USER,
             CadoScope::Public => SCOPE_PUBLIC,
-            CadoScope::Contract => SCOPE_CONTRACT,
             CadoScope::Test => SCOPE_TEST,
             CadoScope::Other => SCOPE_OTHER,
             CadoScope::Eld => SCOPE_ELD,
@@ -176,7 +167,6 @@ impl FromStr for CadoScope {
             s if s == SCOPE_ELD_ROOT || s == SCOPE_ELD => Ok(CadoScope::EldRoot),
             SCOPE_USER => Ok(CadoScope::User),
             SCOPE_PUBLIC => Ok(CadoScope::Public),
-            SCOPE_CONTRACT => Ok(CadoScope::Contract),
             SCOPE_TEST => Ok(CadoScope::Test),
             SCOPE_OTHER => Ok(CadoScope::Other),
             _ => Err(()),
@@ -196,7 +186,7 @@ pub struct CADOMarkedForDeletion {
 pub struct CADOMetadata {
     type_: String,
     /// Remains `String` (not [`Address`]): path/name key for this CADO, not always an
-    /// account. Examples: account hex, contract id, namespace slug, epoch id, `"system"`.
+    /// account. Examples: account hex, namespace slug, epoch id, `"system"`.
     /// Persisted in RocksDB via bincode; must stay compatible with existing blobs.
     owner: String,
 }

@@ -23,8 +23,6 @@ pub mod coin;
 pub mod config_loader;
 pub mod constants;
 pub mod content_id;
-pub mod contract;
-pub mod contract_id;
 pub mod device;
 pub mod endpoint;
 pub mod error;
@@ -55,7 +53,6 @@ pub use capacity_merkle_root::CapacityMerkleRoot;
 pub use capacity_seed::CapacitySeed;
 pub use challenge_id::ChallengeId;
 pub use content_id::ContentId;
-pub use contract_id::ContractId;
 pub use manifest_id::ManifestId;
 pub use public_key::PublicKey;
 use tendermint::Time; // Re-export Address
