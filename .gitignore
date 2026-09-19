@@ -1,8 +1,6 @@
 /target
 **/*.rs.bk
-.cursor/*
-!.cursor/rules/
-!.cursor/rules/**
+
 .idea/
 .vscode/
 .DS_Store
@@ -15,3 +13,4 @@ wallets/
 config/config.json
 config/consensus_config.json
 dev-docs/
+.cursor/
