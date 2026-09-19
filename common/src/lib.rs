@@ -23,7 +23,6 @@ pub mod coin;
 pub mod config_loader;
 pub mod constants;
 pub mod content_id;
-pub mod device;
 pub mod endpoint;
 pub mod error;
 pub mod fee;
