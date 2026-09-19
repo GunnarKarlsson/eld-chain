@@ -9,7 +9,7 @@ Domain types store raw bytes. String form is for JSON, logs, and CLI input. Cano
 | Type | Size | Parse | Canonical display / serde |
 |---|---|---|---|
 | `Address` | 20 bytes | optional `0x` / `0X`, exactly 40 hex digits | `hex()` has no prefix; `Display` / serde / `hex_with_prefix()` is `0x` + lowercase |
-| `ContentId`, `ChunkId`, `ManifestId` | 32 bytes | optional `0x` / `0X`, exactly 64 hex digits | `0x` + lowercase |
+| `ContentId`, `ManifestId` | 32 bytes | optional `0x` / `0X`, exactly 64 hex digits | `0x` + lowercase |
 | `ContractId` | 32 bytes | optional `0x` / `0X`, exactly 64 hex digits | `0x` + lowercase |
 | `PublicKey` | 32 bytes (Ed25519) | optional `0x` / `0X` | lowercase hex, no `0x` |
 | `ChallengeId`, `CapacitySeed`, `CapacityMerkleRoot` | 32 bytes | optional `0x` / `0X`, exactly 64 hex digits | lowercase hex, **no** `0x` (matches current P2P / proof tx edges) |

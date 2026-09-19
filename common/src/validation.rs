@@ -85,14 +85,6 @@ pub fn validate_fee_amount(amount: &Coin) -> Result<(), EldError> {
     Ok(())
 }
 
-/// Validate that a chunk ID is properly formatted
-/// Chunk IDs are now 32 bytes (64 hex characters) using SHA256 hashes for RocksDB storage
-#[cfg(test)]
-pub(crate) fn validate_chunk_id(chunk_id: &str) -> Result<(), EldError> {
-    chunk_id.parse::<crate::chunk_id::ChunkId>()?;
-    Ok(())
-}
-
 /// Validate that an address is properly formatted (optional `0x` / `0X` prefix).
 pub fn validate_address(address: &str) -> Result<(), EldError> {
     parse_validated_address(address).map(|_| ())
@@ -1548,30 +1540,6 @@ mod tests {
         // Maximum fee should be valid
         let max_fee = Coin::max();
         assert!(validate_fee_amount(&max_fee).is_ok());
-    }
-
-    #[test]
-    fn test_validate_chunk_id() {
-        // Valid chunk ID (32 bytes = 64 hex chars)
-        let valid_chunk_id = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        assert!(validate_chunk_id(valid_chunk_id).is_ok());
-
-        let without_prefix = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-        assert!(validate_chunk_id(without_prefix).is_ok());
-
-        // Short chunk ID (20 bytes = 40 hex chars, should fail)
-        let short_chunk_id = "0xabcdef1234567890abcdef1234567890abcdef12";
-        assert!(validate_chunk_id(short_chunk_id).is_err());
-
-        // Even shorter chunk ID
-        let very_short_chunk_id = "0xabcdef1234567890abcdef1234567890abcdef1";
-        assert!(validate_chunk_id(very_short_chunk_id).is_err());
-
-        let invalid_hex = "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefgh";
-        assert!(validate_chunk_id(invalid_hex).is_err());
-
-        let empty_chunk_id = "0x";
-        assert!(validate_chunk_id(empty_chunk_id).is_err());
     }
 
     #[test]
