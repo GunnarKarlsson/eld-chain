@@ -543,7 +543,6 @@ name = "eld_common"
 version = "0.1.0"
 dependencies = [
  "abci-rs",
- "anyhow",
  "async-trait",
  "base64 0.22.1",
  "bincode",

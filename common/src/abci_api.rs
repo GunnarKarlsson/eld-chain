@@ -6,7 +6,6 @@ use crate::error::EldError;
 use crate::logging::SanitizedLog;
 use crate::staking_account::StakingAccount;
 use crate::validator::{ActiveValidatorsInfo, CapacityValidatorsInfo, EpochInfo};
-use anyhow::Result;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use bincode;

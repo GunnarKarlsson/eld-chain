@@ -10,7 +10,7 @@
 *.key
 wallets/
 **/wallets.json
-config/config.json
-config/consensus_config.json
+config/*.json
+!config/*.json.example
 dev-docs/
 .cursor/
