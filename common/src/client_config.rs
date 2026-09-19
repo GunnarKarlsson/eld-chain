@@ -2,7 +2,6 @@
 
 use crate::endpoint::{resolve_app_base_url, resolve_faucet_request_url, resolve_node_base_url};
 use serde::{Deserialize, Serialize};
-use tracing::error;
 
 pub const DEFAULT_CONFIG_PATH: &str = "config/config.json";
 pub const CONSENSUS_CONFIG_PATH: &str = "config/consensus_config.json";
@@ -114,15 +113,11 @@ impl CliConfig {
         Ok(())
     }
 
-    pub fn get_node_url(&self) -> String {
+    pub fn get_node_url(&self) -> Result<String, crate::error::EldError> {
         resolve_node_base_url(self.node_url.as_deref(), &self.node_host, &self.node_port)
-            .unwrap_or_else(|e| {
-                error!("Invalid node URL configuration: {e}");
-                panic!("Invalid node URL configuration");
-            })
     }
 
-    pub fn get_app_base_url(&self) -> String {
+    pub fn get_app_base_url(&self) -> Result<String, crate::error::EldError> {
         resolve_app_base_url(
             self.app_url.as_deref(),
             self.node_url.as_deref(),
@@ -130,23 +125,15 @@ impl CliConfig {
             &self.node_port,
             &self.app_port,
         )
-        .unwrap_or_else(|e| {
-            error!("Invalid app URL configuration: {e}");
-            panic!("Invalid app URL configuration");
-        })
     }
 
-    pub fn get_faucet_request_url(&self) -> String {
+    pub fn get_faucet_request_url(&self) -> Result<String, crate::error::EldError> {
         resolve_faucet_request_url(
             self.faucet_url.as_deref(),
             &self.faucet_host,
             &self.faucet_port,
             &self.faucet_end_point,
         )
-        .unwrap_or_else(|e| {
-            error!("Invalid faucet URL configuration: {e}");
-            panic!("Invalid faucet URL configuration");
-        })
     }
 }
 
@@ -335,12 +322,19 @@ mod tests {
         config.node_url = Some("https://node-rpc.eld.network".to_string());
         config.app_url = Some("https://node-api.eld.network".to_string());
         assert!(config.validate().is_ok());
-        assert_eq!(config.get_node_url(), "https://node-rpc.eld.network/");
-        assert_eq!(config.get_app_base_url(), "https://node-api.eld.network/");
+        assert_eq!(
+            config.get_node_url().unwrap(),
+            "https://node-rpc.eld.network/"
+        );
+        assert_eq!(
+            config.get_app_base_url().unwrap(),
+            "https://node-api.eld.network/"
+        );
         config.node_url = None;
         config.app_url = None;
         config.node_host = "".to_string();
         assert!(config.validate().is_err());
+        assert!(config.get_node_url().is_err());
         config.node_host = "127.0.0.1".to_string();
         config.node_port = "0".to_string();
         assert!(config.validate().is_err());
@@ -366,11 +360,11 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let url = config.get_node_url();
+        let url = config.get_node_url().unwrap();
         assert_eq!(url, "http://127.0.0.1:26657/");
-        assert_eq!(config.get_app_base_url(), "http://127.0.0.1:9001/");
+        assert_eq!(config.get_app_base_url().unwrap(), "http://127.0.0.1:9001/");
         assert_eq!(
-            config.get_faucet_request_url(),
+            config.get_faucet_request_url().unwrap(),
             "http://127.0.0.1:8080/faucet/request"
         );
     }
@@ -397,7 +391,7 @@ mod tests {
         };
         assert!(config.validate().is_ok());
         assert_eq!(
-            config.get_faucet_request_url(),
+            config.get_faucet_request_url().unwrap(),
             "https://faucet.eld.network/request"
         );
     }
@@ -417,8 +411,14 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, config_json).unwrap();
         let config = CliConfig::from_file_for_test(temp_file.path().to_str().unwrap());
-        assert_eq!(config.get_node_url(), "https://node-rpc.eld.network/");
-        assert_eq!(config.get_app_base_url(), "https://node-api.eld.network/");
+        assert_eq!(
+            config.get_node_url().unwrap(),
+            "https://node-rpc.eld.network/"
+        );
+        assert_eq!(
+            config.get_app_base_url().unwrap(),
+            "https://node-api.eld.network/"
+        );
     }
 
     #[test]

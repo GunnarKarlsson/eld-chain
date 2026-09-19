@@ -55,7 +55,7 @@ pub(crate) async fn post_pinboard_message(
         idempotency_key: None,
     };
 
-    let app_api = AppApi::new(client.config.get_app_base_url());
+    let app_api = AppApi::new(client.config.get_app_base_url()?)?;
     let resp = app_api.submit_pinboard_message(submit).await?;
     info!(
         message_id = %resp.message_id,
@@ -79,7 +79,7 @@ pub(crate) async fn get_content(client: &ChainClient, content_id: String) -> Res
 
     let http = reqwest::Client::new();
 
-    let base_url = client.config.get_app_base_url();
+    let base_url = client.config.get_app_base_url()?;
     let url = format!("{base_url}content/{content_id}");
     info!("Requesting content from: {}", url);
 
@@ -170,7 +170,7 @@ pub(crate) async fn pinboard_get_post(
 
     let base_url = client
         .config
-        .get_app_base_url()
+        .get_app_base_url()?
         .trim_end_matches('/')
         .to_string();
     let url = format!(
@@ -233,7 +233,7 @@ pub(crate) async fn pinboard_list_by_wallet(
     page: usize,
     page_size: usize,
 ) -> Result<(), EldError> {
-    let api = crate::abci_api::AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = crate::abci_api::AbciHttpApi::new(client.config.get_node_url()?)?;
     let path = format!(
         "{}{}/{}/{}/{}",
         PATH_PREFIX_PINBOARD,
@@ -253,7 +253,7 @@ pub(crate) async fn pinboard_list_by_tag(
     page: usize,
     page_size: usize,
 ) -> Result<(), EldError> {
-    let api = crate::abci_api::AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = crate::abci_api::AbciHttpApi::new(client.config.get_node_url()?)?;
     let path = format!(
         "{}{}/{}/{}/{}",
         PATH_PREFIX_PINBOARD,

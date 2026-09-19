@@ -12,7 +12,7 @@ use crate::staking_account::StakingAccount;
 use tracing::info;
 
 pub(crate) async fn get_cado(client: &ChainClient, path: String) -> Result<(), EldError> {
-    let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = AbciHttpApi::new(client.config.get_node_url()?)?;
     let response = api.get_cado(path.clone()).await?;
     {
         info!("CADO query response:");
@@ -193,7 +193,7 @@ pub(crate) async fn list_cados(
     client: &ChainClient,
     search_string: String,
 ) -> Result<(), EldError> {
-    let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = AbciHttpApi::new(client.config.get_node_url()?)?;
     let paths = api.get_cado_paths(search_string.clone()).await?;
     info!(
         "Found {} CADO paths matching '{}':",

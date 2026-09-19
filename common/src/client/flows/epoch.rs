@@ -7,10 +7,10 @@ use crate::logging::SanitizedLog;
 use tracing::{info, warn};
 
 pub(crate) async fn view_active_validators(client: &ChainClient) -> Result<(), EldError> {
-    let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = AbciHttpApi::new(client.config.get_node_url()?)?;
     info!(
         "Fetching active validators from {}...",
-        client.config.get_node_url()
+        client.config.get_node_url()?
     );
 
     match api.get_active_validators().await? {
@@ -62,7 +62,7 @@ pub(crate) async fn view_active_validators(client: &ChainClient) -> Result<(), E
 }
 
 pub(crate) async fn view_epoch_info(client: &ChainClient) -> Result<(), EldError> {
-    let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = AbciHttpApi::new(client.config.get_node_url()?)?;
     let epoch_info = api
         .get_epoch_info()
         .await?
@@ -80,7 +80,7 @@ pub(crate) async fn view_epoch_info(client: &ChainClient) -> Result<(), EldError
 }
 
 pub(crate) async fn view_epoch(client: &ChainClient) -> Result<(), EldError> {
-    let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = AbciHttpApi::new(client.config.get_node_url()?)?;
 
     let epoch_info_future = api.get_epoch_info();
     let active_validators_future = api.get_active_validators();

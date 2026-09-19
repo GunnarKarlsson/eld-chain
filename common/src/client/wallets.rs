@@ -187,23 +187,9 @@ pub async fn get_wallet_by_address(address: &str) -> Option<Wallet> {
     }
 }
 
-pub async fn list_wallets() {
-    info!("Listing wallets");
-    info!("Wallets:\n");
-    match get_wallets().await {
-        Ok(wallets) => {
-            if wallets.is_empty() {
-                info!("No wallets found");
-                info!("No wallets found. Create one with 'create-wallet <name>'");
-            } else {
-                info!(wallet_count = wallets.len(), "Retrieved wallets");
-                for wallet in wallets {
-                    info!("{}", wallet.terminal_display());
-                }
-            }
-        }
-        Err(e) => error!(%e),
-    }
+pub async fn list_wallets() -> Result<(), EldError> {
+    let default_store = WalletStoreConfig::at_path(WALLETS_PATH);
+    list_wallets_with_store_config(&default_store).await
 }
 
 pub async fn list_wallets_with_store_config(

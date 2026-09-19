@@ -8,20 +8,9 @@ use serde::de::DeserializeOwned;
 use std::fs;
 use std::path::Path;
 
-/// Error handling strategy for configuration loading
-#[derive(Debug, Clone, Copy)]
-pub enum ErrorStrategy {
-    /// Return Result on error (for library and CLI usage)
-    ReturnError,
-    /// Panic on error (for tests)
-    PanicOnError,
-}
-
 /// Configuration loading options
 #[derive(Debug, Clone)]
 pub struct ConfigLoadOptions {
-    /// Error handling strategy
-    pub error_strategy: ErrorStrategy,
     /// Whether to validate the configuration after loading
     pub validate: bool,
     /// Custom error context for better error messages
@@ -31,7 +20,6 @@ pub struct ConfigLoadOptions {
 impl Default for ConfigLoadOptions {
     fn default() -> Self {
         Self {
-            error_strategy: ErrorStrategy::ReturnError,
             validate: true,
             error_context: None,
         }
@@ -54,7 +42,7 @@ impl ConfigLoader {
             Ok(data) => data,
             Err(e) => {
                 let error_msg = format!("Failed to read {context} file '{file_path}': {e}");
-                Self::handle_error(&error_msg, options.error_strategy);
+                tracing::error!("Configuration loading failed: {}", error_msg);
                 return Err(EldError::ConfigError {
                     file: file_path.to_string(),
                     details: error_msg,
@@ -67,7 +55,7 @@ impl ConfigLoader {
             Ok(config) => config,
             Err(e) => {
                 let error_msg = format!("Failed to parse {context} JSON from '{file_path}': {e}");
-                Self::handle_error(&error_msg, options.error_strategy);
+                tracing::error!("Configuration loading failed: {}", error_msg);
                 return Err(EldError::ConfigError {
                     file: file_path.to_string(),
                     details: error_msg,
@@ -79,7 +67,7 @@ impl ConfigLoader {
         if options.validate {
             if let Err(e) = config.validate() {
                 let error_msg = format!("{context} validation failed for '{file_path}': {e}");
-                Self::handle_error(&error_msg, options.error_strategy);
+                tracing::error!("Configuration loading failed: {}", error_msg);
                 return Err(EldError::ConfigError {
                     file: file_path.to_string(),
                     details: error_msg,
@@ -96,7 +84,6 @@ impl ConfigLoader {
         T: DeserializeOwned + ConfigValidator,
     {
         let options = ConfigLoadOptions {
-            error_strategy: ErrorStrategy::ReturnError,
             validate: true,
             error_context: Some("CLI configuration".to_string()),
         };
@@ -110,7 +97,6 @@ impl ConfigLoader {
         T: DeserializeOwned + ConfigValidator,
     {
         let options = ConfigLoadOptions {
-            error_strategy: ErrorStrategy::ReturnError,
             validate: true,
             error_context: Some("library configuration".to_string()),
         };
@@ -118,18 +104,20 @@ impl ConfigLoader {
         Self::load(file_path, options)
     }
 
-    /// Load configuration for testing (panics on error)
+    /// Load configuration for testing. Panics on error; available only in tests.
+    #[cfg(test)]
     pub fn load_for_test<T>(file_path: &str) -> T
     where
         T: DeserializeOwned + ConfigValidator,
     {
         let options = ConfigLoadOptions {
-            error_strategy: ErrorStrategy::PanicOnError,
             validate: true,
             error_context: Some("test configuration".to_string()),
         };
 
-        Self::load(file_path, options).expect("Test configuration loading failed")
+        Self::load(file_path, options).unwrap_or_else(|e| {
+            panic!("Test configuration loading failed: {e}");
+        })
     }
 
     /// Load configuration with secure file checks
@@ -146,25 +134,11 @@ impl ConfigLoader {
         }
 
         let options = ConfigLoadOptions {
-            error_strategy: ErrorStrategy::ReturnError,
             validate: true,
             error_context: Some("secure configuration".to_string()),
         };
 
         Self::load(file_path, options)
-    }
-
-    /// Handle errors according to the specified strategy
-    fn handle_error(error_msg: &str, strategy: ErrorStrategy) {
-        match strategy {
-            ErrorStrategy::ReturnError => {
-                tracing::error!("Configuration loading failed: {}", error_msg);
-            }
-            ErrorStrategy::PanicOnError => {
-                tracing::error!("Configuration loading failed: {}", error_msg);
-                panic!("{}", error_msg);
-            }
-        }
     }
 }
 
@@ -187,6 +161,7 @@ pub trait ConfigLoadable: DeserializeOwned + ConfigValidator {
     }
 
     /// Load configuration from file for testing
+    #[cfg(test)]
     fn from_file_for_test(file: &str) -> Self {
         ConfigLoader::load_for_test(file)
     }

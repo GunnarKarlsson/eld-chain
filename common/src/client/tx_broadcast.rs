@@ -78,23 +78,12 @@ pub(crate) fn parse_rpc_response(response: &str) -> Result<(), EldError> {
             info!("\nEvent Type: {}", event["type"]);
             if let Some(attributes) = event["attributes"].as_array() {
                 for attr in attributes {
-                    let key = BASE64_STANDARD
-                        .decode(attr["key"].as_str().expect("Failed to get key as string"))
-                        .expect("Failed to decode base64 key");
-                    let value = BASE64_STANDARD
-                        .decode(
-                            attr["value"]
-                                .as_str()
-                                .expect("Failed to get value as string"),
-                        )
-                        .expect("Failed to decode base64 value");
-                    info!(
-                        "{}: {}",
-                        String::from_utf8(key)
-                            .expect("Failed to convert decoded key bytes to UTF-8"),
-                        String::from_utf8(value)
-                            .expect("Failed to convert decoded value bytes to UTF-8")
-                    );
+                    match decode_event_attribute(attr) {
+                        Ok((key, value)) => info!("{key}: {value}"),
+                        Err(e) => {
+                            tracing::warn!("Skipping malformed deliver_tx event attribute: {e}")
+                        }
+                    }
                 }
             }
         }
@@ -103,9 +92,53 @@ pub(crate) fn parse_rpc_response(response: &str) -> Result<(), EldError> {
     Ok(())
 }
 
+fn decode_event_attribute(attr: &Value) -> Result<(String, String), EldError> {
+    let key_b64 = attr["key"]
+        .as_str()
+        .ok_or_else(|| EldError::ValidationError {
+            field: "event_attribute_key".to_string(),
+            value: attr["key"].to_string(),
+            details: "Event attribute key is not a string".to_string(),
+        })?;
+    let value_b64 = attr["value"]
+        .as_str()
+        .ok_or_else(|| EldError::ValidationError {
+            field: "event_attribute_value".to_string(),
+            value: attr["value"].to_string(),
+            details: "Event attribute value is not a string".to_string(),
+        })?;
+
+    let key_bytes = BASE64_STANDARD
+        .decode(key_b64)
+        .map_err(|e| EldError::ValidationError {
+            field: "event_attribute_key".to_string(),
+            value: key_b64.to_string(),
+            details: format!("Failed to decode base64 key: {e}"),
+        })?;
+    let value_bytes = BASE64_STANDARD
+        .decode(value_b64)
+        .map_err(|e| EldError::ValidationError {
+            field: "event_attribute_value".to_string(),
+            value: value_b64.to_string(),
+            details: format!("Failed to decode base64 value: {e}"),
+        })?;
+
+    let key = String::from_utf8(key_bytes).map_err(|e| EldError::ValidationError {
+        field: "event_attribute_key".to_string(),
+        value: key_b64.to_string(),
+        details: format!("Failed to convert decoded key bytes to UTF-8: {e}"),
+    })?;
+    let value = String::from_utf8(value_bytes).map_err(|e| EldError::ValidationError {
+        field: "event_attribute_value".to_string(),
+        value: value_b64.to_string(),
+        details: format!("Failed to convert decoded value bytes to UTF-8: {e}"),
+    })?;
+    Ok((key, value))
+}
+
 pub async fn send_tx_rpc(config: &CliConfig, hex_encoded: &str) -> Result<Value, EldError> {
     let client = reqwest::Client::new();
-    let url = config.get_node_url();
+    let url = config.get_node_url()?;
     let tx_base64 = base64::engine::general_purpose::STANDARD.encode(hex_encoded);
 
     let body = serde_json::json!({

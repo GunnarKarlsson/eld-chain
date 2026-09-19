@@ -53,7 +53,7 @@ impl ChainClient {
         WalletStoreConfig::at_path(wallet_path.as_ref())
     }
 
-    pub async fn request_faucet(&self, address: String) {
+    pub async fn request_faucet(&self, address: String) -> Result<(), EldError> {
         crate::client::faucet::request_faucet(&self.config, address).await
     }
 
@@ -96,7 +96,10 @@ impl ChainClient {
         crate::client::flows::get_staking_account(self, address).await
     }
 
-    pub async fn get_next_nonce_for_account(&self, address: String) -> Option<Nonce> {
+    pub async fn get_next_nonce_for_account(
+        &self,
+        address: String,
+    ) -> Result<Option<Nonce>, EldError> {
         crate::client::query::get_next_nonce_for_account(&self.config, address).await
     }
 
@@ -108,7 +111,10 @@ impl ChainClient {
         crate::client::query::is_capacity_provider_registered(&self.config, provider_address).await
     }
 
-    pub async fn get_next_nonce_for_account_cado(&self, address: String) -> Option<Nonce> {
+    pub async fn get_next_nonce_for_account_cado(
+        &self,
+        address: String,
+    ) -> Result<Option<Nonce>, EldError> {
         crate::client::query::get_next_nonce_for_account_cado(&self.config, address).await
     }
 
@@ -134,7 +140,7 @@ impl ChainClient {
             .await
     }
 
-    pub async fn list_wallets(&self) {
+    pub async fn list_wallets(&self) -> Result<(), EldError> {
         crate::client::wallets::list_wallets().await
     }
 

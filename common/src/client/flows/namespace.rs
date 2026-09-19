@@ -20,7 +20,7 @@ pub(crate) async fn get_namespace(
 ) -> Result<(), EldError> {
     let canonical = normalize_namespace_slug(&namespace_slug)?;
 
-    let app_api = AppApi::new(client.config.get_app_base_url());
+    let app_api = AppApi::new(client.config.get_app_base_url()?)?;
     match app_api.get_namespace(&canonical).await? {
         Some(resp) => print_registered(&resp),
         None => {
@@ -97,7 +97,7 @@ async fn poll_namespace_registered(
     client: &ChainClient,
     namespace_slug: &str,
 ) -> Result<(), EldError> {
-    let app_api = AppApi::new(client.config.get_app_base_url());
+    let app_api = AppApi::new(client.config.get_app_base_url()?)?;
     info!(
         namespace_slug,
         "Polling namespace registry until registered"

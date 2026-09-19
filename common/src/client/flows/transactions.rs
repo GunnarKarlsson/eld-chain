@@ -64,7 +64,7 @@ pub(crate) async fn transfer(
 }
 
 pub(crate) async fn list_all_transactions(client: &ChainClient) -> Result<(), EldError> {
-    let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = AbciHttpApi::new(client.config.get_node_url()?)?;
     let abci_info = api.get_latest_abci_info().await?;
     info!("Transactions:\n");
     let mut current_block = abci_info.last_block_height.value();
@@ -97,7 +97,7 @@ pub(crate) async fn list_all_transactions(client: &ChainClient) -> Result<(), El
 }
 
 pub(crate) async fn list_transactions(client: &ChainClient, addr: String) -> Result<(), EldError> {
-    let api = AbciHttpApi::new(client.config.get_node_url().to_owned());
+    let api = AbciHttpApi::new(client.config.get_node_url()?)?;
     let txs = api.get_transactions_for_account(addr).await?;
     info!("\nTxs:\n");
     for tx_response in txs {

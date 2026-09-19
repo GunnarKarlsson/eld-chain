@@ -60,10 +60,14 @@ use tendermint::Time; // Re-export Address
 /// Seconds since UNIX epoch
 pub type Timespec = u64;
 
-pub fn to_timespec(time: Time) -> Timespec {
+pub fn to_timespec(time: Time) -> Result<Timespec, error::EldError> {
     time.duration_since(Time::unix_epoch())
-        .expect("Failed to calculate duration since Unix epoch")
-        .as_secs()
+        .map(|duration| duration.as_secs())
+        .map_err(|e| error::EldError::ValidationError {
+            field: "time".to_string(),
+            value: time.to_rfc3339(),
+            details: format!("Failed to calculate duration since Unix epoch: {e}"),
+        })
 }
 
 pub fn create_event_attribute(key: String, value: String) -> EventAttribute {
@@ -73,4 +77,14 @@ pub fn create_event_attribute(key: String, value: String) -> EventAttribute {
         index: true,
     };
     e
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_timespec_unix_epoch_is_zero() {
+        assert_eq!(to_timespec(Time::unix_epoch()).unwrap(), 0);
+    }
 }

@@ -26,7 +26,7 @@ pub struct AppApi {
 }
 
 impl AppApi {
-    pub fn new(base_url: String) -> Self {
+    pub fn new(base_url: String) -> Result<Self, EldError> {
         let base_url = if base_url.ends_with('/') {
             base_url
         } else {
@@ -36,9 +36,12 @@ impl AppApi {
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(10))
             .build()
-            .expect("Failed to create HTTP client");
+            .map_err(|e| EldError::NetworkError {
+                operation: "create app HTTP client".to_string(),
+                details: format!("Failed to create HTTP client: {e}"),
+            })?;
 
-        Self { client, base_url }
+        Ok(Self { client, base_url })
     }
 
     pub async fn get_cado(&self, cado_path: String) -> Result<(), EldError> {

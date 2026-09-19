@@ -33,10 +33,12 @@ pub struct AbciHttpApi {
 }
 
 impl AbciHttpApi {
-    pub fn new(base_url: String) -> Self {
-        Self {
-            client: HttpClient::new(base_url.as_str()).expect("Failed to create HTTP client"),
-        }
+    pub fn new(base_url: String) -> Result<Self, EldError> {
+        let client = HttpClient::new(base_url.as_str()).map_err(|e| EldError::NetworkError {
+            operation: "create ABCI HTTP client".to_string(),
+            details: format!("Failed to create HTTP client for '{base_url}': {e}"),
+        })?;
+        Ok(Self { client })
     }
 }
 
