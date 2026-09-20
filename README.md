@@ -1,21 +1,30 @@
 # Eld chain
 
-Shared types, transaction wire format, validation, and client helpers for the Eld blockchain.
+Protocol types (`eld-common`) and off-chain client helpers (`eld-client`) for the Eld blockchain.
 
-This workspace currently has one crate, `eld_common`. The node and CLI will be added later as sibling crates. The crate is experimental and is not published to crates.io (`publish = false`).
+This workspace has two library crates. The node and CLI binaries still live in the sibling `eld` repo and path-depend on both. Neither crate is published to crates.io (`publish = false`).
 
 ## Architecture
 
-`eld_common` is the protocol library: addresses, coins, nonces, transactions and payloads, CADO paths, capacity-proof types, pinboard and namespace types, validation of those types, constants, and errors. Hex and ID conventions are in [TYPE_DESIGN.md](TYPE_DESIGN.md).
+`eld-common` (directory `common/`) is the protocol library: addresses, coins, nonces, transactions and payloads, CADO paths, capacity-proof types (including on-disk `SlotAllocator`), pinboard and namespace types, signing `Wallet` identity, validation of those types, constants, and errors. Hex and ID conventions are in [TYPE_DESIGN.md](TYPE_DESIGN.md).
 
-HTTP RPC helpers, CLI command flows, process-wide logging setup, config loaders that read `config/*.json` from the working directory, and on-disk capacity slot files are local operator/node code. They live in this crate today because the node and CLI are not here yet. They are not a frozen public API. Config loaders return `Result`; the CLI can exit after it sees an error. CosmWasm / on-chain WASM contracts are not part of this crate.
+`eld-client` (directory `client/`) is the off-chain process library:
 
-Intended split once sibling crates exist:
+- `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
+- `api::rest` — node app REST (`AppApi` plus pinboard/namespace JSON DTOs) and the dev faucet
+- `facade` — `ChainClient`, `facade::cli` (`Cli` alias), and command wrappers that may use both stacks
+- `config` — CWD JSON (`client_config`, `config_loader`); `init_default_logging` and `wallets.json` I/O at the crate root
 
-- `eld_common` — protocol types and tx codec
-- a client crate or Cargo feature — Tendermint / app HTTP helpers
-- `eld-cli` — command flows, wallet files, config load from CWD
-- the node — ABCI, slot files, consensus config
+`Cli` remains a type alias for `ChainClient` (`eld_client::facade::cli::Cli`). Config loaders return `Result`; the CLI can exit after it sees an error.
+
+Rust imports use underscores (`eld_common`, `eld_client`) because Cargo package names may contain hyphens.
+
+CosmWasm / on-chain WASM contracts are not part of this repo.
+
+Intended later binaries in this repo:
+
+- `eld-cli` — thin clap front-end over `eld-client` (binary name `eld`)
+- `eld-node` / `eld-faucet` — apps, `publish = false`
 
 ## Encoding
 
@@ -31,12 +40,10 @@ A later canonical transaction encoding would be a breaking change.
 
 ## Overview
 
-`eld_common` is the library used by Eld nodes and clients. It includes:
-
-- Account addresses, transactions, and signatures (Ed25519)
-- CADO paths, capacity proofs, pinboard and namespace types
-- HTTP helpers for Tendermint RPC, the app API, and a dev faucet
-- Local JSON wallet loading (plaintext hex keys; see [SECURITY.md](SECURITY.md))
+- Account addresses, transactions, signatures, and `Wallet` identity (Ed25519) — `eld-common`
+- CADO paths, capacity proofs, pinboard and namespace types — `eld-common`
+- HTTP helpers for Tendermint RPC, the app API, and a dev faucet — `eld-client`
+- Local JSON wallet **files** (plaintext hex keys; see [SECURITY.md](SECURITY.md)) — `eld-client`
 
 ## Setup
 
@@ -50,16 +57,24 @@ That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy, build,
 
 ## Configuration
 
-CLI/node helpers read JSON config from paths such as `config/config.json` and `wallets/wallets.json`. Those files are not shipped here. Wallet files hold unencrypted Ed25519 private keys; do not commit them.
+CLI/node helpers in `eld-client` read JSON config from paths such as `config/config.json` and `wallets/wallets.json`. Those files are not shipped here. Wallet files hold unencrypted Ed25519 private keys; do not commit them.
 
 Protocol constants in `eld_common::constants::protocol` (minimum stake, validators per epoch, blocks per epoch, block reward) are local-dev values, not mainnet economics.
 
 ## Usage
 
-Depend on the crate by path while it lives in this workspace:
+Path-depend from a workspace sibling:
 
 ```toml
-eld_common = { path = "../common" }
+eld_common = { path = "../common", package = "eld-common" }
+eld_client = { path = "../client", package = "eld-client" }
+```
+
+The `eld` node, CLI, and faucet use:
+
+```toml
+eld_common = { path = "../../../eld-chain/common", package = "eld-common" }
+eld_client = { path = "../../../eld-chain/client", package = "eld-client" }
 ```
 
 ```rust

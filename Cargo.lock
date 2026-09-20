@@ -539,11 +539,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "252afb9ae5eaa683babdc6a068b3f5726eb19e05070c731f9b2a23a7c3e8ed34"
 
 [[package]]
-name = "eld_common"
+name = "eld-client"
 version = "0.1.0"
 dependencies = [
  "abci-rs",
- "async-trait",
+ "base64 0.22.1",
+ "bincode",
+ "ed25519-dalek",
+ "eld-common",
+ "hex",
+ "rand 0.9.5",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tendermint",
+ "tendermint-rpc",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "urlencoding",
+]
+
+[[package]]
+name = "eld-common"
+version = "0.1.0"
+dependencies = [
+ "abci-rs",
  "base64 0.22.1",
  "bincode",
  "blake3",
@@ -553,7 +577,6 @@ dependencies = [
  "num-traits",
  "parity-scale-codec",
  "rand 0.9.5",
- "reqwest 0.12.28",
  "serde",
  "serde-big-array",
  "serde_json",
@@ -562,12 +585,7 @@ dependencies = [
  "static_assertions",
  "tempfile",
  "tendermint",
- "tendermint-rpc",
- "tokio",
  "tracing",
- "tracing-subscriber",
- "url",
- "urlencoding",
 ]
 
 [[package]]

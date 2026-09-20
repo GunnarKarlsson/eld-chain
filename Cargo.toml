@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["common"]
-default-members = ["common"]
+members = ["common", "client"]
+default-members = ["common", "client"]
 
 [workspace.lints.rust]
 warnings = "deny"
