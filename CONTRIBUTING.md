@@ -1,6 +1,6 @@
 # Contributing
 
-This repo is the shared library workspace for Eld: `eld-common` (`common/`) and `eld-client` (`client/`). The node, CLI, and faucet live in the sibling `eld` repo and **path-depend** on both crates. They are not consumed from crates.io yet.
+This repo is the Eld workspace: `eld-common` (`common/`), `eld-client` (`client/`), and a parallel copy of the node (`eld_node_app` in `node_app/`). The CLI, faucet, and the node used by Docker/local deploy still live in the sibling `eld` repo and **path-depend** on the library crates. They are not consumed from crates.io yet.
 
 ## Pull requests
 
@@ -14,5 +14,6 @@ Do not publish crates or flip `publish = true` unless that is the explicit goal 
 
 - Protocol types, validation, `Wallet`, `SlotAllocator` → `eld-common`
 - Tendermint RPC, app REST, faucet HTTP, CWD config, `wallets.json` I/O, `ChainClient` → `eld-client`
-- Package names are hyphenated (`eld-common`); Rust imports use underscores (`eld_common`)
-- License and crate docs live **in each crate directory** (`LICENSE`, `README.md`, `NOTICE`, `TYPE_DESIGN.md`) so a future crates.io tarball includes them
+- ABCI node binary (`eld_node_app`) → `node_app/` (copy of `eld/chain/node_app`; do not treat this as the deploy source yet)
+- Package names are hyphenated for libraries (`eld-common`); the node package is still `eld_node_app`. Rust imports use underscores (`eld_common`)
+- License and crate docs live **in each library crate directory** (`LICENSE`, `README.md`, `NOTICE`, `TYPE_DESIGN.md`) so a future crates.io tarball includes them

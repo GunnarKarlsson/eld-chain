@@ -1,6 +1,9 @@
 /target
 **/*.rs.bk
 
+node_app/data/
+node_app/tx_responses/
+
 .idea/
 .vscode/
 .DS_Store
@@ -12,5 +15,5 @@ wallets/
 **/wallets.json
 config/*.json
 !config/*.json.example
-dev-docs/
+_dev-docs/
 .cursor/
