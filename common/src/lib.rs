@@ -1,10 +1,4 @@
-//! Shared types, transaction wire format, and validation for Eld.
-//!
-//! HTTP clients, CWD config, wallet files, and CLI flows live in `eld_client`.
-//!
-//! The `unreachable_pub` lint keeps implementation details (for example serde helpers in private
-//! modules) at `pub(super)` visibility unless other crates need to name them.
-
+#![doc = include_str!("../README.md")]
 #![warn(unreachable_pub)]
 
 pub mod account;

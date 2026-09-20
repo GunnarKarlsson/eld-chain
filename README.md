@@ -2,13 +2,13 @@
 
 Protocol types (`eld-common`) and off-chain client helpers (`eld-client`) for the Eld blockchain.
 
-This workspace has two library crates. The node and CLI binaries still live in the sibling `eld` repo and path-depend on both. Neither crate is published to crates.io (`publish = false`).
+This workspace has two library crates. Each crate directory ships `LICENSE`, `README.md`, `NOTICE`, and `TYPE_DESIGN.md` so a future crates.io/docs.rs package is self-contained. The node and CLI binaries still live in the sibling `eld` repo and path-depend on both. Neither crate is published to crates.io (`publish = false`). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Architecture
 
-`eld-common` (directory `common/`) is the protocol library: addresses, coins, nonces, transactions and payloads, CADO paths, capacity-proof types (including on-disk `SlotAllocator`), pinboard and namespace types, signing `Wallet` identity, validation of those types, constants, and errors. Hex and ID conventions are in [TYPE_DESIGN.md](TYPE_DESIGN.md).
+[`eld-common`](common/README.md) (directory `common/`) is the protocol library: addresses, coins, nonces, transactions and payloads, CADO paths, capacity-proof types (including on-disk `SlotAllocator`), pinboard and namespace types, signing `Wallet` identity, validation of those types, constants, and errors. Hex and ID conventions are in [TYPE_DESIGN.md](TYPE_DESIGN.md).
 
-`eld-client` (directory `client/`) is the off-chain process library:
+[`eld-client`](client/README.md) (directory `client/`) is the off-chain process library:
 
 - `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
 - `api::rest` — node app REST (`AppApi` plus pinboard/namespace JSON DTOs) and the dev faucet

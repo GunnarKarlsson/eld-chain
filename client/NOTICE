@@ -1,0 +1,12 @@
+Eld chain — eld-client
+Copyright (c) 2026 Eld network
+
+This crate depends on `eld-common`. That crate includes a Coin type adapted from:
+
+- rust-cardano (Input Output HK), MIT License
+  https://github.com/input-output-hk/rust-cardano
+
+- Crypto.com modifications to that Coin type, Apache License 2.0
+  Copyright (c) 2018-2020 Crypto.com
+
+See `eld-common` (`NOTICE` and `src/coin.rs`) for the original file headers.

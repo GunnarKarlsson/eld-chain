@@ -2,12 +2,30 @@
 name = "eld-common"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.88"
 license = "MIT"
 description = "Shared types, transaction wire format, and validation for Eld"
+readme = "README.md"
 authors = ["Gunnar H. Karlsson <gunnar.h.karlsson@gmail.com>"]
 repository = "https://github.com/eldnetwork/eld-chain"
 homepage = "https://github.com/eldnetwork/eld-chain"
+documentation = "https://docs.rs/eld-common"
+keywords = ["blockchain", "tendermint", "cosmos"]
+categories = ["cryptocurrency", "encoding"]
+include = [
+    "src/**",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "TYPE_DESIGN.md",
+    "CHANGELOG.md",
+]
 publish = false
+
+[package.metadata.docs.rs]
+all-features = false
+rustdoc-args = ["--generate-link-to-definition"]
 
 [dependencies]
 num-traits = "0.2"

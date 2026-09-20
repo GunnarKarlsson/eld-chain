@@ -1,0 +1,33 @@
+name: Bug report
+description: Something wrong in eld-common or eld-client
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For secrets or live-network impact, use [GitHub Security Advisories](https://github.com/eldnetwork/eld-chain/security/advisories/new), not a public issue.
+  - type: dropdown
+    id: crate
+    attributes:
+      label: Crate
+      options:
+        - eld-common
+        - eld-client
+        - workspace / CI
+        - unsure
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Expected vs actual. Include crate version or git SHA if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Minimal steps or a failing test. Redact keys.
+    validations:
+      required: true

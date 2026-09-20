@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose an API or protocol-library change
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: crate
+    attributes:
+      label: Crate
+      options:
+        - eld-common
+        - eld-client
+        - workspace
+        - unsure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you cannot do today, and who is blocked (eld node, CLI, faucet, or another consumer).
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Sketch the API. Note if this would break eld chain or clients (they path-depend on this repo).
+    validations:
+      required: true

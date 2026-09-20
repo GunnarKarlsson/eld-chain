@@ -23,6 +23,9 @@ cargo build --workspace --all-targets --all-features
 step "cargo test --workspace --all-targets --all-features"
 cargo test --workspace --all-targets --all-features
 
+step "cargo test --workspace --doc"
+cargo test --workspace --doc
+
 step "gitleaks"
 if ! command -v gitleaks >/dev/null 2>&1; then
   cat >&2 <<'EOF'

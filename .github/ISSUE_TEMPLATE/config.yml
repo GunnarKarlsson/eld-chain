@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report
+    url: https://github.com/eldnetwork/eld-chain/security/advisories/new
+    about: Do not open a public issue for key material or live-network impact. Use Advisories (see SECURITY.md).
