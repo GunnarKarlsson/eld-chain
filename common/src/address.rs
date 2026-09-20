@@ -185,7 +185,6 @@ impl TryFrom<&str> for Address {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::wallet::Wallet;
     use ed25519_dalek::SigningKey;
     use rand::RngCore;
 
@@ -195,7 +194,6 @@ mod tests {
         let signing_key = SigningKey::from_bytes(&[0x02u8; PublicKey::LEN]);
         let verifying_key = signing_key.verifying_key();
         let _address = Address::from_public_key(&verifying_key).expect("Address from pubk");
-        let _wallet = Wallet::from_signing_key("wallet1".into(), signing_key.clone());
     }
 
     #[test]
@@ -204,15 +202,10 @@ mod tests {
         let mut secret_bytes = [0u8; PublicKey::LEN]; // Ed25519 secret key length
         rng.fill_bytes(&mut secret_bytes); // Fill with random bytes
         let signing_key = SigningKey::from_bytes(&secret_bytes); // Construct SigningKey
-
-        // Create the Wallet
-        let wallet = Wallet::from_signing_key("wallet1".into(), signing_key.clone());
-        let public_key = wallet.public_key;
-        let address = wallet.address;
-        assert!(address.is_from_public_key(&public_key));
-
         let verifying_key = signing_key.verifying_key();
+        let address = Address::from_public_key(&verifying_key).expect("Address from pubk");
         assert!(address.is_from_public_key(verifying_key.as_bytes()));
+        assert!(address.is_from_public_key(&verifying_key.to_bytes()));
     }
 
     #[test]
@@ -233,10 +226,8 @@ mod tests {
         rng.fill_bytes(&mut secret_bytes);
         let signing_key = SigningKey::from_bytes(&secret_bytes);
         let verifying_key = signing_key.verifying_key();
-        let wallet = Wallet::from_signing_key("wallet1".into(), signing_key.clone());
-        let public_key = wallet.public_key;
-        let address = wallet.address;
-        assert!(address.is_from_public_key(&public_key));
+        let address = Address::from_public_key(&verifying_key).expect("Address from pubk");
+        assert!(address.is_from_public_key(&verifying_key.to_bytes()));
         assert!(address.is_from_public_key(verifying_key.as_bytes()));
     }
 
