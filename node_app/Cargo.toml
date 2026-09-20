@@ -1,0 +1,68 @@
+[package]
+name = "eld_node_app"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+description = "Eld ABCI node application (parallel copy; eld/chain/node_app remains the deploy source)"
+publish = false
+
+[dependencies]
+abci-rs = { version = "0.11.3", features = ["use-tokio"] }
+anyhow = "1.0.95"
+async-trait = "0.1.77"
+axum = { version = "0.8.1", features = ["ws"] }
+eld_common = { path = "../common", package = "eld-common" }
+eld_client = { path = "../client", package = "eld-client" }
+base64 = "0.22.1"
+bincode = "1.3.3"
+bytes = "1.5.0"
+clap = { version = "4.0", features = ["derive"] }
+hex = "0.4.3"
+libc = "0.2"
+rocksdb = "0.21.0"
+serde = "1.0.217"
+serde_json = "1.0"
+sha1 = "0.10.6"
+sha2 = "0.10.8"
+blake3 = "1.5"
+tempfile = "3.10.0"
+tendermint-rpc = "0.40.1"
+tokio = { version = "1.43.0", features = ["full"] }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = "0.3.19"
+uuid = { version = "1.7.0", features = ["v4"] }
+tokio-tungstenite = "0.20"
+url = "2.4"
+chrono = "0.4.40"
+futures-util = "0.3" 
+rand = "0.9.0"
+ed25519-dalek = { version = "2.1.1", features = ["pem","pkcs8"] }
+lz4 = "1.24.0"
+once_cell = "1.19"
+tower = { version = "0.4", features = ["util", "limit"] }
+tower-http = { version = "0.5", features = ["cors"] }
+hyper = "0.14"
+reqwest = { version = "0.12", features = ["json"] }
+patricia_tree = "0.10.1"
+trie-db = "=0.31.0"
+memory-db = "0.32"
+hash-db = "0.16"
+reference-trie = "=0.29.2"
+hash256-std-hasher = "0.15.2"
+libp2p = { version = "0.53.2", features = [
+    "tcp",
+    "noise",
+    "yamux",
+    "gossipsub",
+    "mdns",
+    "quic",
+    "tokio",
+    "macros"
+] }
+# TODO: Add libp2p-mplex when compatible version is available for libp2p 0.53.2
+# libp2p-mplex 0.43.1 is not compatible with libp2p 0.53.2
+# libp2p-mplex = "0.43.1"
+
+[lints]
+workspace = true

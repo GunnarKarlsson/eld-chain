@@ -1,0 +1,87 @@
+{
+    "chain_id": "eld-testnet-tempelhof",
+    "app_host": "0.0.0.0",
+    "app_port": "26678",
+    "accounts": {
+        "block-reward-pool": {
+            "address": "0x5ffd39cc9d6ca5003d2414a784242f2fa9baaab4",
+            "balance": "0",
+            "nonce": 0
+        },
+        "wallet1": {
+            "address": "0xe17404c417fa10cc04fdf73604fcacca8d0a687c",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet2": {
+            "address": "0x23b1f0b6199479b5d04fb54e21df14d51530b7b1",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet3": {
+            "address": "0x5de5bb98d243d7a7d74ae1d592cef1becb43957c",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-validator-1": {
+            "address": "0x75f9bda5dca416610aa163c7e04bdb35c1916308",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-validator-2": {
+            "address": "0xc62a8303b2ccc33e9be90f93621855cae1166d70",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-validator-3": {
+            "address": "0xeb08921d4c401af0e953e0643fb71613690e288c",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-validator-4": {
+            "address": "0xa10ff3d39d233f32c0efa4b9084b61fd8d7cded8",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-faucet-1": {
+            "address": "0xdd6756748bfe442e61681e243896200b4347bd69",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-capacity-provider-1": {
+            "address": "0x5ffd39cc9d6ca5003d2414a784242f2fa9baaab3",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-capacity-validator-1": {
+            "address": "0x014bb5f2250c33ddbb488d9d16258f70bf252883",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-capacity-validator-2": {
+            "address": "0x4570b9a7591b2f4cd044ad5092f3651820d86e39",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-capacity-validator-3": {
+            "address": "0xc88efa4cbec5cd6264cfce3561c2323b2fd6554e",
+            "balance": "100000000000",
+            "nonce": 0
+        },
+        "wallet-capacity-validator-4": {
+            "address": "0xb81715e735a6743aad0f7af7641b56b48ccc1d45",
+            "balance": "100000000000",
+            "nonce": 0
+        }
+    },
+    "fee_config": {
+        "base_fee": 1000,
+        "size_fee_per_kb": 100,
+        "gas_price": 1,
+        "transfer_multiplier": 1.0,
+        "stake_multiplier": 1.5,
+        "content_manifest_multiplier": 2.5,
+        "chunk_proof_multiplier": 2.0,
+        "device_operation_multiplier": 1.8
+    }
+}

@@ -1,0 +1,1 @@
+cargo run -- --init-data
