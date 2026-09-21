@@ -9,21 +9,15 @@ use serde_json;
 use std::fs;
 use std::path::Path;
 
-/// Writes wallet JSON and restricts the file to owner read/write only (Unix).
+/// Writes wallet JSON; on Unix also chmods the file to owner read/write only (`0600`).
 fn write_wallet_file(path: impl AsRef<Path>, contents: &str) -> std::io::Result<()> {
     let path = path.as_ref();
     fs::write(path, contents)?;
-    restrict_wallet_file_permissions(path)
-}
-
-#[cfg(unix)]
-fn restrict_wallet_file_permissions(path: &Path) -> std::io::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600))
-}
-
-#[cfg(not(unix))]
-fn restrict_wallet_file_permissions(_path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    }
     Ok(())
 }
 

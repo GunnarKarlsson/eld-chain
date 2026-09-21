@@ -91,7 +91,7 @@ Local wallets are **plaintext JSON** files (`wallets/wallets.json` by default) c
 - Do **not** log serialized wallets or signed transaction JSON in production.
 - Treat any key from tests or examples as compromised once published.
 
-On Unix, the library sets wallet files to mode `0600` when writing. Windows does not restrict permissions the same way.
+On Unix only, the library sets wallet files to mode `0600` when writing. On Windows, restrict access to the wallet directory yourself.
 
 Report security issues via [GitHub Security Advisories](https://github.com/eldnetwork/eld-chain/security/advisories/new) or email the maintainer (see workspace [SECURITY.md](https://github.com/eldnetwork/eld-chain/blob/main/SECURITY.md)).
 

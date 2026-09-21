@@ -8,7 +8,6 @@ use eld_common::cado::{CadoBody, CadoPath, CadoPathKey};
 use eld_common::error::EldError;
 use eld_common::staking_account::StakingAccount;
 use eld_common::validator::{ActiveValidatorsInfo, CapacityValidatorsInfo, EpochInfo};
-use serde::{self, Deserialize, Serialize};
 use serde_json;
 use std::convert::From;
 use std::fmt;
@@ -18,10 +17,6 @@ use tendermint::AppHash;
 use tendermint_rpc::endpoint::block::Response;
 use tendermint_rpc::query::Query;
 use tendermint_rpc::{Client, HttpClient, Order};
-
-/// Placeholder for Tendermint ABCI Info `data` JSON. Currently unused (empty object).
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AppInfoData {}
 
 /// HTTP client for Tendermint RPC and Eld ABCI queries (`abci_query`, blocks, tx search).
 pub struct AbciHttpApi {
@@ -542,14 +537,6 @@ impl fmt::Display for AbciInfoWrapper {
             self.app_version, self.version, self.last_block_height, self.last_block_app_hash,
         )?;
         writeln!(f, "Accounts:")
-    }
-}
-
-pub struct QueryWrapper(pub tendermint_rpc::query::Query);
-
-impl fmt::Display for QueryWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
