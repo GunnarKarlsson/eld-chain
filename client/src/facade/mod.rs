@@ -13,7 +13,7 @@ pub(crate) mod wallets;
 
 pub use chain_client::ChainClient;
 pub use namespace::NamespaceLookup;
-pub use submitted_tx::SubmittedTx;
+pub use submitted_tx::{SubmittedTx, TxHash};
 
 pub(crate) use accounts::{
     get_abci_info, get_account, get_provider_id_for_capacity, get_staking_account,

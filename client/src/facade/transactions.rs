@@ -56,12 +56,7 @@ pub(crate) async fn transfer(
     }
 
     let response = client.send_tx_rpc(&hex).await?;
-    Ok(SubmittedTx {
-        response,
-        signed_tx_json: json,
-        fee: dynamic_fee,
-        nonce: next_nonce,
-    })
+    SubmittedTx::from_broadcast(&hex, json, dynamic_fee, next_nonce, response)
 }
 
 pub(crate) async fn list_all_transactions(client: &ChainClient) -> Result<Vec<Tx>, EldError> {
@@ -151,12 +146,7 @@ pub(crate) async fn stake(
     }
 
     let response = client.send_tx_rpc(&hex).await?;
-    Ok(SubmittedTx {
-        response,
-        signed_tx_json: json,
-        fee: dynamic_fee,
-        nonce: next_nonce,
-    })
+    SubmittedTx::from_broadcast(&hex, json, dynamic_fee, next_nonce, response)
 }
 
 pub(crate) async fn unstake(
@@ -198,10 +188,5 @@ pub(crate) async fn unstake(
     }
 
     let response = client.send_tx_rpc(&hex).await?;
-    Ok(SubmittedTx {
-        response,
-        signed_tx_json: json,
-        fee: dynamic_fee,
-        nonce: next_nonce,
-    })
+    SubmittedTx::from_broadcast(&hex, json, dynamic_fee, next_nonce, response)
 }

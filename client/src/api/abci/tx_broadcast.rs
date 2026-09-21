@@ -1,10 +1,13 @@
 //! Tendermint broadcast_tx_commit via JSON-RPC.
 
+use crate::api::abci::wire_bytes_to_tx_hash;
 use crate::config::client_config::CliConfig;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use eld_common::error::EldError;
 use serde_json::Value;
+use std::str::FromStr;
+use tendermint::Hash;
 
 /// Decoded `deliver_tx` event from a `broadcast_tx_commit` JSON-RPC response.
 #[derive(Debug, Clone)]
@@ -157,6 +160,22 @@ pub fn deliver_tx_events(response: &Value) -> Vec<DeliverTxEvent> {
         .collect()
 }
 
+/// Resolve the committed transaction hash from a successful `broadcast_tx_commit` body.
+///
+/// Uses the RPC `result.hash` when present; otherwise derives the hash from Eld wire bytes
+/// (UTF-8 hex of the signed JSON), matching block indexing.
+pub fn broadcast_tx_hash(response: &Value, tx_wire_hex: &str) -> Result<Hash, EldError> {
+    if let Some(hash_str) = response["result"]["hash"].as_str() {
+        return Hash::from_str(hash_str).map_err(|e| EldError::ValidationError {
+            field: "broadcast_tx_hash".to_string(),
+            value: hash_str.to_string(),
+            details: format!("Failed to parse Tendermint tx hash: {e}"),
+        });
+    }
+
+    Ok(wire_bytes_to_tx_hash(tx_wire_hex.as_bytes()))
+}
+
 pub async fn send_tx_rpc(config: &CliConfig, hex_encoded: &str) -> Result<Value, EldError> {
     let client = reqwest::Client::new();
     let url = config.get_node_url()?;
@@ -199,4 +218,33 @@ pub async fn send_tx_rpc(config: &CliConfig, hex_encoded: &str) -> Result<Value,
         operation: "parse RPC response".to_string(),
         details: format!("Failed to parse RPC response JSON: {e}"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::abci::wire_bytes_to_tx_hash;
+
+    #[test]
+    fn broadcast_tx_hash_uses_rpc_result_when_present() {
+        let wire_hex = "7b7d";
+        let expected = wire_bytes_to_tx_hash(wire_hex.as_bytes());
+        let response = serde_json::json!({
+            "result": {
+                "hash": expected.to_string()
+            }
+        });
+
+        let hash = broadcast_tx_hash(&response, wire_hex).expect("hash");
+        assert_eq!(hash, expected);
+    }
+
+    #[test]
+    fn broadcast_tx_hash_falls_back_to_wire_bytes() {
+        let wire_hex = "7b226e6f6e6365223a317d";
+        let response = serde_json::json!({ "result": {} });
+
+        let hash = broadcast_tx_hash(&response, wire_hex).expect("hash");
+        assert_eq!(hash, wire_bytes_to_tx_hash(wire_hex.as_bytes()));
+    }
 }

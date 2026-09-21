@@ -9,4 +9,4 @@ pub use http::{
     tm_tx_result_is_success, wire_bytes_to_tx_hash, AbciHttpApi, AbciInfoWrapper, AppInfoData,
     QueryWrapper,
 };
-pub use tx_broadcast::{deliver_tx_events, DeliverTxEvent};
+pub use tx_broadcast::{broadcast_tx_hash, deliver_tx_events, DeliverTxEvent};
