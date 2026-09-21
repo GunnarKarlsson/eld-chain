@@ -20,12 +20,12 @@ pub use eld_common::fee::FeeConfig;
 
 impl ConsensusConfig {
     pub fn from_file(file: &str) -> Result<Self, eld_common::error::EldError> {
-        crate::config::config_loader::ConfigLoader::load_for_cli(file)
+        <Self as crate::config::config_loader::ConfigLoadable>::from_file(file)
     }
 
     #[cfg(test)]
     pub fn from_file_for_test(file: &str) -> Self {
-        crate::config::config_loader::ConfigLoader::load_for_test(file)
+        <Self as crate::config::config_loader::ConfigLoadable>::from_file_for_test(file)
     }
 
     pub fn validate(&self) -> Result<(), eld_common::error::EldError> {
@@ -87,12 +87,12 @@ pub struct CliConfig {
 
 impl CliConfig {
     pub fn from_file(file: &str) -> Result<Self, eld_common::error::EldError> {
-        crate::config::config_loader::ConfigLoader::load_for_cli(file)
+        <Self as crate::config::config_loader::ConfigLoadable>::from_file(file)
     }
 
     #[cfg(test)]
     pub fn from_file_for_test(file: &str) -> Self {
-        crate::config::config_loader::ConfigLoader::load_for_test(file)
+        <Self as crate::config::config_loader::ConfigLoadable>::from_file_for_test(file)
     }
 
     pub fn validate(&self) -> Result<(), eld_common::error::EldError> {
@@ -215,7 +215,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "test configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_consensus_config_empty_chain_id_panics() {
         let invalid_config = r#"{
             "chain_id": ""
@@ -272,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "test configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_cli_config_validation_invalid_host() {
         let invalid_config = r#"{
             "node_host": "127.0.0.1; rm -rf /",
@@ -288,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "test configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_cli_config_validation_empty_host() {
         let invalid_config = r#"{
             "node_host": "",
@@ -304,7 +304,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "test configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_cli_config_validation_invalid_port() {
         let invalid_config = r#"{
             "node_host": "127.0.0.1",
@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "test configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_cli_config_validation_port_not_integer() {
         let invalid_config = r#"{
             "node_host": "127.0.0.1",
@@ -484,7 +484,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "test configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_consensus_config_validation_invalid_fee_config() {
         let invalid_config = format!(
             r#"{{
@@ -507,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "test configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_consensus_config_validation_zero_base_fee() {
         let invalid_config = format!(
             r#"{{

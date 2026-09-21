@@ -44,18 +44,12 @@ fn default_max_tx_bytes() -> usize {
 impl ConsensusConfig {
     // Legacy methods for backward compatibility
     pub fn from_file(file: &str) -> Self {
-        eld_client::config::config_loader::ConfigLoader::load_for_library(file)
+        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
             .expect("Failed to load consensus config")
     }
 
-    /// Load configuration from file with additional security checks
-    pub fn from_file_secure(file: &str) -> Result<Self, EldError> {
-        eld_client::config::config_loader::ConfigLoader::load_secure(file).map_err(|e| {
-            EldError::ConfigError {
-                file: file.to_string(),
-                details: e.to_string(),
-            }
-        })
+    pub fn from_file_result(file: &str) -> Result<Self, EldError> {
+        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
     }
 
     /// Resolve the consensus configuration file path with fallback priority:
@@ -80,8 +74,7 @@ impl ConsensusConfig {
         Self::validate_file_permissions(config_path)?;
         Self::validate_integrity(config_path)?;
 
-        // Load configuration securely
-        let mut cfg = Self::from_file_secure(config_path)?;
+        let mut cfg = Self::from_file_result(config_path)?;
 
         // Apply CLI override for chain_id if provided
         if let Some(id) = override_chain_id {
@@ -387,7 +380,7 @@ pub struct StorageConfig {
 impl StorageConfig {
     // Legacy methods for backward compatibility
     pub fn from_file(file: &str) -> Self {
-        eld_client::config::config_loader::ConfigLoader::load_for_library(file)
+        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
             .expect("Failed to load storage config")
     }
 
@@ -624,7 +617,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "library configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_consensus_config_empty_chain_id_panics() {
         let invalid_config = r#"{
             "chain_id": "",
@@ -647,7 +640,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "library configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_consensus_config_whitespace_chain_id_panics() {
         let invalid_config = r#"{
             "chain_id": "   ",
@@ -736,7 +729,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "library configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_consensus_config_rejects_duplicate_account_addresses() {
         let config_with_duplicate_addresses = format!(
             r#"{{
@@ -814,7 +807,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "library configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_storage_config_validation_invalid_host() {
         // Test with invalid host (contains dangerous characters)
         let invalid_config = r#"{
@@ -834,7 +827,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "library configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_storage_config_validation_empty_host() {
         // Test with empty host
         let invalid_config = r#"{
@@ -854,7 +847,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "library configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_storage_config_validation_invalid_port() {
         // Test with invalid port (0)
         let invalid_config = r#"{
@@ -874,7 +867,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "library configuration validation failed")]
+    #[should_panic(expected = "Configuration validation failed")]
     fn test_storage_config_validation_port_not_integer() {
         // Test with port that's not an integer
         let invalid_config = r#"{
