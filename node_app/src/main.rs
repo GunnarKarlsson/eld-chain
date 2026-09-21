@@ -33,7 +33,8 @@ use crate::node_identity::LocalNodeIdentity;
 use crate::process_logging::init_default_logging;
 use clap::Parser;
 use config::ConsensusConfig;
-use eld_client::facade::{get_config, ChainClient, WALLETS_PATH};
+use eld_client::config::{get_config, WALLETS_PATH};
+use eld_client::facade::ChainClient;
 use eld_common::error::EldError;
 use std::{
     net::SocketAddr,

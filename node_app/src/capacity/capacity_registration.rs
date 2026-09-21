@@ -200,7 +200,7 @@ mod tests {
         // Create mock wallet and cli for test
         let signing_key = SigningKey::from_bytes(&[0u8; 32]);
         let wallet = Wallet::from_signing_key("test_wallet".to_string(), signing_key);
-        let cli_config = eld_client::facade::CliConfig {
+        let cli_config = eld_client::config::CliConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "test-chain".to_string(),

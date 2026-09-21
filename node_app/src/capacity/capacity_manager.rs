@@ -1431,7 +1431,7 @@ mod tests {
         Arc<eld_client::facade::ChainClient>,
         Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
     ) {
-        let cli_config = eld_client::facade::CliConfig {
+        let cli_config = eld_client::config::CliConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "test-chain".to_string(),

@@ -1962,7 +1962,7 @@ mod tests {
     use crate::storage::rocksdb::RocksDBStorage;
     use crate::wallet::VerifiedProofChainSubmitter;
     use abci::types::RequestDeliverTx;
-    use eld_client::facade::CliConfig;
+    use eld_client::config::CliConfig;
     use eld_common::capacity::CapacityConfig;
     use std::sync::{Arc, Mutex};
 

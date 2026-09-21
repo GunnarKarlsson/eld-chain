@@ -8,8 +8,8 @@ This crate is **not** published to crates.io yet (`publish = false`). Protocol t
 
 - `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
 - `api::rest` — node app REST (`AppApi`, pinboard/namespace JSON DTOs) and the dev faucet
-- `facade` — `ChainClient`, config helpers re-exported for binaries, mixed command wrappers
-- `config` — CWD JSON (`client_config`, `config_loader`)
+- `facade` — `ChainClient`, mixed command wrappers
+- `config` — CWD JSON (`CliConfig`, `get_config`, `WALLETS_PATH`, `config_loader`)
 - `logging` — sanitizers re-exported from `eld-common` (`init_default_logging` lives in `eld` binaries)
 - `wallet_store_config` — `wallets.json` paths; identity types are `eld_common::wallet::Wallet`
 
