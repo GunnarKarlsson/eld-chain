@@ -36,10 +36,12 @@ if [[ ! -x "${TENDERMINT_DIR}/build/tendermint" ]]; then
   exit 1
 fi
 
-echo "Building local image ${ELD_TM_IMAGE}"
-docker build \
+echo "Building local image ${ELD_TM_IMAGE} from ${TENDERMINT_DIR}/build/tendermint"
+# Named context: TENDERMINT_DIR/.dockerignore excludes `build/`.
+DOCKER_BUILDKIT=1 docker build \
+  --build-context "tmbin=${TENDERMINT_DIR}/build" \
   -f "$TENDERMINT_DOCKERFILE" \
   -t "$ELD_TM_IMAGE" \
-  "$ELD_ROOT"
+  "$DEPLOY_DIR/docker"
 
 echo "Tagged ${ELD_TM_IMAGE} (docker images)"

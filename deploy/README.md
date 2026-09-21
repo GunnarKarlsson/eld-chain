@@ -65,7 +65,7 @@ If you already maintain these files elsewhere, `./deploy/scripts/sync-secrets-fr
 
 The node script is a two-stage flow: `Dockerfile.eld-base` compiles `eld_node_app` (`eld-base:<NODE_APP_VERSION_TAG>`), then `Dockerfile.app` is `FROM eld_base` and tags `eld-app:<NODE_APP_VERSION_TAG>`. Compose only runs the runtime image; the base image is a build cache, not a compose service.
 
-Tendermint is compiled `GOOS=linux` for the Mac’s CPU, then wrapped as `eld-tendermint:<TENDERMINT_VERSION_TAG>`.
+Tendermint is compiled `GOOS=linux` in `TENDERMINT_DIR` for the Mac’s CPU, then that tree’s `build/tendermint` is wrapped as `eld-tendermint:<TENDERMINT_VERSION_TAG>`.
 
 ## Run
 

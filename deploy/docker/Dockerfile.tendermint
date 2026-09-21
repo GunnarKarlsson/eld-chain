@@ -14,8 +14,9 @@ RUN addgroup -g 1000 tmuser && \
 # Set working directory
 WORKDIR /tendermint
 
-# Copy the built tendermint binary
-COPY ./third_party/tendermint/build/tendermint /usr/local/bin/tendermint
+# Binary from TENDERMINT_DIR/build (named context `tmbin`). That tree's
+# .dockerignore excludes `build/`, so the source root cannot be the build context.
+COPY --from=tmbin tendermint /usr/local/bin/tendermint
 RUN chmod +x /usr/local/bin/tendermint
 
 # Create necessary directories (node config supplied at runtime via bind mount)
