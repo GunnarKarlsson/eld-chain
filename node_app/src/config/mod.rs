@@ -1,4 +1,5 @@
 pub mod app_config;
+pub mod loader;
 pub mod node_runtime_config;
 
 pub use app_config::AppConfig;
@@ -50,12 +51,12 @@ fn default_max_tx_bytes() -> usize {
 impl ConsensusConfig {
     // Legacy methods for backward compatibility
     pub fn from_file(file: &str) -> Self {
-        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
+        <Self as crate::config::loader::ConfigLoadable>::from_file(file)
             .expect("Failed to load consensus config")
     }
 
     pub fn from_file_result(file: &str) -> Result<Self, EldError> {
-        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
+        <Self as crate::config::loader::ConfigLoadable>::from_file(file)
     }
 
     /// Resolve the consensus configuration file path with fallback priority:
@@ -368,14 +369,14 @@ impl ConsensusConfig {
 }
 
 // Implement ConfigValidator trait for ConsensusConfig
-impl eld_client::config::config_loader::ConfigValidator for ConsensusConfig {
+impl crate::config::loader::ConfigValidator for ConsensusConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
         self.validate()
     }
 }
 
 // Implement ConfigLoadable trait for ConsensusConfig
-impl eld_client::config::config_loader::ConfigLoadable for ConsensusConfig {}
+impl crate::config::loader::ConfigLoadable for ConsensusConfig {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
@@ -386,7 +387,7 @@ pub struct StorageConfig {
 impl StorageConfig {
     // Legacy methods for backward compatibility
     pub fn from_file(file: &str) -> Self {
-        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
+        <Self as crate::config::loader::ConfigLoadable>::from_file(file)
             .expect("Failed to load storage config")
     }
 
@@ -496,14 +497,14 @@ impl StorageConfig {
 }
 
 // Implement ConfigValidator trait for StorageConfig
-impl eld_client::config::config_loader::ConfigValidator for StorageConfig {
+impl crate::config::loader::ConfigValidator for StorageConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
         self.validate()
     }
 }
 
 // Implement ConfigLoadable trait for StorageConfig
-impl eld_client::config::config_loader::ConfigLoadable for StorageConfig {}
+impl crate::config::loader::ConfigLoadable for StorageConfig {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageLimits {

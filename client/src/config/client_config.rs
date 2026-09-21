@@ -20,12 +20,12 @@ pub use eld_common::fee::FeeConfig;
 
 impl ConsensusConfig {
     pub fn from_file(file: &str) -> Result<Self, eld_common::error::EldError> {
-        <Self as crate::config::config_loader::ConfigLoadable>::from_file(file)
+        crate::config::config_loader::load_config_file(file)
     }
 
     #[cfg(test)]
     pub fn from_file_for_test(file: &str) -> Self {
-        <Self as crate::config::config_loader::ConfigLoadable>::from_file_for_test(file)
+        crate::config::config_loader::load_config_file_for_test(file)
     }
 
     pub fn validate(&self) -> Result<(), eld_common::error::EldError> {
@@ -43,11 +43,9 @@ impl ConsensusConfig {
 
 impl crate::config::config_loader::ConfigValidator for ConsensusConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
-        self.validate()
+        ConsensusConfig::validate(self)
     }
 }
-
-impl crate::config::config_loader::ConfigLoadable for ConsensusConfig {}
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ClientConfig {
@@ -75,12 +73,12 @@ pub struct ClientConfig {
 
 impl ClientConfig {
     pub fn from_file(file: &str) -> Result<Self, eld_common::error::EldError> {
-        <Self as crate::config::config_loader::ConfigLoadable>::from_file(file)
+        crate::config::config_loader::load_config_file(file)
     }
 
     #[cfg(test)]
     pub fn from_file_for_test(file: &str) -> Self {
-        <Self as crate::config::config_loader::ConfigLoadable>::from_file_for_test(file)
+        crate::config::config_loader::load_config_file_for_test(file)
     }
 
     pub fn validate(&self) -> Result<(), eld_common::error::EldError> {
@@ -127,11 +125,9 @@ impl ClientConfig {
 
 impl crate::config::config_loader::ConfigValidator for ClientConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
-        self.validate()
+        ClientConfig::validate(self)
     }
 }
-
-impl crate::config::config_loader::ConfigLoadable for ClientConfig {}
 
 /// CLI / node endpoint config plus fee settings loaded from a consensus JSON file.
 #[derive(Debug, Clone)]

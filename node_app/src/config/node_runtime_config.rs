@@ -18,14 +18,14 @@ pub struct NodeRuntimeConfig {
 
 impl NodeRuntimeConfig {
     pub fn from_file(file: &str) -> Result<Self, eld_common::error::EldError> {
-        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
+        <Self as crate::config::loader::ConfigLoadable>::from_file(file)
     }
 }
 
-impl eld_client::config::config_loader::ConfigValidator for NodeRuntimeConfig {
+impl crate::config::loader::ConfigValidator for NodeRuntimeConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
         Ok(())
     }
 }
 
-impl eld_client::config::config_loader::ConfigLoadable for NodeRuntimeConfig {}
+impl crate::config::loader::ConfigLoadable for NodeRuntimeConfig {}

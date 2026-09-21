@@ -9,7 +9,7 @@ This crate is **not** published to crates.io yet (`publish = false`). Protocol t
 - `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
 - `api::rest` — node app REST (`AppApi`, pinboard/namespace JSON DTOs) and the dev faucet
 - `facade` — `ChainClient`, mixed command wrappers
-- `config` — CWD JSON (`ClientConfig`, `ClientSetup`, `get_client_setup`, `WALLETS_PATH`, `config_loader`)
+- `config` — CWD JSON (`ClientConfig`, `ClientSetup`, `get_client_setup`, `WALLETS_PATH`)
 - `logging` — sanitizers re-exported from `eld-common` (`init_default_logging` lives in `eld` binaries)
 - `wallet_store_config` — `wallets.json` paths; identity types are `eld_common::wallet::Wallet`
 
@@ -43,7 +43,23 @@ fn _holds(client: ChainClient) -> ChainClient {
 }
 ```
 
-Config loaders look for JSON under the process CWD (for example `config/config.json`). Node-only keys in that file are ignored by the client library. Wallet files hold unencrypted Ed25519 keys; see the workspace [SECURITY.md](https://github.com/eldnetwork/eld-chain/blob/main/SECURITY.md).
+### Config file
+
+Loaders read JSON from the process CWD (default: `config/config.json`). Copy [config/config.json.example](config/config.json.example) and adjust endpoints for your node.
+
+`ClientConfig` uses these fields (node-only keys such as `p2p_tcp_port` or `indexer` may appear in the same file when shared with a node binary; the client library ignores them):
+
+| Field | Purpose |
+|-------|---------|
+| `node_host`, `node_port` | Tendermint RPC when `node_url` is unset |
+| `node_url` | Optional full RPC base URL (overrides host/port) |
+| `app_port` | Node app REST port when `app_url` is unset |
+| `app_url` | Optional full app REST base URL |
+| `faucet_host`, `faucet_port`, `faucet_end_point` | Faucet when `faucet_url` is unset |
+| `faucet_url` | Optional full faucet base URL |
+| `chain_id` | Chain ID (often filled from `consensus_config.json` by binaries) |
+
+For local dev, omit the `*_url` fields and use loopback host/port values. Wallet files hold unencrypted Ed25519 keys; see the workspace [SECURITY.md](https://github.com/eldnetwork/eld-chain/blob/main/SECURITY.md).
 
 Rust imports use the underscore crate name `eld_client`.
 

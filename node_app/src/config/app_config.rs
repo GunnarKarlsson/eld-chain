@@ -15,14 +15,14 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn from_file(file: &str) -> Result<Self, eld_common::error::EldError> {
-        <Self as eld_client::config::config_loader::ConfigLoadable>::from_file(file)
+        <Self as crate::config::loader::ConfigLoadable>::from_file(file)
     }
 }
 
-impl eld_client::config::config_loader::ConfigValidator for AppConfig {
+impl crate::config::loader::ConfigValidator for AppConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
         self.client.validate()
     }
 }
 
-impl eld_client::config::config_loader::ConfigLoadable for AppConfig {}
+impl crate::config::loader::ConfigLoadable for AppConfig {}

@@ -1,0 +1,12 @@
+{
+    "node_host": "127.0.0.1",
+    "node_port": "26657",
+    "faucet_host": "127.0.0.1",
+    "faucet_port": "8080",
+    "faucet_end_point": "/faucet/request",
+    "app_port": "9001",
+    "node_url": "https://node-rpc.example.com",
+    "app_url": "https://node-api.example.com",
+    "faucet_url": "https://faucet.example.com",
+    "chain_id": "your-chain-id"
+}
