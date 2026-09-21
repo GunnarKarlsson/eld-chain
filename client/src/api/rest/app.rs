@@ -17,13 +17,14 @@ pub struct ApiErrorResponse {
     pub timestamp: String,
 }
 
-/// HTTP client for the node's app REST API (content, pinboard, CADO, health).
+/// HTTP client for the node's app REST API (content, pinboard, namespaces, CADO, health).
 pub struct AppApi {
     client: Client,
     base_url: String,
 }
 
 impl AppApi {
+    /// Connect to the node app API at `base_url` (for example `http://127.0.0.1:9001/`).
     pub fn new(base_url: String) -> Result<Self, EldError> {
         let base_url = if base_url.ends_with('/') {
             base_url

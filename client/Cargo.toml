@@ -14,6 +14,7 @@ keywords = ["blockchain", "tendermint", "rpc", "http"]
 categories = ["cryptocurrency", "network-programming"]
 include = [
     "src/**",
+    "examples/**",
     "config/*.json.example",
     "Cargo.toml",
     "README.md",
@@ -22,7 +23,14 @@ include = [
     "TYPE_DESIGN.md",
     "CHANGELOG.md",
 ]
-publish = false
+
+[[example]]
+name = "query_account"
+doc-scrape-examples = true
+
+[[example]]
+name = "broadcast_transfer"
+doc-scrape-examples = true
 
 [package.metadata.docs.rs]
 all-features = false

@@ -1,5 +1,7 @@
 //! Result of signing and broadcasting a transaction via `broadcast_tx_commit`.
 
+#![warn(missing_docs)]
+
 use crate::api::abci::broadcast_tx_hash;
 use eld_common::coin::Coin;
 use eld_common::error::EldError;
@@ -13,10 +15,15 @@ pub type TxHash = Hash;
 /// Signed transaction broadcast and committed via `broadcast_tx_commit`.
 #[derive(Debug, Clone)]
 pub struct SubmittedTx {
+    /// Committed transaction hash.
     pub tx_hash: TxHash,
+    /// Raw Tendermint `broadcast_tx_commit` JSON response.
     pub response: Value,
+    /// Signed Eld transaction JSON (for debugging; do not log in production).
     pub signed_tx_json: String,
+    /// Fee charged for this transaction.
     pub fee: Coin,
+    /// Nonce used when signing.
     pub nonce: Nonce,
 }
 

@@ -1,53 +1,75 @@
 # eld-client
 
-Off-chain HTTP client, CWD JSON config, and wallet-file I/O for Eld nodes, CLI, and faucet.
+HTTP and RPC client library for [Eld](https://github.com/eldnetwork/eld-chain) nodes: query chain state over Tendermint RPC / ABCI, call the node app REST API (pinboard, namespaces, CADO), sign transactions from local wallet files, and broadcast via `broadcast_tx_commit`.
 
-This crate is **not** published to crates.io yet (`publish = false`). Protocol types live in [`eld-common`](https://github.com/eldnetwork/eld-chain/tree/main/common).
+Protocol types (`Account`, `Tx`, addresses, fees) live in [`eld-common`](https://github.com/eldnetwork/eld-chain/tree/main/common). This crate is experimental and not on crates.io yet (`publish = false`).
 
-## Crate map
+## Add to your project
 
-- `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
-- `api::rest` — node app REST (`AppApi`, pinboard/namespace JSON DTOs) and the dev faucet
-- `facade` — `ChainClient`, mixed command wrappers
-- `config` — CWD JSON (`ClientConfig`, `ClientSetup`, `get_client_setup`, `WALLETS_PATH`)
-- `logging` — sanitizers re-exported from `eld-common` (`init_default_logging` lives in `eld` binaries)
-- `wallet_store_config` — `wallets.json` paths; identity types are `eld_common::wallet::Wallet`
-
-Hex and ID conventions: [TYPE_DESIGN.md](TYPE_DESIGN.md).
-
-## docs.rs / dependencies
-
-This crate always depends on `tendermint-rpc` (HTTP client), `reqwest`, and `tokio` (runtime, time, macros). That makes docs.rs heavier than `eld-common`. HTTP is not feature-gated yet so `eld` can keep a single path dependency.
-
-## Usage
-
-Path-depend from a workspace sibling (this repo):
+From the same workspace as this repo:
 
 ```toml
 eld_common = { path = "../common", package = "eld-common" }
 eld_client = { path = "../client", package = "eld-client" }
 ```
 
-The `eld` node, CLI, and faucet use:
+From a sibling checkout (as the `eld` monorepo does):
 
 ```toml
 eld_common = { path = "../../../eld-chain/common", package = "eld-common" }
 eld_client = { path = "../../../eld-chain/client", package = "eld-client" }
 ```
 
-```rust
-use eld_client::ChainClient;
+Rust imports use the underscore crate name: `eld_client`.
 
-fn _holds(client: ChainClient) -> ChainClient {
-    client
+## Quick start
+
+Point at a running node with `config/config.json` (copy [config/config.json.example](config/config.json.example)), then query chain state or submit a transfer:
+
+```rust,no_run
+use eld_client::api::abci::AbciHttpApi;
+use eld_client::config::{get_client_setup, ClientConfig, WALLETS_PATH};
+use eld_client::ChainClient;
+use eld_common::fee::FeeConfig;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Low-level RPC: Tendermint / ABCI queries
+    let config = ClientConfig::from_file("config/config.json")?;
+    let abci = AbciHttpApi::new(config.get_node_url()?)?;
+    let info = abci.get_latest_abci_info().await?;
+    println!("block height {}", info.last_block_height);
+
+    // High-level facade: account lookup + signed transfer (needs wallets.json)
+    let setup = get_client_setup()?;
+    let client = ChainClient::with_wallets(setup.config, setup.fee_config, WALLETS_PATH)?;
+    if let Some(account) = client
+        .get_account("0x1234567890123456789012345678901234567890".into())
+        .await?
+    {
+        println!("balance={}", account.balance().amount());
+    }
+    let submitted = client
+        .transfer("my-wallet".into(), "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd".into(), 1_000)
+        .await?;
+    println!("committed tx {}", submitted.tx_hash);
+
+    Ok(())
 }
 ```
 
-### Config file
+Runnable examples (from a directory with `config/config.json`):
 
-Loaders read JSON from the process CWD (default: `config/config.json`). Copy [config/config.json.example](config/config.json.example) and adjust endpoints for your node.
+```sh
+cargo run -p eld-client --example query_account -- 0xYourAddress
+cargo run -p eld-client --example broadcast_transfer -- my-wallet 0xRecipient 1000
+```
 
-`ClientConfig` uses these fields (node-only keys such as `p2p_tcp_port` or `indexer` may appear in the same file when shared with a node binary; the client library ignores them):
+See [`examples/`](examples/) for full source.
+
+## Config file
+
+Default path: `config/config.json`. Node binaries may share this file; keys such as `p2p_tcp_port` or `indexer` are ignored by the client library.
 
 | Field | Purpose |
 |-------|---------|
@@ -57,11 +79,35 @@ Loaders read JSON from the process CWD (default: `config/config.json`). Copy [co
 | `app_url` | Optional full app REST base URL |
 | `faucet_host`, `faucet_port`, `faucet_end_point` | Faucet when `faucet_url` is unset |
 | `faucet_url` | Optional full faucet base URL |
-| `chain_id` | Chain ID (often filled from `consensus_config.json` by binaries) |
+| `chain_id` | Chain ID (often merged from `consensus_config.json` by binaries) |
 
-For local dev, omit the `*_url` fields and use loopback host/port values. Wallet files hold unencrypted Ed25519 keys; see the workspace [SECURITY.md](https://github.com/eldnetwork/eld-chain/blob/main/SECURITY.md).
+Fee settings for signing live in `config/consensus_config.json` (`ClientSetup` / `get_client_setup` load both files).
 
-Rust imports use the underscore crate name `eld_client`.
+## Wallets and security
+
+Local wallets are **plaintext JSON** files (`wallets/wallets.json` by default) containing hex-encoded Ed25519 **private keys**. There is no encryption at rest.
+
+- Do **not** commit wallet files or any JSON containing `private_key`.
+- Do **not** log serialized wallets or signed transaction JSON in production.
+- Treat any key from tests or examples as compromised once published.
+
+On Unix, the library sets wallet files to mode `0600` when writing. Windows does not restrict permissions the same way.
+
+Report security issues via [GitHub Security Advisories](https://github.com/eldnetwork/eld-chain/security/advisories/new) or email the maintainer (see workspace [SECURITY.md](https://github.com/eldnetwork/eld-chain/blob/main/SECURITY.md)).
+
+## Crate map
+
+- `api::abci` — `AbciHttpApi`, ABCI queries, `broadcast_tx_commit`
+- `api::rest` — `AppApi`, pinboard/namespace DTOs, dev faucet HTTP
+- `facade` — `ChainClient`, `SubmittedTx`, command-style helpers
+- `config` — `ClientConfig`, `ClientSetup`, CWD JSON loaders
+- `wallet_store_config` — paths and I/O for `wallets.json`
+
+Hex and ID conventions: [`eld-common` TYPE_DESIGN](../common/TYPE_DESIGN.md).
+
+## Dependencies
+
+Always-on: `tendermint-rpc`, `reqwest`, `tokio`. Not feature-gated yet so downstream workspaces keep a single path dependency.
 
 ## License
 

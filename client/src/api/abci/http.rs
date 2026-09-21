@@ -23,11 +23,13 @@ use tendermint_rpc::{Client, HttpClient, Order};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppInfoData {}
 
+/// HTTP client for Tendermint RPC and Eld ABCI queries (`abci_query`, blocks, tx search).
 pub struct AbciHttpApi {
     client: HttpClient,
 }
 
 impl AbciHttpApi {
+    /// Connect to Tendermint RPC at `base_url` (for example `http://127.0.0.1:26657/`).
     pub fn new(base_url: String) -> Result<Self, EldError> {
         let client = HttpClient::new(base_url.as_str()).map_err(|e| EldError::NetworkError {
             operation: "create ABCI HTTP client".to_string(),

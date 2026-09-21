@@ -1,4 +1,4 @@
-//! `ChainClient` and domain command wrappers (may call ABCI and REST).
+//! High-level Eld client: [`ChainClient`], transaction results, and namespace lookup.
 
 mod accounts;
 mod cado;
