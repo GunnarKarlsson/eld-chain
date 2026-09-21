@@ -9,4 +9,4 @@
 
 ## Test plan
 
-- [ ] `./scripts/ci.sh` passes locally
+- [ ] `./deploy/scripts/ci.sh` passes locally

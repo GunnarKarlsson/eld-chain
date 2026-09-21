@@ -4,7 +4,7 @@ This repo is the Eld workspace: `eld-common` (`common/`), `eld-client` (`client/
 
 ## Pull requests
 
-PRs must pass `./scripts/ci.sh` (fmt, Clippy with warnings denied, build, test including rustdoc, gitleaks).
+PRs must pass `./deploy/scripts/ci.sh` (fmt, Clippy with warnings denied, build, test including rustdoc, gitleaks).
 
 Public API changes that `eld` uses must keep **chain** (`eld/chain`) and **clients** (`eld/clients`) compiling against the new path deps. Coordinate call sites there in the same change.
 

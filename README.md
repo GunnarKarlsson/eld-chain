@@ -55,7 +55,7 @@ A later canonical transaction encoding would be a breaking change.
 Rust 1.88.0 (see `rust-toolchain.toml`). Install [gitleaks](https://github.com/gitleaks/gitleaks) for secret scanning (`brew install gitleaks` on macOS).
 
 ```sh
-./scripts/ci.sh
+./deploy/scripts/ci.sh
 ```
 
 That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy, build, test, and gitleaks. Rustc and Clippy warnings are treated as errors.

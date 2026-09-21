@@ -46,4 +46,4 @@ jobs:
           "$HOME/.local/bin/gitleaks" version
 
       - name: Run CI scans
-        run: ./scripts/ci.sh
+        run: ./deploy/scripts/ci.sh
