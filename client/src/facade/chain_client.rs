@@ -1,17 +1,22 @@
 //! HTTP/RPC and wallet orchestration client used by the CLI and node tooling.
 
 use crate::api::abci::AbciInfoWrapper;
+use crate::api::rest::{NamespaceRegisteredResponse, PostMessageSubmitResponse};
 use crate::config::client_config::{CliConfig, ConsensusConfig, FeeConfig, CONSENSUS_CONFIG_PATH};
+use crate::facade::namespace::NamespaceLookup;
+use crate::facade::submitted_tx::SubmittedTx;
 use crate::wallet_store_config::WalletStoreConfig;
 use eld_common::account::Account;
 use eld_common::error::EldError;
 use eld_common::nonce::Nonce;
+use eld_common::staking_account::StakingAccount;
+use eld_common::tx::Tx;
+use eld_common::validator::{ActiveValidatorsInfo, EpochInfo};
 use eld_common::wallet::Wallet;
 use serde_json::Value;
 use std::path::Path;
 use std::sync::Arc;
 use tendermint_rpc::endpoint::block::Response;
-use tracing::{error, info, warn};
 
 #[derive(Clone)]
 pub struct ChainClient {
@@ -53,7 +58,17 @@ impl ChainClient {
         WalletStoreConfig::at_path(wallet_path.as_ref())
     }
 
-    pub async fn request_faucet(&self, address: String) -> Result<(), EldError> {
+    fn wallet_not_found_to_none(
+        result: Result<Wallet, EldError>,
+    ) -> Result<Option<Wallet>, EldError> {
+        match result {
+            Ok(wallet) => Ok(Some(wallet)),
+            Err(EldError::NotFoundError { .. }) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn request_faucet(&self, address: String) -> Result<String, EldError> {
         crate::api::rest::faucet::request_faucet(&self.config, address).await
     }
 
@@ -72,7 +87,7 @@ impl ChainClient {
         crate::api::abci::query::get_account_by_address(&self.config, address).await
     }
 
-    pub async fn display_account(&self, address: String) -> Result<(), EldError> {
+    pub async fn display_account(&self, address: String) -> Result<Option<Account>, EldError> {
         crate::facade::display_account(self, address).await
     }
 
@@ -88,11 +103,14 @@ impl ChainClient {
         crate::facade::get_abci_info(self).await
     }
 
-    pub async fn get_account(&self, address: String) -> Result<(), EldError> {
+    pub async fn get_account(&self, address: String) -> Result<Option<Account>, EldError> {
         crate::facade::get_account(self, address).await
     }
 
-    pub async fn get_staking_account(&self, address: String) -> Result<(), EldError> {
+    pub async fn get_staking_account(
+        &self,
+        address: String,
+    ) -> Result<Option<StakingAccount>, EldError> {
         crate::facade::get_staking_account(self, address).await
     }
 
@@ -119,7 +137,7 @@ impl ChainClient {
         crate::api::abci::query::get_next_nonce_for_account_cado(&self.config, address).await
     }
 
-    pub async fn create_wallet(&self, name: String) -> Result<(), EldError> {
+    pub async fn create_wallet(&self, name: String) -> Result<Wallet, EldError> {
         crate::facade::wallets::create_wallet(name).await
     }
 
@@ -127,7 +145,7 @@ impl ChainClient {
         &self,
         name: String,
         wallet_store_config: &WalletStoreConfig,
-    ) -> Result<(), EldError> {
+    ) -> Result<Wallet, EldError> {
         crate::facade::wallets::create_wallet_with_store_config(name, wallet_store_config).await
     }
 
@@ -135,40 +153,28 @@ impl ChainClient {
         &self,
         name: String,
         wallet_path: impl AsRef<Path>,
-    ) -> Result<(), EldError> {
+    ) -> Result<Wallet, EldError> {
         let wallet_store_config = Self::wallet_store_config_from_path(wallet_path);
         self.create_wallet_with_store_config(name, &wallet_store_config)
             .await
     }
 
-    pub async fn list_wallets(&self) -> Result<(), EldError> {
+    pub async fn list_wallets(&self) -> Result<Vec<Wallet>, EldError> {
         crate::facade::wallets::list_wallets().await
     }
 
     pub async fn list_wallets_with_store_config(
         &self,
         wallet_store_config: &WalletStoreConfig,
-    ) -> Result<(), EldError> {
+    ) -> Result<Vec<Wallet>, EldError> {
         crate::facade::wallets::list_wallets_with_store_config(wallet_store_config).await
     }
 
     pub async fn list_wallets_from_path(
         &self,
         wallet_path: impl AsRef<Path>,
-    ) -> Result<(), EldError> {
-        let wallets = self.get_wallets_from_path(wallet_path).await?;
-        info!("Listing wallets");
-        info!("Wallets:\n");
-        if wallets.is_empty() {
-            info!("No wallets found");
-            info!("No wallets found. Create one with 'create-wallet <name>'");
-        } else {
-            info!(wallet_count = wallets.len(), "Retrieved wallets");
-            for wallet in wallets {
-                info!("{}", wallet.terminal_display());
-            }
-        }
-        Ok(())
+    ) -> Result<Vec<Wallet>, EldError> {
+        self.get_wallets_from_path(wallet_path).await
     }
 
     pub async fn get_wallets(&self) -> Result<Vec<Wallet>, EldError> {
@@ -182,7 +188,7 @@ impl ChainClient {
         WalletStoreConfig::load_wallets_from_path(wallet_path)
     }
 
-    pub async fn remove_wallet(&self, name: String) -> Result<(), EldError> {
+    pub async fn remove_wallet(&self, name: String) -> Result<bool, EldError> {
         crate::facade::wallets::remove_wallet(name).await
     }
 
@@ -190,7 +196,7 @@ impl ChainClient {
         &self,
         name: String,
         wallet_store_config: &WalletStoreConfig,
-    ) -> Result<(), EldError> {
+    ) -> Result<bool, EldError> {
         crate::facade::wallets::remove_wallet_with_store_config(name, wallet_store_config).await
     }
 
@@ -198,21 +204,15 @@ impl ChainClient {
         &self,
         name: String,
         wallet_path: impl AsRef<Path>,
-    ) -> Result<(), EldError> {
+    ) -> Result<bool, EldError> {
         let wallet_store_config = Self::wallet_store_config_from_path(wallet_path);
         self.remove_wallet_with_store_config(name, &wallet_store_config)
             .await
     }
 
-    pub async fn get_wallet_by_name(&self, name: String) -> Option<Wallet> {
+    pub async fn get_wallet_by_name(&self, name: String) -> Result<Option<Wallet>, EldError> {
         if let Some(wallet_store) = &self.wallet_store {
-            return match wallet_store.wallet_by_name(&name) {
-                Ok(wallet) => Some(wallet),
-                Err(e) => {
-                    error!(%e);
-                    None
-                }
-            };
+            return Self::wallet_not_found_to_none(wallet_store.wallet_by_name(&name));
         }
         crate::facade::wallets::get_wallet_by_name(name).await
     }
@@ -221,7 +221,7 @@ impl ChainClient {
         &self,
         name: String,
         wallet_store_config: &WalletStoreConfig,
-    ) -> Result<(), EldError> {
+    ) -> Result<Option<Wallet>, EldError> {
         crate::facade::wallets::display_wallet_by_name_with_store_config(name, wallet_store_config)
             .await
     }
@@ -230,16 +230,9 @@ impl ChainClient {
         &self,
         name: String,
         wallet_path: impl AsRef<Path>,
-    ) -> Result<(), EldError> {
+    ) -> Result<Option<Wallet>, EldError> {
         let wallets = self.get_wallets_from_path(wallet_path).await?;
-        if let Some(wallet) = wallets.into_iter().find(|w| w.name == name) {
-            info!(wallet_name = %name, "Displaying wallet");
-            info!("{}", wallet.terminal_display());
-        } else {
-            warn!(wallet_name = %name, "Couldn't find wallet for display");
-            warn!("Couldn't find wallet");
-        }
-        Ok(())
+        Ok(wallets.into_iter().find(|w| w.name == name))
     }
 
     /// Returns the hex-encoded address (with 0x prefix) for the given wallet name.
@@ -251,20 +244,14 @@ impl ChainClient {
         crate::facade::get_provider_id_for_capacity(self, wallet_name).await
     }
 
-    pub async fn get_wallet_by_address(&self, address: &str) -> Option<Wallet> {
+    pub async fn get_wallet_by_address(&self, address: &str) -> Result<Option<Wallet>, EldError> {
         if let Some(wallet_store) = &self.wallet_store {
-            return match wallet_store.wallet_by_address(address) {
-                Ok(wallet) => Some(wallet),
-                Err(e) => {
-                    error!(%e);
-                    None
-                }
-            };
+            return Self::wallet_not_found_to_none(wallet_store.wallet_by_address(address));
         }
         crate::facade::wallets::get_wallet_by_address(address).await
     }
 
-    pub async fn display_wallet_by_name(&self, name: String) -> Result<(), EldError> {
+    pub async fn display_wallet_by_name(&self, name: String) -> Result<Wallet, EldError> {
         crate::facade::display_wallet_by_name(self, name).await
     }
 
@@ -273,35 +260,42 @@ impl ChainClient {
         wallet_name: String,
         recipient: String,
         amount: u128,
-    ) -> Result<(), EldError> {
+    ) -> Result<SubmittedTx, EldError> {
         crate::facade::transfer(self, wallet_name, recipient, amount).await
     }
 
-    pub async fn list_all_transactions(&self) -> Result<(), EldError> {
+    pub async fn list_all_transactions(&self) -> Result<Vec<Tx>, EldError> {
         crate::facade::list_all_transactions(self).await
     }
 
-    pub async fn list_transactions(&self, addr: String) -> Result<(), EldError> {
+    pub async fn list_transactions(
+        &self,
+        addr: String,
+    ) -> Result<Vec<tendermint_rpc::endpoint::tx::Response>, EldError> {
         crate::facade::list_transactions(self, addr).await
     }
 
-    pub async fn stake(&self, wallet_name: String, amount: u128) -> Result<(), EldError> {
+    pub async fn stake(&self, wallet_name: String, amount: u128) -> Result<SubmittedTx, EldError> {
         crate::facade::stake(self, wallet_name, amount).await
     }
 
-    pub async fn unstake(&self, wallet_name: String, amount: u128) -> Result<(), EldError> {
+    pub async fn unstake(
+        &self,
+        wallet_name: String,
+        amount: u128,
+    ) -> Result<SubmittedTx, EldError> {
         crate::facade::unstake(self, wallet_name, amount).await
     }
 
-    pub async fn view_active_validators(&self) -> Result<(), EldError> {
+    pub async fn view_active_validators(&self) -> Result<Option<ActiveValidatorsInfo>, EldError> {
         crate::facade::view_active_validators(self).await
     }
 
-    pub async fn view_epoch_info(&self) -> Result<(), EldError> {
+    pub async fn view_epoch_info(&self) -> Result<EpochInfo, EldError> {
         crate::facade::view_epoch_info(self).await
     }
 
-    pub async fn view_epoch(&self) -> Result<(), EldError> {
+    pub async fn view_epoch(&self) -> Result<(EpochInfo, ActiveValidatorsInfo), EldError> {
         crate::facade::view_epoch(self).await
     }
 
@@ -310,26 +304,26 @@ impl ChainClient {
         wallet_name: String,
         namespace_slug: String,
         registration_fee: u128,
-    ) -> Result<(), EldError> {
+    ) -> Result<NamespaceRegisteredResponse, EldError> {
         crate::facade::add_namespace(self, wallet_name, namespace_slug, registration_fee).await
     }
 
-    pub async fn get_namespace(&self, namespace_slug: String) -> Result<(), EldError> {
+    pub async fn get_namespace(&self, namespace_slug: String) -> Result<NamespaceLookup, EldError> {
         crate::facade::get_namespace(self, namespace_slug).await
     }
 
     pub async fn post_pinboard_message(
         &self,
         input: crate::api::rest::PinboardMessageParams,
-    ) -> Result<(), EldError> {
+    ) -> Result<PostMessageSubmitResponse, EldError> {
         crate::facade::post_pinboard_message(self, input).await
     }
 
-    pub async fn get_content(&self, content_id: String) -> Result<(), EldError> {
+    pub async fn get_content(&self, content_id: String) -> Result<String, EldError> {
         crate::facade::get_content(self, content_id).await
     }
 
-    pub async fn get_cado(&self, path: String) -> Result<(), EldError> {
+    pub async fn get_cado(&self, path: String) -> Result<Value, EldError> {
         crate::facade::get_cado(self, path).await
     }
 
@@ -337,7 +331,7 @@ impl ChainClient {
         &self,
         wallet: String,
         message_id: String,
-    ) -> Result<(), EldError> {
+    ) -> Result<Value, EldError> {
         crate::facade::pinboard_get_post(self, wallet, message_id).await
     }
 
@@ -346,7 +340,7 @@ impl ChainClient {
         wallet: String,
         page: usize,
         page_size: usize,
-    ) -> Result<(), EldError> {
+    ) -> Result<Value, EldError> {
         crate::facade::pinboard_list_by_wallet(self, wallet, page, page_size).await
     }
 
@@ -355,11 +349,11 @@ impl ChainClient {
         tag: String,
         page: usize,
         page_size: usize,
-    ) -> Result<(), EldError> {
+    ) -> Result<Value, EldError> {
         crate::facade::pinboard_list_by_tag(self, tag, page, page_size).await
     }
 
-    pub async fn list_cados(&self, search_string: String) -> Result<(), EldError> {
+    pub async fn list_cados(&self, search_string: String) -> Result<Vec<String>, EldError> {
         crate::facade::list_cados(self, search_string).await
     }
 

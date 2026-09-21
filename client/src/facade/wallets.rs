@@ -10,7 +10,6 @@ use rand::RngCore;
 use serde_json;
 use std::fs;
 use std::path::Path;
-use tracing::{error, info, warn};
 
 /// Writes wallet JSON and restricts the file to owner read/write only (Unix).
 fn write_wallet_file(path: impl AsRef<Path>, contents: &str) -> std::io::Result<()> {
@@ -30,7 +29,15 @@ fn restrict_wallet_file_permissions(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-pub(crate) async fn create_wallet(name: String) -> Result<(), EldError> {
+fn not_found_to_none(result: Result<Wallet, EldError>) -> Result<Option<Wallet>, EldError> {
+    match result {
+        Ok(wallet) => Ok(Some(wallet)),
+        Err(EldError::NotFoundError { .. }) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+pub(crate) async fn create_wallet(name: String) -> Result<Wallet, EldError> {
     let wallet_store_config = WalletStoreConfig::at_path(WALLETS_PATH);
     create_wallet_with_store_config(name, &wallet_store_config).await
 }
@@ -38,7 +45,7 @@ pub(crate) async fn create_wallet(name: String) -> Result<(), EldError> {
 pub(crate) async fn create_wallet_with_store_config(
     name: String,
     wallet_store_config: &WalletStoreConfig,
-) -> Result<(), EldError> {
+) -> Result<Wallet, EldError> {
     let mut rng = rand::rng();
     let mut secret_bytes = [0u8; 32];
     rng.fill_bytes(&mut secret_bytes);
@@ -61,9 +68,7 @@ pub(crate) async fn create_wallet_with_store_config(
         }
     })?;
 
-    info!(wallet_name = %wallet.name, "Created wallet");
-    info!("{}", wallet.terminal_display());
-    Ok(())
+    Ok(wallet)
 }
 
 pub(crate) async fn get_wallets() -> Result<Vec<Wallet>, EldError> {
@@ -76,7 +81,7 @@ pub(crate) async fn get_wallets_with_store_config(
     wallet_store_config.load_wallets()
 }
 
-pub(crate) async fn remove_wallet(name: String) -> Result<(), EldError> {
+pub(crate) async fn remove_wallet(name: String) -> Result<bool, EldError> {
     let wallet_store_config = WalletStoreConfig::at_path(WALLETS_PATH);
     remove_wallet_with_store_config(name, &wallet_store_config).await
 }
@@ -84,16 +89,14 @@ pub(crate) async fn remove_wallet(name: String) -> Result<(), EldError> {
 pub(crate) async fn remove_wallet_with_store_config(
     name: String,
     wallet_store_config: &WalletStoreConfig,
-) -> Result<(), EldError> {
+) -> Result<bool, EldError> {
     let mut wallets = wallet_store_config.load_json_wallets()?;
 
     let initial_len = wallets.len();
     wallets.retain(|w| w.name != name);
 
     if wallets.len() == initial_len {
-        warn!(wallet_name = %name, "Wallet not found for removal");
-        warn!("Wallet with name '{name}' not found");
-        return Ok(());
+        return Ok(false);
     }
 
     let json_str = serde_json::to_string_pretty(&wallets).map_err(|e| EldError::WalletError {
@@ -102,112 +105,61 @@ pub(crate) async fn remove_wallet_with_store_config(
         details: format!("Failed to serialize wallet file: {e}"),
     })?;
 
-    write_wallet_file(wallet_store_config.path(), &json_str).map_err(|e| EldError::WalletError {
-        operation: "write_wallet_file".to_string(),
-        wallet_name: wallet_store_config.path().display().to_string(),
-        details: format!("Failed to write wallet file: {e}"),
-    })
+    write_wallet_file(wallet_store_config.path(), &json_str).map_err(|e| {
+        EldError::WalletError {
+            operation: "write_wallet_file".to_string(),
+            wallet_name: wallet_store_config.path().display().to_string(),
+            details: format!("Failed to write wallet file: {e}"),
+        }
+    })?;
+    Ok(true)
 }
 
-pub(crate) async fn get_wallet_by_name(name: String) -> Option<Wallet> {
+pub(crate) async fn get_wallet_by_name(name: String) -> Result<Option<Wallet>, EldError> {
     get_wallet_by_name_at_path(name, WALLETS_PATH).await
 }
 
 pub(crate) async fn get_wallet_by_name_at_path(
     name: String,
     wallet_path: impl AsRef<Path>,
-) -> Option<Wallet> {
-    match WalletStoreConfig::load_wallets_from_path(wallet_path) {
-        Ok(wallets) => {
-            let wallet = wallets.into_iter().find(|w| w.name == name);
-            if wallet.is_none() {
-                error!(
-                    error = %eld_common::error::ErrorBuilder::not_found_error("Wallet", &name)
-                );
-            }
-            wallet
-        }
-        Err(e) => {
-            error!(%e);
-            None
-        }
-    }
+) -> Result<Option<Wallet>, EldError> {
+    let wallets = WalletStoreConfig::load_wallets_from_path(wallet_path)?;
+    Ok(wallets.into_iter().find(|w| w.name == name))
 }
 
 pub(crate) async fn get_wallet_by_name_with_store_config(
     name: String,
     wallet_store_config: &WalletStoreConfig,
 ) -> Result<Option<Wallet>, EldError> {
-    let wallets = get_wallets_with_store_config(wallet_store_config).await?;
-    let wallet = wallets.into_iter().find(|w| w.name == name);
-    if wallet.is_none() {
-        error!(
-            error = %eld_common::error::ErrorBuilder::not_found_error("Wallet", &name)
-        );
-    }
-    Ok(wallet)
+    not_found_to_none(wallet_store_config.wallet_by_name(&name))
 }
 
 pub(crate) async fn display_wallet_by_name_with_store_config(
     name: String,
     wallet_store_config: &WalletStoreConfig,
-) -> Result<(), EldError> {
-    if let Some(wallet) =
-        get_wallet_by_name_with_store_config(name.clone(), wallet_store_config).await?
-    {
-        info!(wallet_name = %name, "Displaying wallet");
-        info!("{}", wallet.terminal_display());
-    } else {
-        warn!(wallet_name = %name, "Couldn't find wallet for display");
-        warn!("Couldn't find wallet");
-    }
-    Ok(())
+) -> Result<Option<Wallet>, EldError> {
+    get_wallet_by_name_with_store_config(name, wallet_store_config).await
 }
 
-pub(crate) async fn get_wallet_by_address(address: &str) -> Option<Wallet> {
-    match WalletStoreConfig::load_wallets_from_path(WALLETS_PATH) {
-        Ok(wallets) => {
-            let target_address = match Address::parse_hex_str(address) {
-                Ok(addr) => addr,
-                Err(_) => {
-                    error!(address = %address, "Invalid address format");
-                    return None;
-                }
-            };
-            let wallet = wallets.into_iter().find(|w| w.address == target_address);
-            if wallet.is_none() {
-                error!(address = %address, "Wallet not found for address");
-            }
-            wallet
-        }
-        Err(e) => {
-            error!(%e);
-            None
-        }
-    }
+pub(crate) async fn get_wallet_by_address(address: &str) -> Result<Option<Wallet>, EldError> {
+    let wallets = WalletStoreConfig::load_wallets_from_path(WALLETS_PATH)?;
+    let target_address = Address::parse_hex_str(address).map_err(|e| EldError::WalletError {
+        operation: "parse_wallet_address".to_string(),
+        wallet_name: address.to_string(),
+        details: format!("Invalid address format: {e}"),
+    })?;
+    Ok(wallets.into_iter().find(|w| w.address == target_address))
 }
 
-pub(crate) async fn list_wallets() -> Result<(), EldError> {
+pub(crate) async fn list_wallets() -> Result<Vec<Wallet>, EldError> {
     let default_store = WalletStoreConfig::at_path(WALLETS_PATH);
     list_wallets_with_store_config(&default_store).await
 }
 
 pub(crate) async fn list_wallets_with_store_config(
     wallet_store_config: &WalletStoreConfig,
-) -> Result<(), EldError> {
-    info!("Listing wallets");
-    info!("Wallets:\n");
-    let wallets = get_wallets_with_store_config(wallet_store_config).await?;
-    if wallets.is_empty() {
-        info!("No wallets found");
-        info!("No wallets found. Create one with 'create-wallet <name>'");
-    } else {
-        info!(wallet_count = wallets.len(), "Retrieved wallets");
-        for wallet in wallets {
-            info!("{}", wallet.terminal_display());
-        }
-    }
-    Ok(())
+) -> Result<Vec<Wallet>, EldError> {
+    get_wallets_with_store_config(wallet_store_config).await
 }
 
 #[cfg(test)]

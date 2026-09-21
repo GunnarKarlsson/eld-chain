@@ -42,7 +42,6 @@ impl ConfigLoader {
             Ok(data) => data,
             Err(e) => {
                 let error_msg = format!("Failed to read {context} file '{file_path}': {e}");
-                tracing::error!("Configuration loading failed: {}", error_msg);
                 return Err(EldError::ConfigError {
                     file: file_path.to_string(),
                     details: error_msg,
@@ -55,7 +54,6 @@ impl ConfigLoader {
             Ok(config) => config,
             Err(e) => {
                 let error_msg = format!("Failed to parse {context} JSON from '{file_path}': {e}");
-                tracing::error!("Configuration loading failed: {}", error_msg);
                 return Err(EldError::ConfigError {
                     file: file_path.to_string(),
                     details: error_msg,
@@ -67,7 +65,6 @@ impl ConfigLoader {
         if options.validate {
             if let Err(e) = config.validate() {
                 let error_msg = format!("{context} validation failed for '{file_path}': {e}");
-                tracing::error!("Configuration loading failed: {}", error_msg);
                 return Err(EldError::ConfigError {
                     file: file_path.to_string(),
                     details: error_msg,

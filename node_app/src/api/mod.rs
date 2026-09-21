@@ -679,6 +679,10 @@ async fn handle_pinboard_submit(
     let validator_wallet = cli
         .get_wallet_by_name(wallet_name.clone())
         .await
+        .map_err(|e| ApiError::ServiceUnavailable {
+            message: "validator_wallet_missing".to_string(),
+            details: Some(e.to_string()),
+        })?
         .ok_or_else(|| ApiError::ServiceUnavailable {
             message: "validator_wallet_missing".to_string(),
             details: Some(format!(

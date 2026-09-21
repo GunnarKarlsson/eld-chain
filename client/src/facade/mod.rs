@@ -7,11 +7,14 @@ pub mod cli;
 mod epoch;
 mod namespace;
 mod pinboard;
+mod submitted_tx;
 mod transactions;
 mod util;
 pub(crate) mod wallets;
 
 pub use chain_client::ChainClient;
+pub use namespace::NamespaceLookup;
+pub use submitted_tx::SubmittedTx;
 
 pub(crate) use accounts::{
     display_account, display_wallet_by_name, get_abci_info, get_account,

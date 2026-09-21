@@ -1,6 +1,7 @@
 pub mod abci_interface;
 pub mod api;
 pub mod app_state;
+pub mod broadcast_log;
 pub mod capacity;
 pub mod config;
 pub mod content;

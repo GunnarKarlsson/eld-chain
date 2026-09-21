@@ -150,7 +150,8 @@ impl CapacityRegistrationService {
 
         // Submit transaction via RPC
         match cli.send_tx_rpc(&hex_encoded).await {
-            Ok(_response) => {
+            Ok(response) => {
+                crate::broadcast_log::log_deliver_tx_events(&response);
                 info!(
                     provider_address = %provider_address,
                     "Capacity registration transaction submitted successfully"

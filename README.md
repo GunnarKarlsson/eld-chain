@@ -15,7 +15,7 @@ The node binary used by Docker and local deploy scripts still lives in the sibli
 - `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
 - `api::rest` — node app REST (`AppApi` plus pinboard/namespace JSON DTOs) and the dev faucet
 - `facade` — `ChainClient`, `facade::cli` (`Cli` alias), and command wrappers that may use both stacks
-- `config` — CWD JSON (`client_config`, `config_loader`); `init_default_logging` and `wallets.json` I/O at the crate root
+- `config` — CWD JSON (`client_config`, `config_loader`); `wallets.json` I/O at the crate root
 
 `Cli` remains a type alias for `ChainClient` (`eld_client::facade::cli::Cli`). Config loaders return `Result`; the CLI can exit after it sees an error.
 

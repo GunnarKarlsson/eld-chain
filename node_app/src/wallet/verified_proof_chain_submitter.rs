@@ -80,6 +80,7 @@ impl VerifiedProofChainSubmitter {
             .cli
             .get_wallet_by_name(self.wallet_name.clone())
             .await
+            .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { format!("{e}").into() })?
             .ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
                 format!("Wallet '{}' not found", self.wallet_name).into()
             })?;
@@ -134,7 +135,8 @@ impl VerifiedProofChainSubmitter {
         );
 
         match self.cli.send_tx_rpc(&hex_encoded).await {
-            Ok(_) => {
+            Ok(response) => {
+                crate::broadcast_log::log_deliver_tx_events(&response);
                 info!(
                     challenge_id = %challenge_id,
                     capacity_provider = %capacity_provider,

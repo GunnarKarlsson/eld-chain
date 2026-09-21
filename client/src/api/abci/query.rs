@@ -2,6 +2,7 @@
 
 use super::{AbciHttpApi, AbciInfoWrapper};
 use crate::config::client_config::CliConfig;
+use crate::json_bytes::json_number_array_as_bytes;
 use eld_common::account::Account;
 use eld_common::address::Address;
 use eld_common::cado::CadoType;
@@ -10,7 +11,6 @@ use eld_common::error::EldError;
 use eld_common::nonce::Nonce;
 use eld_common::staking_account::StakingAccount;
 use tendermint_rpc::endpoint::block::Response;
-use tracing::debug;
 
 pub(crate) fn abci_http_api(config: &CliConfig) -> Result<AbciHttpApi, EldError> {
     AbciHttpApi::new(config.get_node_url()?)
@@ -80,23 +80,7 @@ pub async fn get_next_nonce_for_account_cado(
         .as_str()
         .to_string();
     let api = abci_http_api(config)?;
-    debug!(
-        path = %crate::logging::SanitizedLog::as_path(&path),
-        "Getting account CADO"
-    );
-    let response = api.get_cado(path).await.map_err(|e| {
-        tracing::error!(
-            address = %crate::logging::SanitizedLog::as_address(&address),
-            error = %e,
-            "Error getting account CADO"
-        );
-        e
-    })?;
-
-    debug!(
-        response = %crate::logging::SanitizedLog::new(format!("{response:?}")),
-        "Received CADO response"
-    );
+    let response = api.get_cado(path).await?;
 
     let Some(cado) = response.get("Mutable") else {
         return Ok(None);
@@ -108,10 +92,7 @@ pub async fn get_next_nonce_for_account_cado(
         return Ok(None);
     };
 
-    let data_bytes: Vec<u8> = data_array
-        .iter()
-        .map(|v| v.as_u64().unwrap_or(0) as u8)
-        .collect();
+    let data_bytes = json_number_array_as_bytes(data_array, "account_cado_data")?;
 
     let account = Account::deserialize_bin(&data_bytes).map_err(|e| EldError::ValidationError {
         field: "account_data".to_string(),
@@ -128,10 +109,7 @@ pub async fn get_account_from_cado(config: &CliConfig, path: String) -> Result<A
     if let Some(cado) = response.get("Mutable") {
         if let Some(data) = cado.get("data") {
             if let Some(data_array) = data.as_array() {
-                let data_bytes: Vec<u8> = data_array
-                    .iter()
-                    .map(|v| v.as_u64().unwrap_or(0) as u8)
-                    .collect();
+                let data_bytes = json_number_array_as_bytes(data_array, "account_cado_data")?;
 
                 return Account::deserialize_bin(&data_bytes).map_err(|e| {
                     EldError::ValidationError {

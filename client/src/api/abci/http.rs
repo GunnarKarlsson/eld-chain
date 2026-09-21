@@ -1,4 +1,3 @@
-use crate::logging::SanitizedLog;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use bincode;
@@ -19,7 +18,6 @@ use tendermint::AppHash;
 use tendermint_rpc::endpoint::block::Response;
 use tendermint_rpc::query::Query;
 use tendermint_rpc::{Client, HttpClient, Order};
-use tracing::{debug, error};
 
 /// Placeholder for Tendermint ABCI Info `data` JSON. Currently unused (empty object).
 #[derive(Debug, Serialize, Deserialize)]
@@ -309,24 +307,16 @@ impl AbciHttpApi {
             value: query_str.to_string(),
             details: format!("Failed to parse query string: {e}"),
         })?;
-        debug!("query: {}", SanitizedLog::new(QueryWrapper(q.clone())));
         let prove = false; // don't include proofs
         let page = 1;
         let per_page = 30;
-        match self
-            .client
+        self.client
             .tx_search(q, prove, page, per_page, Order::Ascending)
             .await
-        {
-            Ok(r) => Ok(r),
-            Err(e) => {
-                error!("query error: {}", SanitizedLog::new(e.to_string()));
-                Err(EldError::NetworkError {
-                    operation: "query_node".to_string(),
-                    details: format!("Query failed for '{query_str}': {e}"),
-                })
-            }
-        }
+            .map_err(|e| EldError::NetworkError {
+                operation: "query_node".to_string(),
+                details: format!("Query failed for '{query_str}': {e}"),
+            })
     }
 
     pub async fn get_cado(&self, path: String) -> Result<serde_json::Value, EldError> {
@@ -344,11 +334,9 @@ impl AbciHttpApi {
                 operation: "get_cado".to_string(),
                 details: format!("Failed to query CADO at path {path}: {e}"),
             })?;
-        debug!("A");
         if response.info.is_empty() {
             return Ok(serde_json::Value::Null);
         }
-        debug!("B");
         serde_json::from_str(&response.info).map_err(|e| EldError::ValidationError {
             field: "cado_response".to_string(),
             value: response.info.clone(),
@@ -572,7 +560,6 @@ mod tests {
     use eld_common::address::Address;
     use eld_common::tx::{Payload, TransferTx, Tx, TxAmount, TxPublicKey, TxSig};
     use tendermint::{block::Height, AppHash};
-    use tracing::info;
 
     fn sample_transfer_tx() -> Tx {
         let signing_key = SigningKey::from_bytes(&[1u8; 32]);
@@ -624,7 +611,7 @@ mod tests {
             data: "{\"accounts\":{},\"metadata\":{}}".to_owned(),
         };
         let abci_info_wrapper = AbciInfoWrapper::from(info);
-        info!("{}", abci_info_wrapper);
+        assert!(!abci_info_wrapper.to_string().is_empty());
     }
 
     #[test]

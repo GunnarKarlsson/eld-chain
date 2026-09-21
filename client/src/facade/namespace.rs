@@ -8,27 +8,29 @@ use eld_common::error::{EldError, ErrorBuilder};
 use eld_common::namespace::normalize_namespace_slug;
 use eld_common::tx::{AddNamespaceTx, Payload, Tx};
 use std::time::Duration;
-use tracing::{info, warn};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 const MAX_POLLS: u32 = 60;
 
-/// Query `GET /v1/namespace/{namespace_slug}` and print registry details.
+/// Canonical slug plus optional on-chain registry row.
+pub struct NamespaceLookup {
+    pub canonical_slug: String,
+    pub registered: Option<NamespaceRegisteredResponse>,
+}
+
+/// Query `GET /v1/namespace/{namespace_slug}`.
 pub(crate) async fn get_namespace(
     client: &ChainClient,
     namespace_slug: String,
-) -> Result<(), EldError> {
+) -> Result<NamespaceLookup, EldError> {
     let canonical = normalize_namespace_slug(&namespace_slug)?;
 
     let app_api = AppApi::new(client.config.get_app_base_url()?)?;
-    match app_api.get_namespace(&canonical).await? {
-        Some(resp) => print_registered(&resp),
-        None => {
-            println!("registered: false");
-            println!("namespace_slug: {canonical}");
-        }
-    }
-    Ok(())
+    let registered = app_api.get_namespace(&canonical).await?;
+    Ok(NamespaceLookup {
+        canonical_slug: canonical,
+        registered,
+    })
 }
 
 /// Submit `AddNamespace`, then poll `GET /v1/namespace/{namespace_slug}` until registered.
@@ -37,7 +39,7 @@ pub(crate) async fn add_namespace(
     wallet_name: String,
     namespace_slug: String,
     registration_fee: u128,
-) -> Result<(), EldError> {
+) -> Result<NamespaceRegisteredResponse, EldError> {
     let canonical = normalize_namespace_slug(&namespace_slug)?;
 
     let wallet = super::util::require_wallet(client, &wallet_name).await?;
@@ -65,13 +67,6 @@ pub(crate) async fn add_namespace(
         })?;
     tx.fee = dynamic_fee.into();
 
-    info!(
-        namespace_slug = %canonical,
-        registration_fee,
-        dynamic_fee = dynamic_fee.amount(),
-        "Submitting AddNamespace transaction"
-    );
-
     wallet.sign(&mut tx, &client.config.chain_id)?;
     let json = serde_json::to_string(&tx).map_err(|e| {
         ErrorBuilder::transaction_error(
@@ -89,41 +84,23 @@ pub(crate) async fn add_namespace(
     }
 
     client.send_tx_rpc(&hex).await?;
-    info!("AddNamespace transaction sent successfully");
-
     poll_namespace_registered(client, &canonical).await
 }
 
 async fn poll_namespace_registered(
     client: &ChainClient,
     namespace_slug: &str,
-) -> Result<(), EldError> {
+) -> Result<NamespaceRegisteredResponse, EldError> {
     let app_api = AppApi::new(client.config.get_app_base_url()?)?;
-    info!(
-        namespace_slug,
-        "Polling namespace registry until registered"
-    );
 
     for attempt in 1..=MAX_POLLS {
         match app_api.get_namespace(namespace_slug).await {
-            Ok(Some(resp)) => {
-                print_registered(&resp);
-                return Ok(());
+            Ok(Some(resp)) => return Ok(resp),
+            Ok(None) | Err(_) => {
+                if attempt < MAX_POLLS {
+                    tokio::time::sleep(POLL_INTERVAL).await;
+                }
             }
-            Ok(None) => {
-                info!(
-                    attempt,
-                    max_attempts = MAX_POLLS,
-                    "Namespace not registered yet"
-                );
-            }
-            Err(e) => {
-                warn!(%e, attempt, "Namespace lookup failed; retrying");
-            }
-        }
-
-        if attempt < MAX_POLLS {
-            tokio::time::sleep(POLL_INTERVAL).await;
         }
     }
 
@@ -134,20 +111,4 @@ async fn poll_namespace_registered(
             POLL_INTERVAL.as_secs() * u64::from(MAX_POLLS)
         ),
     ))
-}
-
-fn print_registered(resp: &NamespaceRegisteredResponse) {
-    info!(
-        namespace_slug = %resp.namespace_slug,
-        owner = %resp.owner,
-        registered_height = resp.registered_height,
-        registry_path = %resp.registry_path,
-        "Namespace registered"
-    );
-    println!("registered: {}", resp.registered);
-    println!("namespace_slug: {}", resp.namespace_slug);
-    println!("scope: {}", resp.scope);
-    println!("owner: {}", resp.owner);
-    println!("registered_height: {}", resp.registered_height);
-    println!("registry_path: {}", resp.registry_path);
 }

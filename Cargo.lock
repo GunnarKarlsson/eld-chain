@@ -1075,8 +1075,6 @@ dependencies = [
  "tendermint",
  "tendermint-rpc",
  "tokio",
- "tracing",
- "tracing-subscriber",
  "url",
  "urlencoding",
 ]

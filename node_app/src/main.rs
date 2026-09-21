@@ -1,6 +1,7 @@
 mod abci_interface;
 mod api;
 mod app_state;
+mod broadcast_log;
 mod capacity;
 pub mod config;
 mod content;
@@ -8,6 +9,7 @@ pub mod errors;
 mod indexer;
 mod node_identity;
 mod p2p_keypair;
+mod process_logging;
 mod storage;
 mod sys_disk;
 mod wallet;
@@ -28,10 +30,10 @@ use crate::abci_interface::{init_abci_server, AbciServerInitContext};
 use crate::api::{init_router_with_storage, ApiRouterInitContext};
 use crate::app_state::AppState;
 use crate::node_identity::LocalNodeIdentity;
+use crate::process_logging::init_default_logging;
 use clap::Parser;
 use config::ConsensusConfig;
 use eld_client::facade::cli::{get_config, Cli, WALLETS_PATH};
-use eld_client::logging::init_default_logging;
 use eld_common::error::EldError;
 use std::{
     net::SocketAddr,
@@ -171,13 +173,14 @@ async fn main() -> Result<(), EldError> {
         .get_wallet_by_name(capacity_validator_wallet_name.clone())
         .await
     {
-        Some(w) => w,
-        None => handle_fatal_eld_error(EldError::InitializationError {
+        Ok(Some(w)) => w,
+        Ok(None) => handle_fatal_eld_error(EldError::InitializationError {
             component: "capacity_validator".into(),
             details: format!(
                 "Wallet '{capacity_validator_wallet_name}' not found in wallets.json ({ELD_CAPACITY_VALIDATOR_WALLET_NAME_ENV})"
             ),
         }),
+        Err(e) => handle_fatal_eld_error(e),
     };
     let capacity_validator_wallet_address =
         capacity_validator_address_from_wallet(&capacity_validator_wallet);

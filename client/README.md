@@ -10,7 +10,7 @@ This crate is **not** published to crates.io yet (`publish = false`). Protocol t
 - `api::rest` — node app REST (`AppApi`, pinboard/namespace JSON DTOs) and the dev faucet
 - `facade` — `ChainClient`, `facade::cli` (`Cli` alias), mixed command wrappers
 - `config` — CWD JSON (`client_config`, `config_loader`)
-- `logging` — `init_default_logging` (re-exports sanitizers from `eld-common`)
+- `logging` — sanitizers re-exported from `eld-common` (`init_default_logging` lives in `eld` binaries)
 - `wallet_store_config` — `wallets.json` paths; identity types are `eld_common::wallet::Wallet`
 
 Hex and ID conventions: [TYPE_DESIGN.md](TYPE_DESIGN.md). `Cli` is a type alias for `ChainClient`.

@@ -1,6 +1,6 @@
 //! Helpers to redact sensitive values in log fields.
 //!
-//! Process-wide subscriber setup lives in `eld_client::logging::init_default_logging`.
+//! Process-wide subscriber setup lives in the `eld` CLI, faucet, and node binaries.
 
 use std::fmt;
 

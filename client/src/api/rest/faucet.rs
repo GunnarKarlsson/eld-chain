@@ -3,7 +3,6 @@
 use crate::config::client_config::CliConfig;
 use eld_common::error::EldError;
 use std::time::Duration;
-use tracing::{error, info};
 
 fn faucet_http_client() -> Result<reqwest::Client, EldError> {
     reqwest::Client::builder()
@@ -16,7 +15,7 @@ fn faucet_http_client() -> Result<reqwest::Client, EldError> {
         })
 }
 
-pub async fn request_faucet(config: &CliConfig, address: String) -> Result<(), EldError> {
+pub async fn request_faucet(config: &CliConfig, address: String) -> Result<String, EldError> {
     eld_common::validation::validate_address(&address)?;
 
     let url = config.get_faucet_request_url()?;
@@ -31,31 +30,28 @@ pub async fn request_faucet(config: &CliConfig, address: String) -> Result<(), E
         .json(&request_body)
         .send()
         .await
-        .map_err(|e| {
-            error!("Failed to send request to faucet: {e}");
-            EldError::NetworkError {
-                operation: "request faucet".to_string(),
-                details: format!("Failed to send request to faucet: {e}"),
-            }
+        .map_err(|e| EldError::NetworkError {
+            operation: "request faucet".to_string(),
+            details: format!("Failed to send request to faucet: {e}"),
         })?;
 
     match response.status() {
         reqwest::StatusCode::OK => {
-            info!("✅ Successfully requested tokens from faucet");
-            if let Ok(text) = response.text().await {
-                info!("Response: {}", text);
-            }
-            Ok(())
+            let text = response.text().await.map_err(|e| EldError::NetworkError {
+                operation: "request faucet".to_string(),
+                details: format!("Failed to read faucet response: {e}"),
+            })?;
+            Ok(text)
         }
         status => {
             let details = match response.text().await {
                 Ok(text) => {
-                    error!("Failed to request tokens from faucet. Status: {status}. {text}");
                     format!("Failed to request tokens from faucet. Status: {status}. {text}")
                 }
-                Err(_) => {
-                    error!("Failed to request tokens from faucet. Status: {status}");
-                    format!("Failed to request tokens from faucet. Status: {status}")
+                Err(e) => {
+                    format!(
+                        "Failed to request tokens from faucet. Status: {status}. Also failed to read body: {e}"
+                    )
                 }
             };
             Err(EldError::NetworkError {

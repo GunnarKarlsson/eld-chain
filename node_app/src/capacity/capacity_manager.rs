@@ -198,7 +198,7 @@ impl CapacityManager {
         let wallet_name = self.capacity_validator_wallet_name.as_str();
         let wallet = cli
             .get_wallet_by_name(wallet_name.to_string())
-            .await
+            .await?
             .ok_or_else(|| EldError::StorageError {
                 operation: "register_capacity_onchain".to_string(),
                 details: format!(
@@ -256,7 +256,7 @@ impl CapacityManager {
             .get_wallet_by_address(&self.config.provider_id.to_string())
             .await
         {
-            Some(wallet) => {
+            Ok(Some(wallet)) => {
                 info!(
                     provider_id = %self.config.provider_id,
                     wallet_address = %wallet.address.hex_with_prefix(),
@@ -264,7 +264,7 @@ impl CapacityManager {
                 );
                 wallet
             }
-            None => {
+            Ok(None) => {
                 error!(
                     provider_id = %self.config.provider_id,
                     "Wallet not found for provider_id - cannot submit merkle root update"
@@ -277,6 +277,7 @@ impl CapacityManager {
                     ),
                 });
             }
+            Err(e) => return Err(e),
         };
 
         // Get chain ID
@@ -372,7 +373,8 @@ impl CapacityManager {
         );
 
         match self.cli.send_tx_rpc(&hex_encoded).await {
-            Ok(_response) => {
+            Ok(response) => {
+                crate::broadcast_log::log_deliver_tx_events(&response);
                 info!(
                     provider_id = %self.config.provider_id,
                     merkle_root = new_merkle_root.to_hex(),
@@ -1387,8 +1389,8 @@ impl CapacityManager {
             .get_wallet_by_address(&challenge_proof.provider_id.to_string())
             .await
         {
-            Some(wallet) => wallet,
-            None => {
+            Ok(Some(wallet)) => wallet,
+            Ok(None) => {
                 return Err(EldError::StorageError {
                     operation: "sign_capacity_challenge_response".to_string(),
                     details: format!(
@@ -1397,6 +1399,7 @@ impl CapacityManager {
                     ),
                 });
             }
+            Err(e) => return Err(e),
         };
 
         wallet

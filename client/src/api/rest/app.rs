@@ -1,12 +1,10 @@
 use super::namespace::{NamespaceNotRegisteredResponse, NamespaceRegisteredResponse};
 use super::pinboard::{PostMessageSubmitRequest, PostMessageSubmitResponse};
-use crate::logging::{SanitizedLog, SanitizedLoggable};
 use eld_common::cado::CadoBody;
 use eld_common::error::EldError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tracing::{error, info, warn};
 use urlencoding::encode;
 
 /// Standardized API error response structure (matches the server-side structure)
@@ -44,9 +42,8 @@ impl AppApi {
         Ok(Self { client, base_url })
     }
 
-    pub async fn get_cado(&self, cado_path: String) -> Result<(), EldError> {
+    pub async fn get_cado(&self, cado_path: String) -> Result<Option<CadoBody>, EldError> {
         let url = self.base_url.clone() + "cado/" + &encode(&cado_path);
-        info!("url: {}", SanitizedLog::as_path(&url));
         let response = self
             .client
             .get(url)
@@ -56,27 +53,14 @@ impl AppApi {
                 operation: "get_cado".to_string(),
                 details: e.to_string(),
             })?;
-        let option_cadotype =
-            response
-                .json::<Option<CadoBody>>()
-                .await
-                .map_err(|e| EldError::ValidationError {
-                    field: "cado".to_string(),
-                    value: cado_path,
-                    details: format!("Failed to parse CADO type: {e}"),
-                })?;
-        match option_cadotype {
-            Some(cado_type) => match cado_type {
-                CadoBody::Immutable(cado) => {
-                    info!("cado: {}", cado.metadata().sanitized_log())
-                }
-                CadoBody::Mutable(cado_mut) => {
-                    info!("cado_mut: {}", cado_mut.metadata().sanitized_log())
-                }
-            },
-            None => info!("No cado found"),
-        }
-        Ok(())
+        response
+            .json::<Option<CadoBody>>()
+            .await
+            .map_err(|e| EldError::ValidationError {
+                field: "cado".to_string(),
+                value: cado_path,
+                details: format!("Failed to parse CADO type: {e}"),
+            })
     }
 
     /// Submit a user-signed pinboard message; the node validates and broadcasts `PostMessage` tx.
@@ -85,7 +69,6 @@ impl AppApi {
         request: PostMessageSubmitRequest,
     ) -> Result<PostMessageSubmitResponse, EldError> {
         let url = format!("{}v1/pinboard/messages:submit", self.base_url);
-        info!("Submitting pinboard message to Node...");
 
         let response = self
             .client
@@ -146,10 +129,6 @@ impl AppApi {
             "{}v1/namespace/{}",
             self.base_url,
             encode(namespace_slug).into_owned()
-        );
-        info!(
-            "Querying namespace registry for {}",
-            SanitizedLog::new(namespace_slug)
         );
 
         let response = self
@@ -214,7 +193,7 @@ impl AppApi {
         })
     }
 
-    /// Check if the app API is healthy
+    /// Check if the app API is healthy.
     pub async fn health_check(&self) -> Result<bool, EldError> {
         let url = self.base_url.clone();
 
@@ -227,14 +206,10 @@ impl AppApi {
                     })?;
                     Ok(body.trim() == "OK")
                 } else {
-                    warn!("Health check failed with status: {}", response.status());
                     Ok(false)
                 }
             }
-            Err(e) => {
-                error!("Health check failed: {}", SanitizedLog::new(e.to_string()));
-                Ok(false)
-            }
+            Err(_) => Ok(false),
         }
     }
 }

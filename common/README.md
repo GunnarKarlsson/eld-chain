@@ -15,7 +15,7 @@ This crate is **not** published to crates.io yet (`publish = false`). Consume it
 | Capacity | `capacity` (proofs, seeds, merkle roots), `storage` (`SlotAllocator`) |
 | App types | `pinboard`, `namespace`, `sync_msg` |
 | IDs | `ContentId`, `ManifestId`, `ChallengeId`, and related typed IDs |
-| Logging | `logging` — field sanitizers only; `init_default_logging` is in `eld-client` |
+| Logging | `logging` — field sanitizers only; process subscriber setup lives in `eld` binaries |
 
 Hex and ID conventions: [TYPE_DESIGN.md](TYPE_DESIGN.md). Third-party Coin attribution: [NOTICE](NOTICE).
 
