@@ -87,10 +87,6 @@ impl ChainClient {
         crate::api::abci::query::get_account_by_address(&self.config, address).await
     }
 
-    pub async fn display_account(&self, address: String) -> Result<Option<Account>, EldError> {
-        crate::facade::display_account(self, address).await
-    }
-
     pub async fn send_tx_rpc(&self, hex_encoded: &str) -> Result<Value, EldError> {
         crate::api::abci::tx_broadcast::send_tx_rpc(&self.config, hex_encoded).await
     }
@@ -217,16 +213,16 @@ impl ChainClient {
         crate::facade::wallets::get_wallet_by_name(name).await
     }
 
-    pub async fn display_wallet_by_name_with_store_config(
+    pub async fn get_wallet_by_name_with_store_config(
         &self,
         name: String,
         wallet_store_config: &WalletStoreConfig,
     ) -> Result<Option<Wallet>, EldError> {
-        crate::facade::wallets::display_wallet_by_name_with_store_config(name, wallet_store_config)
+        crate::facade::wallets::get_wallet_by_name_with_store_config(name, wallet_store_config)
             .await
     }
 
-    pub async fn display_wallet_by_name_from_path(
+    pub async fn get_wallet_by_name_from_path(
         &self,
         name: String,
         wallet_path: impl AsRef<Path>,
@@ -249,10 +245,6 @@ impl ChainClient {
             return Self::wallet_not_found_to_none(wallet_store.wallet_by_address(address));
         }
         crate::facade::wallets::get_wallet_by_address(address).await
-    }
-
-    pub async fn display_wallet_by_name(&self, name: String) -> Result<Wallet, EldError> {
-        crate::facade::display_wallet_by_name(self, name).await
     }
 
     pub async fn transfer(

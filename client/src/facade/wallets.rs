@@ -134,13 +134,6 @@ pub(crate) async fn get_wallet_by_name_with_store_config(
     not_found_to_none(wallet_store_config.wallet_by_name(&name))
 }
 
-pub(crate) async fn display_wallet_by_name_with_store_config(
-    name: String,
-    wallet_store_config: &WalletStoreConfig,
-) -> Result<Option<Wallet>, EldError> {
-    get_wallet_by_name_with_store_config(name, wallet_store_config).await
-}
-
 pub(crate) async fn get_wallet_by_address(address: &str) -> Result<Option<Wallet>, EldError> {
     let wallets = WalletStoreConfig::load_wallets_from_path(WALLETS_PATH)?;
     let target_address = Address::parse_hex_str(address).map_err(|e| EldError::WalletError {

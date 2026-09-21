@@ -24,8 +24,7 @@ pub use crate::config::client_config::{
 };
 
 pub(crate) use accounts::{
-    display_account, display_wallet_by_name, get_abci_info, get_account,
-    get_provider_id_for_capacity, get_staking_account,
+    get_abci_info, get_account, get_provider_id_for_capacity, get_staking_account,
 };
 pub(crate) use cado::{get_cado, list_cados};
 pub(crate) use epoch::{view_active_validators, view_epoch, view_epoch_info};
