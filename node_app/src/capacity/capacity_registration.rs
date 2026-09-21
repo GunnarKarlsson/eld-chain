@@ -1,4 +1,4 @@
-use eld_client::facade::cli::Cli;
+use eld_client::facade::ChainClient;
 use eld_common::error::EldError;
 use eld_common::fee::calculate_dynamic_fee;
 use eld_common::tx::{Payload, RegisterCapacityTx, Tx};
@@ -32,7 +32,7 @@ pub struct CapacityRegistrationTxParams<'a> {
     pub merkle_root: CapacityMerkleRoot,
     pub chunk_count: u32,
     pub wallet: &'a Wallet,
-    pub cli: &'a Cli,
+    pub cli: &'a ChainClient,
     pub chain_id: &'a str,
 }
 
@@ -191,7 +191,7 @@ mod tests {
     #[tokio::test]
     async fn test_submit_registration_tx_sets_pending() {
         use ed25519_dalek::SigningKey;
-        use eld_client::facade::cli::Cli;
+        use eld_client::facade::ChainClient;
         use eld_common::wallet::Wallet;
         use std::sync::Arc;
 
@@ -200,7 +200,7 @@ mod tests {
         // Create mock wallet and cli for test
         let signing_key = SigningKey::from_bytes(&[0u8; 32]);
         let wallet = Wallet::from_signing_key("test_wallet".to_string(), signing_key);
-        let cli_config = eld_client::facade::cli::CliConfig {
+        let cli_config = eld_client::facade::CliConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "test-chain".to_string(),
@@ -218,7 +218,7 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let cli = Arc::new(Cli::new(cli_config).expect("test Cli"));
+        let cli = Arc::new(ChainClient::new(cli_config).expect("test ChainClient"));
 
         // Submit registration (will fail due to account not existing)
         // The status is set to Pending at the start of the method (line 77)

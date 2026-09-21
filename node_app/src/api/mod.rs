@@ -22,7 +22,7 @@ use axum::{
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use eld_client::api::rest::{PostMessageSubmitRequest, PostMessageSubmitResponse};
-use eld_client::facade::cli::Cli;
+use eld_client::facade::ChainClient;
 use eld_common::account::Account;
 use eld_common::coin::Coin;
 use eld_common::constants::{abci_query, cado, protocol::BLOCKS_PER_EPOCH};
@@ -393,7 +393,7 @@ pub struct ApiRouterInitContext {
     pub consensus_config: Arc<Mutex<ConsensusConfig>>,
     pub rate_limit_state: Arc<RwLock<RateLimitState>>,
     pub indexer: Option<Arc<TransactionIndexer>>,
-    pub cli: Arc<Cli>,
+    pub cli: Arc<ChainClient>,
     pub capacity_manager: Arc<CapacityManager>,
     pub local_identity: Arc<std::sync::RwLock<LocalNodeIdentity>>,
     pub admin_token: Option<String>,
@@ -623,7 +623,7 @@ async fn handle_pinboard_submit(
     State(storage): State<Arc<RocksDBStorage>>,
     State(consensus_config): State<Arc<Mutex<ConsensusConfig>>>,
     State(rate_limit_state): State<Arc<RwLock<RateLimitState>>>,
-    State(cli): State<Arc<Cli>>,
+    State(cli): State<Arc<ChainClient>>,
     State(capacity_manager): State<Arc<CapacityManager>>,
     headers: HeaderMap,
     Json(body): Json<PostMessageSubmitRequest>,

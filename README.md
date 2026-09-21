@@ -14,10 +14,10 @@ The node binary used by Docker and local deploy scripts still lives in the sibli
 
 - `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
 - `api::rest` — node app REST (`AppApi` plus pinboard/namespace JSON DTOs) and the dev faucet
-- `facade` — `ChainClient`, `facade::cli` (`Cli` alias), and command wrappers that may use both stacks
+- `facade` — `ChainClient`, config helpers re-exported for binaries, and command wrappers that may use both stacks
 - `config` — CWD JSON (`client_config`, `config_loader`); `wallets.json` I/O at the crate root
 
-`Cli` remains a type alias for `ChainClient` (`eld_client::facade::cli::Cli`). Config loaders return `Result`; the CLI can exit after it sees an error.
+Config loaders return `Result`; the CLI can exit after it sees an error.
 
 [`eld_node_app`](node_app/README.md) (directory `node_app/`) is the ABCI application (Tendermint, RocksDB, libp2p, Axum). Package name stays `eld_node_app`. Runtime data (`data/`, `tx_responses/`), wallets, and P2P key files are not shipped; copy those from `eld/chain/node_app` when running this copy locally.
 

@@ -8,12 +8,12 @@ This crate is **not** published to crates.io yet (`publish = false`). Protocol t
 
 - `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
 - `api::rest` — node app REST (`AppApi`, pinboard/namespace JSON DTOs) and the dev faucet
-- `facade` — `ChainClient`, `facade::cli` (`Cli` alias), mixed command wrappers
+- `facade` — `ChainClient`, config helpers re-exported for binaries, mixed command wrappers
 - `config` — CWD JSON (`client_config`, `config_loader`)
 - `logging` — sanitizers re-exported from `eld-common` (`init_default_logging` lives in `eld` binaries)
 - `wallet_store_config` — `wallets.json` paths; identity types are `eld_common::wallet::Wallet`
 
-Hex and ID conventions: [TYPE_DESIGN.md](TYPE_DESIGN.md). `Cli` is a type alias for `ChainClient`.
+Hex and ID conventions: [TYPE_DESIGN.md](TYPE_DESIGN.md).
 
 ## docs.rs / dependencies
 
@@ -37,10 +37,9 @@ eld_client = { path = "../../../eld-chain/client", package = "eld-client" }
 
 ```rust
 use eld_client::ChainClient;
-use eld_client::facade::cli::Cli;
 
-fn _same_type(c: ChainClient) -> Cli {
-    c
+fn _holds(client: ChainClient) -> ChainClient {
+    client
 }
 ```
 

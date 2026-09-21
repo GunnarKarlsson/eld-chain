@@ -42,7 +42,7 @@ pub struct CapacityManager {
     registration_service: Arc<CapacityRegistrationService>,
     merkle_tree: Arc<Mutex<Option<CapacityProofMerkleTree>>>,
     initialized: Arc<Mutex<bool>>,
-    cli: Arc<eld_client::facade::cli::Cli>,
+    cli: Arc<eld_client::facade::ChainClient>,
     consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
 }
 
@@ -55,7 +55,7 @@ impl CapacityManager {
     pub fn new(
         config: CapacityConfig,
         capacity_validator_wallet_name: String,
-        cli: Arc<eld_client::facade::cli::Cli>,
+        cli: Arc<eld_client::facade::ChainClient>,
         consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
     ) -> Self {
         let slot_allocator = SlotAllocator::new(&config.capacity_dir, &config.provider_id);
@@ -1428,10 +1428,10 @@ mod tests {
 
     // Helper function to create test dependencies
     fn create_test_dependencies() -> (
-        Arc<eld_client::facade::cli::Cli>,
+        Arc<eld_client::facade::ChainClient>,
         Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
     ) {
-        let cli_config = eld_client::facade::cli::CliConfig {
+        let cli_config = eld_client::facade::CliConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "test-chain".to_string(),
@@ -1449,7 +1449,8 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let cli = Arc::new(eld_client::facade::cli::Cli::new(cli_config).expect("test Cli"));
+        let cli =
+            Arc::new(eld_client::facade::ChainClient::new(cli_config).expect("test ChainClient"));
 
         let consensus_config = Arc::new(std::sync::Mutex::new(crate::config::ConsensusConfig {
             chain_id: "test-chain".to_string(),

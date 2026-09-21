@@ -1,9 +1,10 @@
 //! `ChainClient` and domain command wrappers (may call ABCI and REST).
+//!
+//! Config helpers used by node/CLI binaries are re-exported here for a short import path.
 
 mod accounts;
 mod cado;
 mod chain_client;
-pub mod cli;
 mod epoch;
 mod namespace;
 mod pinboard;
@@ -15,6 +16,12 @@ pub(crate) mod wallets;
 pub use chain_client::ChainClient;
 pub use namespace::NamespaceLookup;
 pub use submitted_tx::SubmittedTx;
+
+pub use crate::config::client_config::{
+    get_config, get_config_from_arg, CliConfig, ConsensusConfig, FeeConfig,
+    BROADCAST_TX_COMMIT_WITH_BODY_URL_PATH, CONSENSUS_CONFIG_PATH, DEFAULT_CONFIG_PATH, HEX_PREFIX,
+    WALLETS_PATH,
+};
 
 pub(crate) use accounts::{
     display_account, display_wallet_by_name, get_abci_info, get_account,

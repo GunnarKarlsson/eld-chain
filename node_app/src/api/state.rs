@@ -7,7 +7,7 @@ use crate::indexer::TransactionIndexer;
 use crate::node_identity::LocalNodeIdentity;
 use crate::storage::rocksdb::RocksDBStorage;
 use axum::extract::FromRef;
-use eld_client::facade::cli::Cli;
+use eld_client::facade::ChainClient;
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::RwLock as TokioRwLock;
 
@@ -19,7 +19,7 @@ pub struct ApiState {
     pub storage: Arc<RocksDBStorage>,
     pub consensus_config: Arc<Mutex<ConsensusConfig>>,
     pub rate_limit_state: Arc<TokioRwLock<RateLimitState>>,
-    pub cli: Arc<Cli>,
+    pub cli: Arc<ChainClient>,
     pub capacity_manager: Arc<CapacityManager>,
     pub local_identity: Arc<RwLock<LocalNodeIdentity>>,
     pub admin_token: Option<String>,
@@ -48,7 +48,7 @@ impl FromRef<ApiState> for Arc<TokioRwLock<RateLimitState>> {
     }
 }
 
-impl FromRef<ApiState> for Arc<Cli> {
+impl FromRef<ApiState> for Arc<ChainClient> {
     fn from_ref(state: &ApiState) -> Self {
         state.cli.clone()
     }

@@ -33,7 +33,7 @@ use crate::node_identity::LocalNodeIdentity;
 use crate::process_logging::init_default_logging;
 use clap::Parser;
 use config::ConsensusConfig;
-use eld_client::facade::cli::{get_config, Cli, WALLETS_PATH};
+use eld_client::facade::{get_config, ChainClient, WALLETS_PATH};
 use eld_common::error::EldError;
 use std::{
     net::SocketAddr,
@@ -144,7 +144,7 @@ async fn main() -> Result<(), EldError> {
 
     let config = get_config()?;
     let cli = Arc::new(
-        Cli::new_with_wallets(config.clone(), WALLETS_PATH)
+        ChainClient::new_with_wallets(config.clone(), WALLETS_PATH)
             .unwrap_or_else(|e| handle_fatal_eld_error(e)),
     );
     let cli_for_capacity = cli.clone();

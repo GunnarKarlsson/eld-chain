@@ -41,7 +41,7 @@ pub struct VerifiedProofSubmissionProofs {
 /// [`VerifiedProofChainSubmitter::wallet_name`].
 pub struct VerifiedProofChainSubmitter {
     wallet_name: String,
-    cli: Arc<eld_client::facade::cli::Cli>,
+    cli: Arc<eld_client::facade::ChainClient>,
     consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
     claim_store: Arc<dyn VerifiedProofSubmissionClaimStorage>,
     nonce_sender: SequentialOptimisticNonceSender,
@@ -52,7 +52,7 @@ pub struct VerifiedProofChainSubmitter {
 impl VerifiedProofChainSubmitter {
     pub fn new(
         wallet_name: String,
-        cli: Arc<eld_client::facade::cli::Cli>,
+        cli: Arc<eld_client::facade::ChainClient>,
         consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
         claim_store: Arc<dyn VerifiedProofSubmissionClaimStorage>,
     ) -> Self {

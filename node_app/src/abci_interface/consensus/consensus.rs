@@ -1962,7 +1962,7 @@ mod tests {
     use crate::storage::rocksdb::RocksDBStorage;
     use crate::wallet::VerifiedProofChainSubmitter;
     use abci::types::RequestDeliverTx;
-    use eld_client::facade::cli::CliConfig;
+    use eld_client::facade::CliConfig;
     use eld_common::capacity::CapacityConfig;
     use std::sync::{Arc, Mutex};
 
@@ -2017,7 +2017,8 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let cli = Arc::new(eld_client::facade::cli::Cli::new(cli_config).expect("test Cli"));
+        let cli =
+            Arc::new(eld_client::facade::ChainClient::new(cli_config).expect("test ChainClient"));
         let verified_proof_submitter = Arc::new(VerifiedProofChainSubmitter::new(
             "wallet1".into(),
             cli.clone(),
