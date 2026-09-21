@@ -1,8 +1,30 @@
 # eld-client
 
-HTTP and RPC client library for [Eld](https://github.com/eldnetwork/eld-chain) nodes: query chain state over Tendermint RPC / ABCI, call the node app REST API (pinboard, namespaces, CADO), sign transactions from local wallet files, and broadcast via `broadcast_tx_commit`.
+Types and helpers for talking to an [Eld](https://github.com/eldnetwork/eld-chain) node over its two HTTP surfaces: Tendermint RPC (ABCI) and the node app REST API.
 
-Protocol types (`Account`, `Tx`, addresses, fees) live in [`eld-common`](https://github.com/eldnetwork/eld-chain/tree/main/common). This crate is experimental and not on crates.io yet (`publish = false`).
+On-chain domain types (`Account`, `Tx`, addresses, fees) live in [`eld-common`](../common/README.md). This crate adds wire clients, JSON DTOs, config loading, wallet file I/O, and a high-level `ChainClient`. Experimental; not on crates.io yet (`publish = false`).
+
+## Modules
+
+| Module | Main types | Role |
+|---|---|---|
+| `api::abci` | `AbciHttpApi` | Tendermint JSON-RPC — `abci_query`, blocks, tx search, CADO/pinboard queries |
+| | `tx_broadcast` | `broadcast_tx_commit`, deliver-tx event parsing |
+| `api::rest` | `AppApi` | Node app REST — CADO, pinboard submit, namespace lookup, health |
+| | `faucet` | Dev faucet HTTP (test funds) |
+| | `pinboard`, `namespace` | Request/response DTOs for REST endpoints |
+| `facade` | `ChainClient` | ABCI + REST + wallets — accounts, transfers, stake, pinboard, namespaces, CADO |
+| | `SubmittedTx`, `NamespaceLookup` | Typed results from facade calls |
+
+- **`api::*`** — direct HTTP; pick ABCI or REST per call.
+- **`facade::ChainClient`** — one client that signs transactions and reads `wallets.json`.
+
+### Supporting modules
+
+| Module | Purpose |
+|---|---|
+| `config` | `ClientConfig`, `ClientSetup`, CWD JSON loading |
+| `wallet_store_config` | Paths and I/O for `wallets.json` |
 
 ## Add to your project
 
@@ -13,11 +35,11 @@ eld_common = { path = "../common", package = "eld-common" }
 eld_client = { path = "../client", package = "eld-client" }
 ```
 
-From a sibling checkout (as the `eld` monorepo does):
+From git:
 
 ```toml
-eld_common = { path = "../../../eld-chain/common", package = "eld-common" }
-eld_client = { path = "../../../eld-chain/client", package = "eld-client" }
+eld_common = { git = "https://github.com/eldnetwork/eld-chain", package = "eld-common" }
+eld_client = { git = "https://github.com/eldnetwork/eld-chain", package = "eld-client" }
 ```
 
 Rust imports use the underscore crate name: `eld_client`.
@@ -72,7 +94,7 @@ See [`examples/`](examples/) for full source.
 Default path: `config/config.json`. Node binaries may share this file; keys such as `p2p_tcp_port` or `indexer` are ignored by the client library.
 
 | Field | Purpose |
-|-------|---------|
+|---|---|
 | `node_host`, `node_port` | Tendermint RPC when `node_url` is unset |
 | `node_url` | Optional full RPC base URL (overrides host/port) |
 | `app_port` | Node app REST port when `app_url` is unset |
@@ -93,17 +115,18 @@ Local wallets are **plaintext JSON** files (`wallets/wallets.json` by default) c
 
 On Unix only, the library sets wallet files to mode `0600` when writing. On Windows, restrict access to the wallet directory yourself.
 
-Report security issues via [GitHub Security Advisories](https://github.com/eldnetwork/eld-chain/security/advisories/new) or email the maintainer (see workspace [SECURITY.md](https://github.com/eldnetwork/eld-chain/blob/main/SECURITY.md)).
-
-## Crate map
-
-- `api::abci` — `AbciHttpApi`, ABCI queries, `broadcast_tx_commit`
-- `api::rest` — `AppApi`, pinboard/namespace DTOs, dev faucet HTTP
-- `facade` — `ChainClient`, `SubmittedTx`, command-style helpers
-- `config` — `ClientConfig`, `ClientSetup`, CWD JSON loaders
-- `wallet_store_config` — paths and I/O for `wallets.json`
+Report security issues via the workspace [SECURITY.md](../SECURITY.md).
 
 Hex and ID conventions: [`eld-common` TYPE_DESIGN](../common/TYPE_DESIGN.md).
+
+## Documentation
+
+| File | Purpose |
+|---|---|
+| [CHANGELOG.md](CHANGELOG.md) | Crate release notes |
+| [TYPE_DESIGN.md](TYPE_DESIGN.md) | Pointer to `eld-common` hex/ID rules |
+| [config/config.json.example](config/config.json.example) | Sample client config |
+| [examples/](examples/) | `query_account`, `broadcast_transfer` |
 
 ## Dependencies
 

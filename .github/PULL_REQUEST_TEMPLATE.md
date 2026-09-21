@@ -5,7 +5,7 @@
 ## Compatibility
 
 - [ ] Public API unchanged, **or**
-- [ ] Breaking change: `eld` chain + clients still compile against this path dep (see CONTRIBUTING.md)
+- [ ] Breaking change: crate README/rustdoc/examples updated (see CONTRIBUTING.md)
 
 ## Test plan
 

@@ -21,4 +21,4 @@ Tests in this crate derive keys from documented throwaway seeds (for example rep
 
 ## Status
 
-This crate is experimental shared library code. Protocol constants and the JSON transaction signing encoding are the current client/node wire format, not a frozen mainnet spec.
+This repository is experimental shared library and node code. Protocol constants and the JSON transaction signing encoding are the current client/node wire format, not a frozen mainnet spec.

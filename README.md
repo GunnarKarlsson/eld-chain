@@ -1,38 +1,41 @@
 # Eld chain
 
-Protocol types (`eld-common`), off-chain client helpers (`eld-client`), and a parallel copy of the ABCI node (`eld_node_app`) for the Eld blockchain.
+Protocol types (`eld-common`), off-chain client helpers (`eld-client`), and the ABCI node application (`eld_node_app`) for the Eld blockchain.
 
-The library crate directories ship `LICENSE`, `README.md`, `NOTICE`, and `TYPE_DESIGN.md` so a future crates.io/docs.rs package is self-contained. Crates here are not published (`publish = false`). See [CONTRIBUTING.md](CONTRIBUTING.md).
+Library crates ship `LICENSE`, `README.md`, `NOTICE`, and (where relevant) `CHANGELOG.md` and `TYPE_DESIGN.md` so a future crates.io/docs.rs package is self-contained. Crates here are not published yet (`publish = false`).
 
-The node binary used by Docker and local deploy scripts still lives in the sibling `eld` repo (`eld/chain/node_app`) and path-depends on `eld-common` / `eld-client`. This workspace also contains a **copy** of that crate under [`node_app/`](node_app/) (`eld_node_app`) so the node can compile here; it is not a cutover.
+## Crates
+
+| Directory | Package | Role |
+|---|---|---|
+| [`common/`](common/README.md) | `eld-common` | Protocol types, validation, `Wallet` identity, CADO, capacity, pinboard |
+| [`client/`](client/README.md) | `eld-client` | Tendermint RPC, app REST, faucet HTTP, `ChainClient`, CWD config, wallet files |
+| [`node_app/`](node_app/README.md) | `eld_node_app` | ABCI application (Tendermint, RocksDB, libp2p, Axum REST) |
+
+Rust imports use underscores (`eld_common`, `eld_client`) because Cargo package names may contain hyphens.
+
+CosmWasm / on-chain WASM contracts are not part of this repo.
 
 ## Architecture
 
-[`eld-common`](common/README.md) (directory `common/`) is the protocol library: addresses, coins, nonces, transactions and payloads, CADO paths, capacity-proof types (including on-disk `SlotAllocator`), pinboard and namespace types, signing `Wallet` identity, validation of those types, constants, and errors. Hex and ID conventions are in [TYPE_DESIGN.md](TYPE_DESIGN.md).
+[`eld-common`](common/README.md) is the protocol library: addresses, coins, nonces, transactions and payloads, CADO paths, capacity-proof types (including on-disk `SlotAllocator`), pinboard and namespace types, signing `Wallet` identity, validation, constants, and errors.
 
-[`eld-client`](client/README.md) (directory `client/`) is the off-chain process library:
+[`eld-client`](client/README.md) is the off-chain process library:
 
 - `api::abci` — Tendermint RPC / ABCI (`AbciHttpApi`, queries, `broadcast_tx_commit`)
 - `api::rest` — node app REST (`AppApi` plus pinboard/namespace JSON DTOs) and the dev faucet
 - `facade` — `ChainClient` and command wrappers that may use both stacks
 - `config` — CWD JSON (`ClientConfig`, `ClientSetup`); `wallets.json` I/O at the crate root
 
-Config loaders return `Result`; the CLI can exit after it sees an error.
+Config loaders return `Result`; binaries can exit after they see an error.
 
-[`eld_node_app`](node_app/README.md) (directory `node_app/`) is the ABCI application (Tendermint, RocksDB, libp2p, Axum). Package name stays `eld_node_app`. Runtime data (`data/`, `tx_responses/`), wallets, and P2P key files are not shipped; copy those from `eld/chain/node_app` when running this copy locally.
+[`eld_node_app`](node_app/README.md) is the ABCI application. Runtime data (`data/`, `tx_responses/`), wallets, and P2P key files are not shipped in git — create them locally or copy from [`node_app/config/`](node_app/config/) samples before running.
 
-Rust imports use underscores (`eld_common`, `eld_client`) because Cargo package names may contain hyphens.
-
-CosmWasm / on-chain WASM contracts are not part of this repo.
-
-Intended later binaries in this repo:
-
-- `eld-cli` — thin clap front-end over `eld-client` (binary name `eld`)
-- `eld-faucet` — app, `publish = false` (the node crate here is still named `eld_node_app`, not `eld-node`)
+Hex and ID conventions: [common/TYPE_DESIGN.md](common/TYPE_DESIGN.md) (canonical; workspace root [TYPE_DESIGN.md](TYPE_DESIGN.md) points there).
 
 ## Encoding
 
-v0 uses three codecs. This is the current client/node map, not a frozen spec. Hex display rules for IDs are in [TYPE_DESIGN.md](TYPE_DESIGN.md).
+v0 uses three codecs. This is the current client/node map, not a frozen spec.
 
 | Codec | Edges |
 |---|---|
@@ -42,13 +45,15 @@ v0 uses three codecs. This is the current client/node map, not a frozen spec. He
 
 A later canonical transaction encoding would be a breaking change.
 
-## Overview
+## Repository documentation
 
-- Account addresses, transactions, signatures, and `Wallet` identity (Ed25519) — `eld-common`
-- CADO paths, capacity proofs, pinboard and namespace types — `eld-common`
-- HTTP helpers for Tendermint RPC, the app API, and a dev faucet — `eld-client`
-- Local JSON wallet **files** (plaintext hex keys; see [SECURITY.md](SECURITY.md)) — `eld-client`
-- ABCI node process — `eld_node_app` (parallel copy; deploy still uses `eld/chain/node_app`)
+| File | Purpose |
+|---|---|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | PR workflow, layout, CI |
+| [SECURITY.md](SECURITY.md) | Vulnerability reporting, wallet hygiene |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Community standards |
+| [deploy/README.md](deploy/README.md) | Local four-node Docker Compose and CI scripts |
+| [common/TYPE_DESIGN.md](common/TYPE_DESIGN.md) | Hex and typed ID conventions |
 
 ## Setup
 
@@ -62,24 +67,26 @@ That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy, build,
 
 ## Configuration
 
-CLI and node binaries read endpoint and runtime settings from `config/config.json` (client fields are used by `eld-client`; the node also reads P2P, capacity, and indexer fields from the same file). Wallet files (`wallets/wallets.json`) hold unencrypted Ed25519 private keys; do not commit them. Sample non-secret configs live under `node_app/config/`; do not add `p2p_keypair.json` or `wallets.json`.
+Binaries read endpoint and runtime settings from `config/config.json` (client fields are used by `eld-client`; the node also reads P2P, capacity, and indexer fields from the same file). See [`client/config/config.json.example`](client/config/config.json.example) for client fields.
+
+Wallet files (`wallets/wallets.json`) hold unencrypted Ed25519 private keys; do not commit them. Sample non-secret configs live under `node_app/config/`; do not add `p2p_keypair.json` or `wallets.json`.
 
 Protocol constants in `eld_common::constants::protocol` (minimum stake, validators per epoch, blocks per epoch, block reward) are local-dev values, not mainnet economics.
 
 ## Usage
 
-Path-depend from a workspace sibling:
+Path-depend from another crate in your workspace:
 
 ```toml
 eld_common = { path = "../common", package = "eld-common" }
 eld_client = { path = "../client", package = "eld-client" }
 ```
 
-The `eld` node, CLI, and faucet use:
+Or depend on this repository with git:
 
 ```toml
-eld_common = { path = "../../../eld-chain/common", package = "eld-common" }
-eld_client = { path = "../../../eld-chain/client", package = "eld-client" }
+eld_common = { git = "https://github.com/eldnetwork/eld-chain", package = "eld-common" }
+eld_client = { git = "https://github.com/eldnetwork/eld-chain", package = "eld-client" }
 ```
 
 ```rust

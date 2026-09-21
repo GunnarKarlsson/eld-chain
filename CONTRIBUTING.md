@@ -1,19 +1,34 @@
 # Contributing
 
-This repo is the Eld workspace: `eld-common` (`common/`), `eld-client` (`client/`), and a parallel copy of the node (`eld_node_app` in `node_app/`). The CLI, faucet, and the node used by Docker/local deploy still live in the sibling `eld` repo and **path-depend** on the library crates. They are not consumed from crates.io yet.
+This repo is the Eld workspace: `eld-common` (`common/`), `eld-client` (`client/`), and the ABCI node (`eld_node_app` in `node_app/`). Crates are not on crates.io yet (`publish = false`).
 
 ## Pull requests
 
 PRs must pass `./deploy/scripts/ci.sh` (fmt, Clippy with warnings denied, build, test including rustdoc, gitleaks).
 
-Public API changes that `eld` uses must keep **chain** (`eld/chain`) and **clients** (`eld/clients`) compiling against the new path deps. Coordinate call sites there in the same change.
+Treat changes to public types and functions as API changes: update crate READMEs, rustdoc, and examples when behavior or wire format shifts.
 
 Do not publish crates or flip `publish = true` unless that is the explicit goal of the PR.
 
+Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md). Report security issues through [SECURITY.md](SECURITY.md), not public issues.
+
 ## Layout
 
-- Protocol types, validation, `Wallet`, `SlotAllocator` → `eld-common`
-- Tendermint RPC, app REST, faucet HTTP, CWD config, `wallets.json` I/O, `ChainClient` → `eld-client`
-- ABCI node binary (`eld_node_app`) → `node_app/` (copy of `eld/chain/node_app`; do not treat this as the deploy source yet)
-- Package names are hyphenated for libraries (`eld-common`); the node package is still `eld_node_app`. Rust imports use underscores (`eld_common`)
-- License and crate docs live **in each library crate directory** (`LICENSE`, `README.md`, `NOTICE`, `TYPE_DESIGN.md`) so a future crates.io tarball includes them
+| Path | Package | Contents |
+|---|---|---|
+| `common/` | `eld-common` | Protocol types, validation, `Wallet`, `SlotAllocator` |
+| `client/` | `eld-client` | Tendermint RPC, app REST, faucet HTTP, CWD config, `wallets.json` I/O, `ChainClient` |
+| `node_app/` | `eld_node_app` | ABCI node binary and server logic |
+| `deploy/` | — | CI script, local four-node Compose, Dockerfiles |
+
+Package names are hyphenated for libraries (`eld-common`); the node package is `eld_node_app`. Rust imports use underscores (`eld_common`).
+
+Each library crate directory includes `LICENSE`, `README.md`, and `NOTICE`. `eld-common` and `eld-client` also maintain `CHANGELOG.md`; hex/ID rules live in `common/TYPE_DESIGN.md`.
+
+## Documentation
+
+When changing public API or wire behavior, update the relevant crate README and, if IDs or hex rules change, [common/TYPE_DESIGN.md](common/TYPE_DESIGN.md). Node protocol notes go under [node_app/docs/](node_app/docs/). Local cluster setup is documented in [deploy/README.md](deploy/README.md).
+
+## Code of conduct
+
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).

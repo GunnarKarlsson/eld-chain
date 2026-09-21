@@ -13,7 +13,7 @@ paths = [
 ]
 
 [[allowlists]]
-description = "Local-dev compose secrets copied from sibling eld (gitignored)"
+description = "Local-dev compose secrets (gitignored)"
 paths = [
   '''(^|/)deploy/wallets/''',
   '''(^|/)deploy/nodes/.+/app/p2p_keypair\.json$''',
