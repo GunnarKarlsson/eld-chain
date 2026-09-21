@@ -11,3 +11,13 @@ paths = [
   '''(^|/)target/''',
   '''(^|/)\.git/''',
 ]
+
+[[allowlists]]
+description = "Local-dev compose secrets copied from sibling eld (gitignored)"
+paths = [
+  '''(^|/)deploy/wallets/''',
+  '''(^|/)deploy/nodes/.+/app/p2p_keypair\.json$''',
+  '''(^|/)deploy/nodes/.+/tendermint/node_key\.json$''',
+  '''(^|/)deploy/nodes/.+/tendermint/priv_validator_key\.json$''',
+  '''(^|/)deploy/nodes/.+/tendermint/addrbook\.json$''',
+]

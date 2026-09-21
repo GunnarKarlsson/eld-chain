@@ -9,6 +9,8 @@ node_app/tx_responses/
 .DS_Store
 .env
 .env.*
+!.env.example
+!deploy/.env.example
 *.pem
 *.key
 wallets/
@@ -17,3 +19,9 @@ config/*.json
 !config/*.json.example
 _dev-docs/
 .cursor/
+
+# Local 4-node compose secrets (copied from sibling eld; not committed)
+deploy/nodes/*/app/p2p_keypair.json
+deploy/nodes/*/tendermint/node_key.json
+deploy/nodes/*/tendermint/priv_validator_key.json
+deploy/nodes/*/tendermint/addrbook.json

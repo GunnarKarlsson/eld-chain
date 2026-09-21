@@ -1,0 +1,12 @@
+{
+    "node_host": "tendermint-4",
+    "node_port": "26657",
+    "faucet_host": "eld-faucet",
+    "faucet_port": "8080",
+    "faucet_end_point": "/faucet/request",
+    "app_port": "9001",
+    "p2p_tcp_port": "4031",
+    "p2p_udp_port": "4032",
+    "capacity_size_mb": 50,
+    "capacity_storage_path": "/app/data/capacity"
+}

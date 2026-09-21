@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Build eld_node_app into a local Docker image (eld-base + runtime), same two-stage
+# flow as old eld Dockerfile.eld-base / Dockerfile.app-multi.
+# NODE_APP_VERSION_TAG comes from deploy/.env (or DEPLOY_ENV_FILE).
+# Builds eld-base first (Rust compile), then eld-app FROM that image — same split as
+# old eld Dockerfile.eld-base + Dockerfile.app-multi.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=deploy/scripts/_env.sh
+source "${SCRIPT_DIR}/_env.sh"
+
+ELD_BASE_DOCKERFILE="${ELD_BASE_DOCKERFILE:-${DEPLOY_DIR}/docker/Dockerfile.eld-base}"
+ELD_APP_DOCKERFILE="${ELD_APP_DOCKERFILE:-${DEPLOY_DIR}/docker/Dockerfile.app}"
+
+echo "Building compile image ${ELD_BASE_IMAGE} from ${ELD_BASE_DOCKERFILE}"
+docker build \
+  -f "$ELD_BASE_DOCKERFILE" \
+  -t "$ELD_BASE_IMAGE" \
+  "$REPO_ROOT"
+
+echo "Building runtime image ${ELD_APP_IMAGE} FROM ${ELD_BASE_IMAGE}"
+DOCKER_BUILDKIT=1 docker build \
+  --build-context "eld_base=docker-image://${ELD_BASE_IMAGE}" \
+  -f "$ELD_APP_DOCKERFILE" \
+  -t "$ELD_APP_IMAGE" \
+  "$REPO_ROOT"
+
+echo "Tagged ${ELD_BASE_IMAGE} and ${ELD_APP_IMAGE}"

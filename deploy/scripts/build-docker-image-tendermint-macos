@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Compile Tendermint for a Linux container on macOS, then tag a local Docker image.
+# Paths and TENDERMINT_VERSION_TAG come from deploy/.env (or DEPLOY_ENV_FILE).
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=deploy/scripts/_env.sh
+source "${SCRIPT_DIR}/_env.sh"
+
+if [[ ! -d "$TENDERMINT_DIR" ]]; then
+  echo "Tendermint source not found at $TENDERMINT_DIR (set TENDERMINT_DIR or ELD_ROOT)." >&2
+  exit 1
+fi
+if [[ ! -f "$TENDERMINT_DOCKERFILE" ]]; then
+  echo "Missing Dockerfile: $TENDERMINT_DOCKERFILE" >&2
+  exit 1
+fi
+
+host_arch="$(uname -m)"
+case "$host_arch" in
+  arm64 | aarch64) goarch=arm64 ;;
+  x86_64) goarch=amd64 ;;
+  *)
+    echo "Unsupported uname -m: $host_arch" >&2
+    exit 1
+    ;;
+esac
+
+echo "Building Tendermint (GOOS=linux GOARCH=${goarch}) in ${TENDERMINT_DIR}"
+# Same Makefile target as old eld (`make build`), with Linux GOOS so the binary
+# runs inside Alpine. GOARCH follows the Mac so Docker Desktop does not need amd64 emulation.
+GOOS=linux GOARCH="$goarch" make -C "$TENDERMINT_DIR" build
+
+if [[ ! -x "${TENDERMINT_DIR}/build/tendermint" ]]; then
+  echo "Expected binary at ${TENDERMINT_DIR}/build/tendermint" >&2
+  exit 1
+fi
+
+echo "Building local image ${ELD_TM_IMAGE}"
+docker build \
+  -f "$TENDERMINT_DOCKERFILE" \
+  -t "$ELD_TM_IMAGE" \
+  "$ELD_ROOT"
+
+echo "Tagged ${ELD_TM_IMAGE} (docker images)"

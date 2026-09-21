@@ -1,0 +1,18 @@
+# Build context is the eld-chain repository root.
+FROM rust:1.88.0-bookworm
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    clang \
+    libclang-dev \
+    pkg-config \
+    libssl-dev \
+    libudev-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY common ./common
+COPY client ./client
+COPY node_app ./node_app
+RUN cargo build -p eld_node_app

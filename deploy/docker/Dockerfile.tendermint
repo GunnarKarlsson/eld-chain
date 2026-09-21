@@ -1,0 +1,40 @@
+FROM alpine:3.18
+
+# Install necessary runtime dependencies
+RUN apk update && apk add --no-cache \
+    bash \
+    curl \
+    jq \
+    && rm -rf /var/cache/apk/*
+
+# Create tendermint user and directory
+RUN addgroup -g 1000 tmuser && \
+    adduser -D -s /bin/bash -u 1000 -G tmuser tmuser
+
+# Set working directory
+WORKDIR /tendermint
+
+# Copy the built tendermint binary
+COPY ./third_party/tendermint/build/tendermint /usr/local/bin/tendermint
+RUN chmod +x /usr/local/bin/tendermint
+
+# Create necessary directories (node config supplied at runtime via bind mount)
+RUN mkdir -p /tendermint/.tendermint/config /tendermint/.tendermint/data && \
+    chown -R tmuser:tmuser /tendermint
+
+# Create startup script as root
+RUN echo '#!/bin/bash' > /usr/local/bin/start-tendermint.sh && \
+    echo 'tendermint node --proxy_app=$PROXY_APP --log_level=info' >> /usr/local/bin/start-tendermint.sh && \
+    chmod +x /usr/local/bin/start-tendermint.sh
+
+# Switch to tendermint user
+USER tmuser
+
+# Expose ports
+EXPOSE 26656 26657 26660
+
+# Set environment variables
+ENV TMHOME=/tendermint/.tendermint
+
+# Default command
+CMD ["/usr/local/bin/start-tendermint.sh"]
