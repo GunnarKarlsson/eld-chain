@@ -256,8 +256,10 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let cli =
-            Arc::new(eld_client::facade::ChainClient::new(cli_config).expect("test ChainClient"));
+        let cli = Arc::new(eld_client::facade::ChainClient::new(
+            cli_config,
+            eld_common::fee::FeeConfig::default(),
+        ));
         let verified_proof_submitter = Arc::new(VerifiedProofChainSubmitter::new(
             "wallet1".into(),
             cli.clone(),
@@ -375,8 +377,10 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let cli =
-            Arc::new(eld_client::facade::ChainClient::new(cli_config).expect("test ChainClient"));
+        let cli = Arc::new(eld_client::facade::ChainClient::new(
+            cli_config,
+            eld_common::fee::FeeConfig::default(),
+        ));
         let verified_proof_submitter = Arc::new(VerifiedProofChainSubmitter::new(
             "wallet1".into(),
             cli.clone(),

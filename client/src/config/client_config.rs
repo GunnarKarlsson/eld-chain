@@ -145,13 +145,19 @@ impl crate::config::config_loader::ConfigValidator for CliConfig {
 
 impl crate::config::config_loader::ConfigLoadable for CliConfig {}
 
-pub fn get_config() -> Result<CliConfig, eld_common::error::EldError> {
-    get_config_from_arg(DEFAULT_CONFIG_PATH)
+/// CLI / node endpoint config plus fee settings loaded from a consensus JSON file.
+#[derive(Debug, Clone)]
+pub struct ClientSetup {
+    pub config: CliConfig,
+    pub fee_config: FeeConfig,
 }
 
-pub fn get_config_from_arg(config_path: &str) -> Result<CliConfig, eld_common::error::EldError> {
-    let mut config = CliConfig::from_file(config_path)?;
-    let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH)?;
+fn client_setup_from_paths(
+    cli_config_path: &str,
+    consensus_config_path: &str,
+) -> Result<ClientSetup, eld_common::error::EldError> {
+    let mut config = CliConfig::from_file(cli_config_path)?;
+    let consensus_config = ConsensusConfig::from_file(consensus_config_path)?;
     config.chain_id = consensus_config.chain_id;
     if config.chain_id.is_empty() {
         return Err(eld_common::error::EldError::make_validation_error(
@@ -160,7 +166,38 @@ pub fn get_config_from_arg(config_path: &str) -> Result<CliConfig, eld_common::e
             "Chain ID cannot be empty",
         ));
     }
-    Ok(config)
+    Ok(ClientSetup {
+        config,
+        fee_config: consensus_config.fee_config,
+    })
+}
+
+/// Load `config/config.json` and `config/consensus_config.json` from the process CWD.
+pub fn get_client_setup() -> Result<ClientSetup, eld_common::error::EldError> {
+    get_client_setup_from_arg(DEFAULT_CONFIG_PATH)
+}
+
+/// Load a CLI config file and the default consensus config from the process CWD.
+pub fn get_client_setup_from_arg(
+    cli_config_path: &str,
+) -> Result<ClientSetup, eld_common::error::EldError> {
+    client_setup_from_paths(cli_config_path, CONSENSUS_CONFIG_PATH)
+}
+
+/// Load CLI and consensus config from explicit paths (for binaries that resolve paths themselves).
+pub fn load_client_setup(
+    cli_config_path: &str,
+    consensus_config_path: &str,
+) -> Result<ClientSetup, eld_common::error::EldError> {
+    client_setup_from_paths(cli_config_path, consensus_config_path)
+}
+
+pub fn get_config() -> Result<CliConfig, eld_common::error::EldError> {
+    Ok(get_client_setup()?.config)
+}
+
+pub fn get_config_from_arg(config_path: &str) -> Result<CliConfig, eld_common::error::EldError> {
+    Ok(get_client_setup_from_arg(config_path)?.config)
 }
 
 #[cfg(test)]

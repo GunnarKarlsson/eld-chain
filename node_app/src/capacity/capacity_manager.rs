@@ -1426,11 +1426,18 @@ mod tests {
     const TEST_PROVIDER: &str = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     const TEST_CHALLENGER: &str = "0x1111111111111111111111111111111111111111";
 
+    struct TestDependencies {
+        _wallet_dir: TempDir,
+        cli: Arc<eld_client::facade::ChainClient>,
+        consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
+    }
+
     // Helper function to create test dependencies
-    fn create_test_dependencies() -> (
-        Arc<eld_client::facade::ChainClient>,
-        Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
-    ) {
+    fn create_test_dependencies() -> TestDependencies {
+        let wallet_dir = TempDir::new().expect("wallet temp dir");
+        let wallet_path = wallet_dir.path().join("wallets.json");
+        std::fs::write(&wallet_path, "[]").expect("empty wallets file");
+
         let cli_config = eld_client::config::CliConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
@@ -1449,8 +1456,14 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let cli =
-            Arc::new(eld_client::facade::ChainClient::new(cli_config).expect("test ChainClient"));
+        let cli = Arc::new(
+            eld_client::facade::ChainClient::with_wallets(
+                cli_config,
+                eld_common::fee::FeeConfig::default(),
+                wallet_path,
+            )
+            .expect("test ChainClient"),
+        );
 
         let consensus_config = Arc::new(std::sync::Mutex::new(crate::config::ConsensusConfig {
             chain_id: "test-chain".to_string(),
@@ -1462,7 +1475,11 @@ mod tests {
             storage_limits: crate::config::StorageLimits::default(),
         }));
 
-        (cli, consensus_config)
+        TestDependencies {
+            _wallet_dir: wallet_dir,
+            cli,
+            consensus_config,
+        }
     }
 
     #[tokio::test]
@@ -1476,7 +1493,9 @@ mod tests {
             registration_retry_interval_secs: 60,
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager = CapacityManager::new(
             config,
             "wallet-capacity-validator-missing".to_string(),
@@ -1521,7 +1540,9 @@ mod tests {
             registration_retry_interval_secs: 60,
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager = CapacityManager::new(
             config,
             "wallet-capacity-validator-1".to_string(),
@@ -1611,7 +1632,9 @@ mod tests {
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
 
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
 
         // Create a slot map with Proof and Open slots
@@ -1674,7 +1697,9 @@ mod tests {
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
 
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
 
         // Create slot map
@@ -1728,7 +1753,9 @@ mod tests {
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
 
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
 
         // Create slot map with multiple open slots
@@ -1783,7 +1810,9 @@ mod tests {
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
 
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
 
         // Try to get root without building tree
@@ -1803,7 +1832,9 @@ mod tests {
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
 
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
 
         // Create slot map
@@ -1853,7 +1884,9 @@ mod tests {
             tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
         };
 
-        let (cli, consensus_config) = create_test_dependencies();
+        let deps = create_test_dependencies();
+        let cli = deps.cli;
+        let consensus_config = deps.consensus_config;
         let manager =
             CapacityManager::new(config.clone(), "wallet1".to_string(), cli, consensus_config);
 

@@ -1,9 +1,7 @@
 //! Local `wallets.json` read/write helpers.
 
-use crate::config::client_config::WALLETS_PATH;
 use crate::wallet_store_config::WalletStoreConfig;
 use ed25519_dalek::SigningKey;
-use eld_common::address::Address;
 use eld_common::error::EldError;
 use eld_common::wallet::Wallet;
 use rand::RngCore;
@@ -37,11 +35,6 @@ fn not_found_to_none(result: Result<Wallet, EldError>) -> Result<Option<Wallet>,
     }
 }
 
-pub(crate) async fn create_wallet(name: String) -> Result<Wallet, EldError> {
-    let wallet_store_config = WalletStoreConfig::at_path(WALLETS_PATH);
-    create_wallet_with_store_config(name, &wallet_store_config).await
-}
-
 pub(crate) async fn create_wallet_with_store_config(
     name: String,
     wallet_store_config: &WalletStoreConfig,
@@ -71,19 +64,10 @@ pub(crate) async fn create_wallet_with_store_config(
     Ok(wallet)
 }
 
-pub(crate) async fn get_wallets() -> Result<Vec<Wallet>, EldError> {
-    WalletStoreConfig::load_wallets_from_path(WALLETS_PATH)
-}
-
 pub(crate) async fn get_wallets_with_store_config(
     wallet_store_config: &WalletStoreConfig,
 ) -> Result<Vec<Wallet>, EldError> {
     wallet_store_config.load_wallets()
-}
-
-pub(crate) async fn remove_wallet(name: String) -> Result<bool, EldError> {
-    let wallet_store_config = WalletStoreConfig::at_path(WALLETS_PATH);
-    remove_wallet_with_store_config(name, &wallet_store_config).await
 }
 
 pub(crate) async fn remove_wallet_with_store_config(
@@ -115,18 +99,6 @@ pub(crate) async fn remove_wallet_with_store_config(
     Ok(true)
 }
 
-pub(crate) async fn get_wallet_by_name(name: String) -> Result<Option<Wallet>, EldError> {
-    get_wallet_by_name_at_path(name, WALLETS_PATH).await
-}
-
-pub(crate) async fn get_wallet_by_name_at_path(
-    name: String,
-    wallet_path: impl AsRef<Path>,
-) -> Result<Option<Wallet>, EldError> {
-    let wallets = WalletStoreConfig::load_wallets_from_path(wallet_path)?;
-    Ok(wallets.into_iter().find(|w| w.name == name))
-}
-
 pub(crate) async fn get_wallet_by_name_with_store_config(
     name: String,
     wallet_store_config: &WalletStoreConfig,
@@ -134,19 +106,11 @@ pub(crate) async fn get_wallet_by_name_with_store_config(
     not_found_to_none(wallet_store_config.wallet_by_name(&name))
 }
 
-pub(crate) async fn get_wallet_by_address(address: &str) -> Result<Option<Wallet>, EldError> {
-    let wallets = WalletStoreConfig::load_wallets_from_path(WALLETS_PATH)?;
-    let target_address = Address::parse_hex_str(address).map_err(|e| EldError::WalletError {
-        operation: "parse_wallet_address".to_string(),
-        wallet_name: address.to_string(),
-        details: format!("Invalid address format: {e}"),
-    })?;
-    Ok(wallets.into_iter().find(|w| w.address == target_address))
-}
-
-pub(crate) async fn list_wallets() -> Result<Vec<Wallet>, EldError> {
-    let default_store = WalletStoreConfig::at_path(WALLETS_PATH);
-    list_wallets_with_store_config(&default_store).await
+pub(crate) async fn get_wallet_by_address_with_store_config(
+    address: &str,
+    wallet_store_config: &WalletStoreConfig,
+) -> Result<Option<Wallet>, EldError> {
+    not_found_to_none(wallet_store_config.wallet_by_address(address))
 }
 
 pub(crate) async fn list_wallets_with_store_config(

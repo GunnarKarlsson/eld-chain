@@ -218,7 +218,10 @@ mod tests {
             capacity_storage_path: None,
             indexer: false,
         };
-        let cli = Arc::new(ChainClient::new(cli_config).expect("test ChainClient"));
+        let cli = Arc::new(ChainClient::new(
+            cli_config,
+            eld_common::fee::FeeConfig::default(),
+        ));
 
         // Submit registration (will fail due to account not existing)
         // The status is set to Pending at the start of the method (line 77)

@@ -2,7 +2,7 @@
 
 use crate::api::abci::AbciInfoWrapper;
 use crate::api::rest::{NamespaceRegisteredResponse, PostMessageSubmitResponse};
-use crate::config::client_config::{CliConfig, ConsensusConfig, FeeConfig, CONSENSUS_CONFIG_PATH};
+use crate::config::client_config::{CliConfig, FeeConfig};
 use crate::facade::namespace::NamespaceLookup;
 use crate::facade::submitted_tx::SubmittedTx;
 use crate::wallet_store_config::WalletStoreConfig;
@@ -26,25 +26,21 @@ pub struct ChainClient {
 }
 
 impl ChainClient {
-    pub fn new(config: CliConfig) -> Result<Self, EldError> {
-        let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH)?;
-        let fee_config = consensus_config.fee_config;
-
-        Ok(Self {
+    /// Library constructor: caller supplies endpoint config and fee settings (no filesystem I/O).
+    pub fn new(config: CliConfig, fee_config: FeeConfig) -> Self {
+        Self {
             config,
             fee_config,
             wallet_store: None,
-        })
+        }
     }
 
-    /// Creates a client with wallets loaded from `wallet_path` via [`WalletStoreConfig`].
-    pub fn new_with_wallets(
+    /// Like [`Self::new`], with a wallet file bound at `wallet_path`.
+    pub fn with_wallets(
         config: CliConfig,
+        fee_config: FeeConfig,
         wallet_path: impl AsRef<Path>,
     ) -> Result<Self, EldError> {
-        let consensus_config = ConsensusConfig::from_file(CONSENSUS_CONFIG_PATH)?;
-        let fee_config = consensus_config.fee_config;
-
         Ok(Self {
             config,
             fee_config,
@@ -54,18 +50,17 @@ impl ChainClient {
         })
     }
 
-    fn wallet_store_config_from_path(wallet_path: impl AsRef<Path>) -> WalletStoreConfig {
-        WalletStoreConfig::at_path(wallet_path.as_ref())
+    fn wallet_store(&self) -> Result<&WalletStoreConfig, EldError> {
+        self.wallet_store
+            .as_deref()
+            .ok_or_else(|| EldError::InitializationError {
+                component: "ChainClient".to_string(),
+                details: "wallet store not configured; use ChainClient::with_wallets".to_string(),
+            })
     }
 
-    fn wallet_not_found_to_none(
-        result: Result<Wallet, EldError>,
-    ) -> Result<Option<Wallet>, EldError> {
-        match result {
-            Ok(wallet) => Ok(Some(wallet)),
-            Err(EldError::NotFoundError { .. }) => Ok(None),
-            Err(e) => Err(e),
-        }
+    fn wallet_store_config_from_path(wallet_path: impl AsRef<Path>) -> WalletStoreConfig {
+        WalletStoreConfig::at_path(wallet_path.as_ref())
     }
 
     pub async fn request_faucet(&self, address: String) -> Result<String, EldError> {
@@ -134,7 +129,7 @@ impl ChainClient {
     }
 
     pub async fn create_wallet(&self, name: String) -> Result<Wallet, EldError> {
-        crate::facade::wallets::create_wallet(name).await
+        crate::facade::wallets::create_wallet_with_store_config(name, self.wallet_store()?).await
     }
 
     pub async fn create_wallet_with_store_config(
@@ -156,7 +151,7 @@ impl ChainClient {
     }
 
     pub async fn list_wallets(&self) -> Result<Vec<Wallet>, EldError> {
-        crate::facade::wallets::list_wallets().await
+        crate::facade::wallets::list_wallets_with_store_config(self.wallet_store()?).await
     }
 
     pub async fn list_wallets_with_store_config(
@@ -174,7 +169,7 @@ impl ChainClient {
     }
 
     pub async fn get_wallets(&self) -> Result<Vec<Wallet>, EldError> {
-        crate::facade::wallets::get_wallets().await
+        crate::facade::wallets::get_wallets_with_store_config(self.wallet_store()?).await
     }
 
     pub async fn get_wallets_from_path(
@@ -185,7 +180,7 @@ impl ChainClient {
     }
 
     pub async fn remove_wallet(&self, name: String) -> Result<bool, EldError> {
-        crate::facade::wallets::remove_wallet(name).await
+        crate::facade::wallets::remove_wallet_with_store_config(name, self.wallet_store()?).await
     }
 
     pub async fn remove_wallet_with_store_config(
@@ -207,10 +202,8 @@ impl ChainClient {
     }
 
     pub async fn get_wallet_by_name(&self, name: String) -> Result<Option<Wallet>, EldError> {
-        if let Some(wallet_store) = &self.wallet_store {
-            return Self::wallet_not_found_to_none(wallet_store.wallet_by_name(&name));
-        }
-        crate::facade::wallets::get_wallet_by_name(name).await
+        crate::facade::wallets::get_wallet_by_name_with_store_config(name, self.wallet_store()?)
+            .await
     }
 
     pub async fn get_wallet_by_name_with_store_config(
@@ -241,10 +234,11 @@ impl ChainClient {
     }
 
     pub async fn get_wallet_by_address(&self, address: &str) -> Result<Option<Wallet>, EldError> {
-        if let Some(wallet_store) = &self.wallet_store {
-            return Self::wallet_not_found_to_none(wallet_store.wallet_by_address(address));
-        }
-        crate::facade::wallets::get_wallet_by_address(address).await
+        crate::facade::wallets::get_wallet_by_address_with_store_config(
+            address,
+            self.wallet_store()?,
+        )
+        .await
     }
 
     pub async fn transfer(

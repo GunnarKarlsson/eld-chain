@@ -33,7 +33,7 @@ use crate::node_identity::LocalNodeIdentity;
 use crate::process_logging::init_default_logging;
 use clap::Parser;
 use config::ConsensusConfig;
-use eld_client::config::{get_config, WALLETS_PATH};
+use eld_client::config::{CliConfig, DEFAULT_CONFIG_PATH, WALLETS_PATH};
 use eld_client::facade::ChainClient;
 use eld_common::error::EldError;
 use std::{
@@ -143,9 +143,16 @@ async fn main() -> Result<(), EldError> {
     let rocks_db_storage = Arc::new(rocks_db_storage);
     let node_storage = Arc::new(HybridStorage::new(rocks_db_storage.clone()));
 
-    let config = get_config()?;
+    let mut config = CliConfig::from_file(DEFAULT_CONFIG_PATH)?;
+    let fee_config = {
+        let consensus = consensus_config
+            .lock()
+            .unwrap_or_else(|e| handle_fatal_eld_error(e.into()));
+        config.chain_id = consensus.chain_id.clone();
+        consensus.fee_config.clone()
+    };
     let cli = Arc::new(
-        ChainClient::new_with_wallets(config.clone(), WALLETS_PATH)
+        ChainClient::with_wallets(config.clone(), fee_config, WALLETS_PATH)
             .unwrap_or_else(|e| handle_fatal_eld_error(e)),
     );
     let cli_for_capacity = cli.clone();
