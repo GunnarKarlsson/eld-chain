@@ -1,14 +1,14 @@
 {
-    "node_host":"127.0.0.1",
-    "node_port":"26657",
-    "faucet_host":"127.0.0.1",
-    "faucet_port":"8080",
-    "faucet_end_point":"/faucet/request",
-    "app_port":"9001",
-    "p2p_tcp_port":"4001",
-    "p2p_udp_port":"4002",
-    "single_node":false,
+    "node_host": "127.0.0.1",
+    "node_port": "26657",
+    "faucet_host": "127.0.0.1",
+    "faucet_port": "8080",
+    "faucet_end_point": "/faucet/request",
+    "app_port": "9001",
+    "p2p_tcp_port": "4001",
+    "p2p_udp_port": "4002",
+    "single_node": false,
     "capacity_size_mb": 50,
     "capacity_storage_path": "./data/capacity",
-    "indexer":true
+    "indexer": true
 }

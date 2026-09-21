@@ -1,3 +1,9 @@
+pub mod app_config;
+pub mod node_runtime_config;
+
+pub use app_config::AppConfig;
+pub use node_runtime_config::NodeRuntimeConfig;
+
 use eld_common::validation::{
     validate_address, validate_chain_id, validate_ip_or_hostname, validate_port,
     validate_positive_integer,

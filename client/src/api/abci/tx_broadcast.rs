@@ -1,7 +1,7 @@
 //! Tendermint broadcast_tx_commit via JSON-RPC.
 
 use crate::api::abci::wire_bytes_to_tx_hash;
-use crate::config::client_config::CliConfig;
+use crate::config::client_config::ClientConfig;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use eld_common::error::EldError;
@@ -176,7 +176,7 @@ pub fn broadcast_tx_hash(response: &Value, tx_wire_hex: &str) -> Result<Hash, El
     Ok(wire_bytes_to_tx_hash(tx_wire_hex.as_bytes()))
 }
 
-pub async fn send_tx_rpc(config: &CliConfig, hex_encoded: &str) -> Result<Value, EldError> {
+pub async fn send_tx_rpc(config: &ClientConfig, hex_encoded: &str) -> Result<Value, EldError> {
     let client = reqwest::Client::new();
     let url = config.get_node_url()?;
     let tx_base64 = base64::engine::general_purpose::STANDARD.encode(hex_encoded);

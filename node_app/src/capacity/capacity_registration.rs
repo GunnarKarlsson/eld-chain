@@ -200,7 +200,7 @@ mod tests {
         // Create mock wallet and cli for test
         let signing_key = SigningKey::from_bytes(&[0u8; 32]);
         let wallet = Wallet::from_signing_key("test_wallet".to_string(), signing_key);
-        let cli_config = eld_client::config::CliConfig {
+        let cli_config = eld_client::config::ClientConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "test-chain".to_string(),
@@ -211,12 +211,6 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: None,
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         let cli = Arc::new(ChainClient::new(
             cli_config,

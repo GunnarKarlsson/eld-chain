@@ -1,4 +1,4 @@
-//! Node/CLI endpoint configuration: [`CliConfig`], [`ConsensusConfig`], and file loading helpers.
+//! Client endpoint configuration: [`ClientConfig`], [`ConsensusConfig`], and file loading helpers.
 
 use crate::endpoint::{resolve_app_base_url, resolve_faucet_request_url, resolve_node_base_url};
 use serde::{Deserialize, Serialize};
@@ -50,7 +50,7 @@ impl crate::config::config_loader::ConfigValidator for ConsensusConfig {
 impl crate::config::config_loader::ConfigLoadable for ConsensusConfig {}
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct CliConfig {
+pub struct ClientConfig {
     pub node_host: String,
     pub node_port: String,
     pub faucet_host: String,
@@ -71,21 +71,9 @@ pub struct CliConfig {
     pub app_url: Option<String>,
     #[serde(default)]
     pub chain_id: String,
-    #[serde(default)]
-    pub p2p_tcp_port: Option<String>,
-    #[serde(default)]
-    pub p2p_udp_port: Option<String>,
-    #[serde(default)]
-    pub single_node: Option<bool>,
-    #[serde(default)]
-    pub capacity_size_mb: Option<u64>,
-    #[serde(default)]
-    pub capacity_storage_path: Option<String>,
-    #[serde(default)]
-    pub indexer: bool,
 }
 
-impl CliConfig {
+impl ClientConfig {
     pub fn from_file(file: &str) -> Result<Self, eld_common::error::EldError> {
         <Self as crate::config::config_loader::ConfigLoadable>::from_file(file)
     }
@@ -137,18 +125,18 @@ impl CliConfig {
     }
 }
 
-impl crate::config::config_loader::ConfigValidator for CliConfig {
+impl crate::config::config_loader::ConfigValidator for ClientConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
         self.validate()
     }
 }
 
-impl crate::config::config_loader::ConfigLoadable for CliConfig {}
+impl crate::config::config_loader::ConfigLoadable for ClientConfig {}
 
 /// CLI / node endpoint config plus fee settings loaded from a consensus JSON file.
 #[derive(Debug, Clone)]
 pub struct ClientSetup {
-    pub config: CliConfig,
+    pub config: ClientConfig,
     pub fee_config: FeeConfig,
 }
 
@@ -156,7 +144,7 @@ fn client_setup_from_paths(
     cli_config_path: &str,
     consensus_config_path: &str,
 ) -> Result<ClientSetup, eld_common::error::EldError> {
-    let mut config = CliConfig::from_file(cli_config_path)?;
+    let mut config = ClientConfig::from_file(cli_config_path)?;
     let consensus_config = ConsensusConfig::from_file(consensus_config_path)?;
     config.chain_id = consensus_config.chain_id;
     if config.chain_id.is_empty() {
@@ -192,11 +180,11 @@ pub fn load_client_setup(
     client_setup_from_paths(cli_config_path, consensus_config_path)
 }
 
-pub fn get_config() -> Result<CliConfig, eld_common::error::EldError> {
+pub fn get_config() -> Result<ClientConfig, eld_common::error::EldError> {
     Ok(get_client_setup()?.config)
 }
 
-pub fn get_config_from_arg(config_path: &str) -> Result<CliConfig, eld_common::error::EldError> {
+pub fn get_config_from_arg(config_path: &str) -> Result<ClientConfig, eld_common::error::EldError> {
     Ok(get_client_setup_from_arg(config_path)?.config)
 }
 
@@ -227,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_cli_config_validation_valid() {
-        let config = CliConfig {
+        let config = ClientConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "".to_string(),
@@ -238,19 +226,13 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: Some(true),
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         assert!(config.validate().is_ok());
     }
 
     #[test]
     fn test_cli_config_validation_with_hostname() {
-        let config = CliConfig {
+        let config = ClientConfig {
             node_host: "localhost".to_string(),
             node_port: "26657".to_string(),
             chain_id: "".to_string(),
@@ -261,12 +243,6 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: Some(true),
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         assert!(config.validate().is_ok());
     }
@@ -284,7 +260,7 @@ mod tests {
         }"#;
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, invalid_config).unwrap();
-        CliConfig::from_file_for_test(temp_file.path().to_str().unwrap());
+        ClientConfig::from_file_for_test(temp_file.path().to_str().unwrap());
     }
 
     #[test]
@@ -300,7 +276,7 @@ mod tests {
         }"#;
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, invalid_config).unwrap();
-        CliConfig::from_file_for_test(temp_file.path().to_str().unwrap());
+        ClientConfig::from_file_for_test(temp_file.path().to_str().unwrap());
     }
 
     #[test]
@@ -316,7 +292,7 @@ mod tests {
         }"#;
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, invalid_config).unwrap();
-        CliConfig::from_file_for_test(temp_file.path().to_str().unwrap());
+        ClientConfig::from_file_for_test(temp_file.path().to_str().unwrap());
     }
 
     #[test]
@@ -332,12 +308,12 @@ mod tests {
         }"#;
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, invalid_config).unwrap();
-        CliConfig::from_file_for_test(temp_file.path().to_str().unwrap());
+        ClientConfig::from_file_for_test(temp_file.path().to_str().unwrap());
     }
 
     #[test]
     fn test_cli_config_validate_method() {
-        let mut config = CliConfig {
+        let mut config = ClientConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "".to_string(),
@@ -348,12 +324,6 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: Some(true),
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         assert!(config.validate().is_ok());
         config.node_url = Some("https://node-rpc.eld.network".to_string());
@@ -379,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_cli_config_get_node_url() {
-        let config = CliConfig {
+        let config = ClientConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "".to_string(),
@@ -390,12 +360,6 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: Some(true),
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         let url = config.get_node_url().unwrap();
         assert_eq!(url, "http://127.0.0.1:26657/");
@@ -408,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_cli_config_get_faucet_request_url_https() {
-        let config = CliConfig {
+        let config = ClientConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "".to_string(),
@@ -419,12 +383,6 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: Some(true),
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         assert!(config.validate().is_ok());
         assert_eq!(
@@ -447,7 +405,7 @@ mod tests {
         }"#;
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(&temp_file, config_json).unwrap();
-        let config = CliConfig::from_file_for_test(temp_file.path().to_str().unwrap());
+        let config = ClientConfig::from_file_for_test(temp_file.path().to_str().unwrap());
         assert_eq!(
             config.get_node_url().unwrap(),
             "https://node-rpc.eld.network/"
@@ -531,7 +489,7 @@ mod tests {
 
     #[test]
     fn test_cli_config_from_file_returns_err_when_missing() {
-        let result = CliConfig::from_file("/nonexistent/eld-chain-config.json");
+        let result = ClientConfig::from_file("/nonexistent/eld-chain-config.json");
         assert!(result.is_err());
     }
 

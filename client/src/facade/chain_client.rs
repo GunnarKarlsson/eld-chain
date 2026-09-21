@@ -2,7 +2,7 @@
 
 use crate::api::abci::AbciInfoWrapper;
 use crate::api::rest::{NamespaceRegisteredResponse, PostMessageSubmitResponse};
-use crate::config::client_config::{CliConfig, FeeConfig};
+use crate::config::client_config::{ClientConfig, FeeConfig};
 use crate::facade::namespace::NamespaceLookup;
 use crate::facade::submitted_tx::SubmittedTx;
 use crate::wallet_store_config::WalletStoreConfig;
@@ -20,14 +20,14 @@ use tendermint_rpc::endpoint::block::Response;
 
 #[derive(Clone)]
 pub struct ChainClient {
-    pub(crate) config: CliConfig,
+    pub(crate) config: ClientConfig,
     pub(crate) fee_config: FeeConfig,
     wallet_store: Option<Arc<WalletStoreConfig>>,
 }
 
 impl ChainClient {
     /// Library constructor: caller supplies endpoint config and fee settings (no filesystem I/O).
-    pub fn new(config: CliConfig, fee_config: FeeConfig) -> Self {
+    pub fn new(config: ClientConfig, fee_config: FeeConfig) -> Self {
         Self {
             config,
             fee_config,
@@ -37,7 +37,7 @@ impl ChainClient {
 
     /// Like [`Self::new`], with a wallet file bound at `wallet_path`.
     pub fn with_wallets(
-        config: CliConfig,
+        config: ClientConfig,
         fee_config: FeeConfig,
         wallet_path: impl AsRef<Path>,
     ) -> Result<Self, EldError> {

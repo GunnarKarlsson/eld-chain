@@ -1,12 +1,12 @@
 use crate::app_state::AppState;
 use crate::capacity::capacity_manager::{CapacityManager, CapacityProofGenerationParams};
 use crate::capacity::missing_content_tracker::MissingContentTracker;
+use crate::config::NodeRuntimeConfig;
 use crate::node_identity::LocalNodeIdentity;
 use crate::storage::traits::PinboardQueryStorage;
 use crate::wallet::VerifiedProofChainSubmitter;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use eld_client::config::CliConfig;
 use eld_common::constants::p2p::{
     GOSSIPSUB_MAX_TRANSMIT_SIZE_BYTES, P2P_TOPIC_CONTENT_SYNC, P2P_TOPIC_CONTENT_SYNC_RESPONSE,
 };
@@ -63,8 +63,8 @@ where
     }
 }
 
-impl From<&CliConfig> for P2pConfig {
-    fn from(config: &CliConfig) -> Self {
+impl From<&NodeRuntimeConfig> for P2pConfig {
+    fn from(config: &NodeRuntimeConfig) -> Self {
         Self {
             tcp_port: config
                 .p2p_tcp_port

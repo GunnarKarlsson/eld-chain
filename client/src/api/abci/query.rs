@@ -1,7 +1,7 @@
 //! Read-only RPC / HTTP query helpers against the configured node URL.
 
 use super::{AbciHttpApi, AbciInfoWrapper};
-use crate::config::client_config::CliConfig;
+use crate::config::client_config::ClientConfig;
 use crate::json_bytes::json_number_array_as_bytes;
 use eld_common::account::Account;
 use eld_common::address::Address;
@@ -12,7 +12,7 @@ use eld_common::nonce::Nonce;
 use eld_common::staking_account::StakingAccount;
 use tendermint_rpc::endpoint::block::Response;
 
-pub(crate) fn abci_http_api(config: &CliConfig) -> Result<AbciHttpApi, EldError> {
+pub(crate) fn abci_http_api(config: &ClientConfig) -> Result<AbciHttpApi, EldError> {
     AbciHttpApi::new(config.get_node_url()?)
 }
 
@@ -28,25 +28,25 @@ fn next_nonce_from_account(account: &Account) -> Result<Nonce, EldError> {
 }
 
 pub async fn get_account_by_address(
-    config: &CliConfig,
+    config: &ClientConfig,
     address: String,
 ) -> Result<Option<Account>, EldError> {
     let api = abci_http_api(config)?;
     api.get_account_by_address(&address).await
 }
 
-pub async fn get_block(config: &CliConfig, height: u64) -> Result<Response, EldError> {
+pub async fn get_block(config: &ClientConfig, height: u64) -> Result<Response, EldError> {
     let api = abci_http_api(config)?;
     api.get_block(height).await
 }
 
-pub async fn get_abci_info(config: &CliConfig) -> Result<AbciInfoWrapper, EldError> {
+pub async fn get_abci_info(config: &ClientConfig) -> Result<AbciInfoWrapper, EldError> {
     let api = abci_http_api(config)?;
     api.get_latest_abci_info().await
 }
 
 pub async fn get_staking_account(
-    config: &CliConfig,
+    config: &ClientConfig,
     address: &str,
 ) -> Result<Option<StakingAccount>, EldError> {
     let api = abci_http_api(config)?;
@@ -54,7 +54,7 @@ pub async fn get_staking_account(
 }
 
 pub async fn get_next_nonce_for_account(
-    config: &CliConfig,
+    config: &ClientConfig,
     address: String,
 ) -> Result<Option<Nonce>, EldError> {
     match get_account_by_address(config, address).await? {
@@ -64,7 +64,7 @@ pub async fn get_next_nonce_for_account(
 }
 
 pub async fn is_capacity_provider_registered(
-    config: &CliConfig,
+    config: &ClientConfig,
     provider_address: &str,
 ) -> Result<bool, EldError> {
     let api = abci_http_api(config)?;
@@ -72,7 +72,7 @@ pub async fn is_capacity_provider_registered(
 }
 
 pub async fn get_next_nonce_for_account_cado(
-    config: &CliConfig,
+    config: &ClientConfig,
     address: String,
 ) -> Result<Option<Nonce>, EldError> {
     let addr = Address::parse_hex_str(&address)?;
@@ -102,7 +102,10 @@ pub async fn get_next_nonce_for_account_cado(
     Ok(Some(next_nonce_from_account(&account)?))
 }
 
-pub async fn get_account_from_cado(config: &CliConfig, path: String) -> Result<Account, EldError> {
+pub async fn get_account_from_cado(
+    config: &ClientConfig,
+    path: String,
+) -> Result<Account, EldError> {
     let api = abci_http_api(config)?;
     let response = api.get_cado(path.clone()).await?;
 

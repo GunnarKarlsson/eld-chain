@@ -1438,7 +1438,7 @@ mod tests {
         let wallet_path = wallet_dir.path().join("wallets.json");
         std::fs::write(&wallet_path, "[]").expect("empty wallets file");
 
-        let cli_config = eld_client::config::CliConfig {
+        let cli_config = eld_client::config::ClientConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "test-chain".to_string(),
@@ -1449,12 +1449,6 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: None,
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         let cli = Arc::new(
             eld_client::facade::ChainClient::with_wallets(

@@ -29,11 +29,12 @@ use eld_client::logging::SanitizedLog;
 use crate::abci_interface::{init_abci_server, AbciServerInitContext};
 use crate::api::{init_router_with_storage, ApiRouterInitContext};
 use crate::app_state::AppState;
+use crate::config::AppConfig;
 use crate::node_identity::LocalNodeIdentity;
 use crate::process_logging::init_default_logging;
 use clap::Parser;
 use config::ConsensusConfig;
-use eld_client::config::{CliConfig, DEFAULT_CONFIG_PATH, WALLETS_PATH};
+use eld_client::config::{DEFAULT_CONFIG_PATH, WALLETS_PATH};
 use eld_client::facade::ChainClient;
 use eld_common::error::EldError;
 use std::{
@@ -143,29 +144,33 @@ async fn main() -> Result<(), EldError> {
     let rocks_db_storage = Arc::new(rocks_db_storage);
     let node_storage = Arc::new(HybridStorage::new(rocks_db_storage.clone()));
 
-    let mut config = CliConfig::from_file(DEFAULT_CONFIG_PATH)?;
+    let app_config = AppConfig::from_file(DEFAULT_CONFIG_PATH)?;
+    let mut client_config = app_config.client;
+    let node_config = app_config.node;
     let fee_config = {
         let consensus = consensus_config
             .lock()
             .unwrap_or_else(|e| handle_fatal_eld_error(e.into()));
-        config.chain_id = consensus.chain_id.clone();
+        client_config.chain_id = consensus.chain_id.clone();
         consensus.fee_config.clone()
     };
     let cli = Arc::new(
-        ChainClient::with_wallets(config.clone(), fee_config, WALLETS_PATH)
+        ChainClient::with_wallets(client_config.clone(), fee_config, WALLETS_PATH)
             .unwrap_or_else(|e| handle_fatal_eld_error(e)),
     );
     let cli_for_capacity = cli.clone();
 
     // Initialize capacity manager (required) so we can pass it to orchestrator and sync components
-    let (capacity_size_mb, capacity_storage_path) =
-        match (config.capacity_size_mb, config.capacity_storage_path.as_ref()) {
-            (Some(mb), Some(path)) => (mb, path.clone()),
-            _ => handle_fatal_eld_error(EldError::InitializationError {
-                component: "capacity".into(),
-                details: "capacity_size_mb and capacity_storage_path must both be set in config (required for capacity manager)".into(),
-            }),
-        };
+    let (capacity_size_mb, capacity_storage_path) = match (
+        node_config.capacity_size_mb,
+        node_config.capacity_storage_path.as_ref(),
+    ) {
+        (Some(mb), Some(path)) => (mb, path.clone()),
+        _ => handle_fatal_eld_error(EldError::InitializationError {
+            component: "capacity".into(),
+            details: "capacity_size_mb and capacity_storage_path must both be set in config.json (required for capacity manager)".into(),
+        }),
+    };
 
     use crate::capacity::capacity_manager::CapacityManager;
     use crate::node_identity::{
@@ -207,7 +212,10 @@ async fn main() -> Result<(), EldError> {
         provider_id: capacity_validator_wallet_address,
         auto_register: true,
         registration_retry_interval_secs: 60,
-        tendermint_rpc_url: format!("http://{}:{}", config.node_host, config.node_port),
+        tendermint_rpc_url: format!(
+            "http://{}:{}",
+            client_config.node_host, client_config.node_port
+        ),
     };
 
     let manager = CapacityManager::new(
@@ -238,7 +246,7 @@ async fn main() -> Result<(), EldError> {
 
     // Initialize P2P sync coordinator (or mock for single-node mode)
     // Note: This must happen after capacity_manager initialization
-    let single_node_mode = config.single_node.unwrap_or(false);
+    let single_node_mode = node_config.single_node.unwrap_or(false);
     let mut coordinator_arc_opt: Option<Arc<P2pSyncCoordinator>> = None;
 
     let (p2p_sync_coordinator, msg_rx): (
@@ -250,7 +258,7 @@ async fn main() -> Result<(), EldError> {
         let mock_coordinator_arc = Arc::new(mock_coordinator);
         (mock_coordinator_arc as Arc<dyn P2pCoordinatorTrait>, msg_rx)
     } else {
-        let p2p_config = P2pConfig::from(&config);
+        let p2p_config = P2pConfig::from(&node_config);
 
         // Load dedicated P2P keypair from config file instead of reusing a wallet keypair.
         let p2p_keypair =
@@ -316,7 +324,7 @@ async fn main() -> Result<(), EldError> {
 
     // Initialize indexer if enabled (needed for API routes)
     let transaction_indexer: Option<Arc<crate::indexer::TransactionIndexer>> = {
-        let indexer_enabled = config.indexer;
+        let indexer_enabled = node_config.indexer;
 
         if indexer_enabled {
             info!("Transaction indexer enabled, initializing...");
@@ -330,7 +338,10 @@ async fn main() -> Result<(), EldError> {
     };
 
     if let Some(ref indexer) = transaction_indexer {
-        let tendermint_rpc_url = format!("http://{}:{}", config.node_host, config.node_port);
+        let tendermint_rpc_url = format!(
+            "http://{}:{}",
+            client_config.node_host, client_config.node_port
+        );
         indexer.clone().start(tendermint_rpc_url);
     }
 
@@ -368,7 +379,7 @@ async fn main() -> Result<(), EldError> {
             rate_limit_config.general_requests_per_minute
         );
 
-        let app_addr = format!("0.0.0.0:{}", config.app_port.to_owned());
+        let app_addr = format!("0.0.0.0:{}", client_config.app_port.to_owned());
 
         let listener = TcpListener::bind(app_addr.clone()).await.map_err(|e| {
             error!("Failed to bind content server to {}: {}", app_addr, e);

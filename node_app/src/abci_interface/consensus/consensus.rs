@@ -1962,7 +1962,7 @@ mod tests {
     use crate::storage::rocksdb::RocksDBStorage;
     use crate::wallet::VerifiedProofChainSubmitter;
     use abci::types::RequestDeliverTx;
-    use eld_client::config::CliConfig;
+    use eld_client::config::ClientConfig;
     use eld_common::capacity::CapacityConfig;
     use std::sync::{Arc, Mutex};
 
@@ -1999,7 +1999,7 @@ mod tests {
         // Generate a random keypair for tests
         let test_keypair = libp2p::identity::Keypair::generate_ed25519();
         let storage_clone = storage.clone();
-        let cli_config = CliConfig {
+        let cli_config = ClientConfig {
             node_host: "127.0.0.1".to_string(),
             node_port: "26657".to_string(),
             chain_id: "test-chain".to_string(),
@@ -2010,12 +2010,6 @@ mod tests {
             app_port: "9001".to_string(),
             node_url: None,
             app_url: None,
-            p2p_tcp_port: None,
-            p2p_udp_port: None,
-            single_node: None,
-            capacity_size_mb: None,
-            capacity_storage_path: None,
-            indexer: false,
         };
         let cli = Arc::new(eld_client::facade::ChainClient::new(
             cli_config,

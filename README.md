@@ -62,7 +62,7 @@ That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy, build,
 
 ## Configuration
 
-CLI/node helpers in `eld-client` read JSON config from paths such as `config/config.json` and `wallets/wallets.json`. Wallet files hold unencrypted Ed25519 private keys; do not commit them. Sample non-secret node configs live under `node_app/config/`; do not add `p2p_keypair.json` or `wallets.json`.
+CLI and node binaries read endpoint and runtime settings from `config/config.json` (client fields are used by `eld-client`; the node also reads P2P, capacity, and indexer fields from the same file). Wallet files (`wallets/wallets.json`) hold unencrypted Ed25519 private keys; do not commit them. Sample non-secret configs live under `node_app/config/`; do not add `p2p_keypair.json` or `wallets.json`.
 
 Protocol constants in `eld_common::constants::protocol` (minimum stake, validators per epoch, blocks per epoch, block reward) are local-dev values, not mainnet economics.
 

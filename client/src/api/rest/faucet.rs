@@ -1,6 +1,6 @@
 //! HTTP client for the dev faucet endpoint.
 
-use crate::config::client_config::CliConfig;
+use crate::config::client_config::ClientConfig;
 use eld_common::error::EldError;
 use std::time::Duration;
 
@@ -15,7 +15,7 @@ fn faucet_http_client() -> Result<reqwest::Client, EldError> {
         })
 }
 
-pub async fn request_faucet(config: &CliConfig, address: String) -> Result<String, EldError> {
+pub async fn request_faucet(config: &ClientConfig, address: String) -> Result<String, EldError> {
     eld_common::validation::validate_address(&address)?;
 
     let url = config.get_faucet_request_url()?;
