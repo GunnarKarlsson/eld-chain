@@ -21,7 +21,7 @@ Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md). Report securi
 | `node_app/` | `eld-node` | ABCI node binary and server logic |
 | `deploy/` | — | CI script, local four-node Compose, Dockerfiles |
 
-Package names are hyphenated (`eld-common`, `eld-client`, `eld-node`). Rust imports use underscores (`eld_common`, `eld_client`, `eld_node`).
+Package names are hyphenated (`eld-common`, `eld-client`, `eld-node`). Library imports use underscores (`eld_common`, `eld_client`). `eld-node` is binary-only.
 
 Each library crate directory includes `LICENSE`, `README.md`, and `NOTICE`. `eld-common` and `eld-client` also maintain `CHANGELOG.md`; hex/ID rules live in `common/TYPE_DESIGN.md`.
 

@@ -11,7 +11,7 @@ Runtime secrets and data are **not** shipped in git: `wallets/`, `p2p_keypair.js
 | [`eld-common`](../common/README.md) | Protocol types, validation, signing |
 | [`eld-client`](../client/README.md) | Shared HTTP/config types; some internal reuse |
 
-Package name: `eld-node` (`publish = false`). Binary: `eld-node`. Rust import: `eld_node`.
+Package name: `eld-node` (`publish = false`). Binary: `eld-node` (no library target).
 
 ## Configuration
 

@@ -12,7 +12,7 @@ Library crates ship `LICENSE`, `README.md`, `NOTICE`, and (where relevant) `CHAN
 | [`client/`](client/README.md) | `eld-client` | Tendermint RPC, app REST, faucet HTTP, `ChainClient`, CWD config, wallet files |
 | [`node_app/`](node_app/README.md) | `eld-node` | ABCI application (Tendermint, RocksDB, libp2p, Axum REST) |
 
-Rust imports use underscores (`eld_common`, `eld_client`, `eld_node`) because Cargo package names may contain hyphens.
+Library crate imports use underscores (`eld_common`, `eld_client`) because Cargo package names may contain hyphens. `eld-node` is a binary crate (`eld-node`), not a library.
 
 CosmWasm / on-chain WASM contracts are not part of this repo.
 
