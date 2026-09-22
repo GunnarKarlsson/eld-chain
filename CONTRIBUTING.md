@@ -27,7 +27,7 @@ Each library crate directory includes `LICENSE`, `README.md`, and `NOTICE`. `eld
 
 ## Documentation
 
-When changing public API or wire behavior, update the relevant crate README and, if IDs or hex rules change, [common/TYPE_DESIGN.md](common/TYPE_DESIGN.md). Node protocol notes go under [node_app/docs/](node_app/docs/). Local cluster setup is documented in [deploy/README.md](deploy/README.md).
+When changing public API or wire behavior, update the relevant crate README and, if IDs or hex rules change, [common/TYPE_DESIGN.md](common/TYPE_DESIGN.md). Node operator notes live in [node_app/README.md](node_app/README.md). Local cluster setup is documented in [deploy/README.md](deploy/README.md).
 
 ## Code of conduct
 

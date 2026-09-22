@@ -6,7 +6,6 @@ target
 **/target
 node_app/data
 node_app/tx_responses
-node_app/docs
 deploy
 *.md
 .DS_Store
