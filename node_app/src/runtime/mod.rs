@@ -128,6 +128,7 @@ pub(crate) async fn run(args: Args) -> Result<(), EldError> {
             committed_state: committed_state.clone(),
             current_state: current_state.clone(),
             app_port: client_config.app_port.clone(),
+            http_cors: node_config.http_cors.clone(),
         })
         .await?;
 

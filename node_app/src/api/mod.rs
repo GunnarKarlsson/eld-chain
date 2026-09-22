@@ -3,6 +3,7 @@
 pub mod admin;
 pub mod api_rate_limiting;
 pub mod cado;
+pub mod cors;
 pub mod epoch;
 pub mod error;
 pub mod health;
@@ -21,7 +22,7 @@ pub use error::{ApiError, ApiErrorResponse};
 pub use state::ApiState;
 
 use crate::capacity::capacity_manager::CapacityManager;
-use crate::config::ConsensusConfig;
+use crate::config::{ConsensusConfig, HttpCorsConfig};
 use crate::indexer::TransactionIndexer;
 use crate::node_identity::LocalNodeIdentity;
 use crate::storage::rocksdb::RocksDBStorage;
@@ -30,9 +31,11 @@ use axum::{
     Router,
 };
 use eld_client::facade::ChainClient;
+use eld_common::error::EldError;
 use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
-use tower_http::cors::{Any, CorsLayer};
+
+use cors::cors_layer;
 
 /// Inputs for [`init_router_with_storage`].
 pub struct ApiRouterInitContext {
@@ -46,13 +49,14 @@ pub struct ApiRouterInitContext {
     pub admin_token: Option<String>,
     pub committed_state: Arc<Mutex<crate::app_state::AppState>>,
     pub current_state: Arc<Mutex<Option<crate::app_state::AppState>>>,
+    pub http_cors: HttpCorsConfig,
 }
 
 /// Initialize router with storage access for content browser API.
 ///
 /// Pinboard **message bytes** in GET/submit flows are read from [`CapacityManager::get_content_from_slots`]
 /// only (not from RocksDB `pinboard_blob`).
-pub fn init_router_with_storage(ctx: ApiRouterInitContext) -> Router {
+pub fn init_router_with_storage(ctx: ApiRouterInitContext) -> Result<Router, EldError> {
     let ApiRouterInitContext {
         storage,
         consensus_config,
@@ -64,12 +68,10 @@ pub fn init_router_with_storage(ctx: ApiRouterInitContext) -> Router {
         admin_token,
         committed_state,
         current_state,
+        http_cors,
     } = ctx;
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    let cors = cors_layer(&http_cors)?;
 
     let app_state = ApiState {
         storage: storage.clone(),
@@ -125,9 +127,9 @@ pub fn init_router_with_storage(ctx: ApiRouterInitContext) -> Router {
         .route("/epoch/{epoch}", get(epoch::handle_get_epoch_by_number))
         .route("/slotallocation", get(slots::handle_get_slot_allocation));
 
-    base_router
+    Ok(base_router
         .merge(transaction_router)
         .merge(cado::init_cado_routes())
         .with_state(app_state)
-        .layer(cors)
+        .layer(cors))
 }

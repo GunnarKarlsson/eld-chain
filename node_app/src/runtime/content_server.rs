@@ -9,7 +9,7 @@ use crate::api::api_rate_limiting::create_api_rate_limit_config_from_env;
 use crate::api::{init_router_with_storage, ApiRouterInitContext, RateLimitState};
 use crate::app_state::AppState;
 use crate::capacity::capacity_manager::CapacityManager;
-use crate::config::ConsensusConfig;
+use crate::config::{ConsensusConfig, HttpCorsConfig};
 use crate::indexer::TransactionIndexer;
 use crate::node_identity::LocalNodeIdentity;
 use crate::storage::rocksdb::RocksDBStorage;
@@ -24,6 +24,7 @@ pub struct ContentServerBindContext {
     pub committed_state: Arc<std::sync::Mutex<AppState>>,
     pub current_state: Arc<std::sync::Mutex<Option<AppState>>>,
     pub app_port: String,
+    pub http_cors: HttpCorsConfig,
 }
 
 pub async fn bind_content_server(
@@ -44,6 +45,7 @@ pub async fn bind_content_server(
         committed_state,
         current_state,
         app_port,
+        http_cors,
     } = ctx;
 
     let rate_limit_config = create_api_rate_limit_config_from_env();
@@ -67,8 +69,13 @@ pub async fn bind_content_server(
         admin_token,
         committed_state,
         current_state,
-    });
+        http_cors: http_cors.clone(),
+    })?;
 
+    info!(
+        "Content server CORS allow_origins: {:?}",
+        http_cors.allow_origins
+    );
     info!(
         "Content server rate limiting enabled: {} requests/minute",
         rate_limit_config.general_requests_per_minute

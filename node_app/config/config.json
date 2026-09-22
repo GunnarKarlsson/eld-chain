@@ -10,5 +10,13 @@
     "single_node": false,
     "capacity_size_mb": 50,
     "capacity_storage_path": "./data/capacity",
-    "indexer": true
+    "indexer": true,
+    "http_cors": {
+        "allow_origins": [
+            "https://explorer.eld.network",
+            "https://www.eld.network",
+            "https://eld.network",
+            "https://docs.eld.network"
+        ]
+    }
 }

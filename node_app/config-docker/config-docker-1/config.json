@@ -9,5 +9,13 @@
     "p2p_udp_port": "4002",
     "capacity_size_mb": 50,
     "capacity_storage_path": "/app/data/capacity",
-    "indexer": true
+    "indexer": true,
+    "http_cors": {
+        "allow_origins": [
+            "https://explorer.eld.network",
+            "https://www.eld.network",
+            "https://eld.network",
+            "https://docs.eld.network"
+        ]
+    }
 }
