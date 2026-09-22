@@ -269,10 +269,9 @@ async fn main() -> Result<(), EldError> {
         let p2p_keypair =
             crate::p2p_keypair::P2PKeypair::load_libp2p_keypair(DEFAULT_P2P_KEYPAIR_CONFIG_PATH)?;
 
-        // Add detailed logging to verify the conversion
         let derived_peer_id = libp2p::PeerId::from(p2p_keypair.public());
         info!(
-            "[P2PKey] Using dedicated P2P keypair for P2P identity (peer ID: {})",
+            "Using dedicated P2P keypair for P2P identity (peer ID: {})",
             derived_peer_id
         );
 

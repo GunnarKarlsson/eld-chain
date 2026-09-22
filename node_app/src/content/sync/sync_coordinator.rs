@@ -161,14 +161,8 @@ impl P2pSyncCoordinator {
     {
         let local_key = p2p_keypair;
         let local_peer_id = PeerId::from(local_key.public());
-        info!(
-            "[P2PKey] Local PeerId: {} (using provided keypair)",
-            local_peer_id
-        );
-        info!(
-            "[P2PKey] Public key type: {:?}",
-            local_key.public().key_type()
-        );
+        info!("Local PeerId: {} (using provided keypair)", local_peer_id);
+        info!("Public key type: {:?}", local_key.public().key_type());
 
         let gossipsub_config = gossipsub::ConfigBuilder::default()
             .heartbeat_interval(std::time::Duration::from_secs(1)) // Your value; or try from_millis(100) for faster testing
@@ -214,14 +208,11 @@ impl P2pSyncCoordinator {
 
         let topic = IdentTopic::new(P2P_TOPIC_CONTENT_SYNC);
         swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
-        info!("[P2PKey] Subscribed to topic: {}", P2P_TOPIC_CONTENT_SYNC);
+        info!("Subscribed to topic: {}", P2P_TOPIC_CONTENT_SYNC);
 
         let response_topic = IdentTopic::new(P2P_TOPIC_CONTENT_SYNC_RESPONSE);
         swarm.behaviour_mut().gossipsub.subscribe(&response_topic)?;
-        info!(
-            "[P2PKey] Subscribed to topic: {}",
-            P2P_TOPIC_CONTENT_SYNC_RESPONSE
-        );
+        info!("Subscribed to topic: {}", P2P_TOPIC_CONTENT_SYNC_RESPONSE);
 
         let (msg_tx, msg_rx) = mpsc::unbounded_channel();
         let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel();
@@ -236,14 +227,14 @@ impl P2pSyncCoordinator {
                     event = swarm.select_next_some() => {
                         match event {
                             SwarmEvent::NewListenAddr { address, .. } => {
-                                info!("[P2PKey] P2P listening on {}", address);
+                                info!("P2P listening on {}", address);
                             }
                             SwarmEvent::Behaviour(EldBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
                                 for (peer_id, addr) in list {
-                                    info!("[P2PKey] mDNS discovered peer {} at {}", peer_id, addr);
-                                    info!("[P2PKey] Our peer ID: {}", local_peer_id);
+                                    info!("mDNS discovered peer {} at {}", peer_id, addr);
+                                    info!("Our peer ID: {}", local_peer_id);
                                     if peer_id == local_peer_id {
-                                        info!("[P2PKey] Ignoring self-discovery");
+                                        info!("Ignoring self-discovery");
                                     } else {
                                         swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                                         let _ = swarm.dial(addr);
@@ -269,41 +260,29 @@ impl P2pSyncCoordinator {
                                 }
                             }
                             SwarmEvent::Behaviour(EldBehaviourEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic })) => {
-                                info!(
-                                    "[P2PKey] Peer {} subscribed to topic {}",
-                                    peer_id, topic
-                                );
+                                info!("Peer {} subscribed to topic {}", peer_id, topic);
                             }
                             SwarmEvent::Behaviour(EldBehaviourEvent::Gossipsub(gossipsub::Event::Unsubscribed { peer_id, topic })) => {
-                                info!(
-                                    "[P2PKey] Peer {} unsubscribed from topic {}",
-                                    peer_id, topic
-                                );
+                                info!("Peer {} unsubscribed from topic {}", peer_id, topic);
                             }
                             SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
                                 info!(
-                                    "[P2PKey] Connection established with peer {} via {}",
+                                    "Connection established with peer {} via {}",
                                     peer_id,
                                     endpoint.get_remote_address()
                                 );
                                 // Add peer as explicit peer to GossipSub so it stays connected
                                 swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                                info!("[P2PKey] Added peer {} as explicit GossipSub peer", peer_id);
+                                info!("Added peer {} as explicit GossipSub peer", peer_id);
                             }
                             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
-                                info!(
-                                    "[P2PKey] Connection closed with peer {}: {:?}",
-                                    peer_id, cause
-                                );
+                                info!("Connection closed with peer {}: {:?}", peer_id, cause);
                             }
                             SwarmEvent::OutgoingConnectionError { peer_id, error, connection_id: _, .. } => {
-                                warn!(
-                                    "[P2PKey] Failed to connect to peer {:?}: {}",
-                                    peer_id, error
-                                );
+                                warn!("Failed to connect to peer {:?}: {}", peer_id, error);
                             }
                             SwarmEvent::IncomingConnectionError { error, .. } => {
-                                warn!("[P2PKey] Incoming connection error: {}", error);
+                                warn!("Incoming connection error: {}", error);
                             }
                             _ => {
                                 debug!("Other swarm event received");
@@ -848,7 +827,7 @@ impl P2pSyncCoordinator {
                     challenger = %challenger,
                     block_height = block_height,
                     proof_count = proofs.len(),
-                    "✅ Active capacity validator: Received capacity challenge proof response via P2P"
+                    "Active capacity validator: Received capacity challenge proof response via P2P"
                 );
 
                 if let Err(e) = eld_common::capacity_proof::verify_capacity_challenge_response(
@@ -943,12 +922,7 @@ impl P2pSyncCoordinator {
                             capacity_provider = %provider,
                             proof_count = proofs.len(),
                             merkle_root = %expected_merkle_root,
-                            "✅ Proof validation succeeded"
-                        );
-                        info!(
-                            challenge_id = %challenge_id,
-                            capacity_provider = %provider,
-                            "XWXW3 Successful validator of storage proof"
+                            "Proof validation succeeded"
                         );
 
                         let submitter = self.verified_proof_submitter.clone();
@@ -995,12 +969,7 @@ impl P2pSyncCoordinator {
                             proof_count = proofs.len(),
                             error_count = errors.len(),
                             errors = ?errors,
-                            "❌ Proof validation failed"
-                        );
-                        error!(
-                            challenge_id = %challenge_id,
-                            capacity_provider = %provider,
-                            "XWXW2 Failed validation of storage proof"
+                            "Proof validation failed"
                         );
                         // TODO: Record failure in challenge tracker and check threshold for slashing
                     }

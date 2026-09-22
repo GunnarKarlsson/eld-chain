@@ -645,7 +645,7 @@ impl AppState {
                             handle_fatal_eld_error(e);
                         }
 
-                        info!("✅ State trie root verified successfully");
+                        info!("State trie root verified successfully");
                     }
                     Err(EldError::NotFoundError { .. }) => {
                         error!(
