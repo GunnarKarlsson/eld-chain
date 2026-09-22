@@ -1,3 +1,11 @@
+use super::error::ApiError;
+use axum::http::HeaderMap;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
+use tracing::warn;
+
 // ============================================================================
 // RATE LIMITING CONFIGURATION
 // ============================================================================
@@ -42,9 +50,101 @@ pub enum ApiEndpointType {
     Health,
 }
 
-// ============================================================================
-// CONFIGURATION HELPERS
-// ============================================================================
+/// Simple rate limiting state for tracking requests per client
+#[derive(Debug)]
+pub struct RateLimitState {
+    clients: HashMap<String, Vec<Instant>>,
+    config: ApiRateLimitConfig,
+}
+
+impl RateLimitState {
+    pub fn new(config: ApiRateLimitConfig) -> Self {
+        Self {
+            clients: HashMap::new(),
+            config,
+        }
+    }
+
+    /// Check if a request is allowed for the given client and endpoint type
+    pub fn is_allowed(&mut self, client_id: &str, endpoint_type: ApiEndpointType) -> bool {
+        if !self.config.enabled {
+            return true;
+        }
+
+        let max_requests = match endpoint_type {
+            ApiEndpointType::General => self.config.general_requests_per_minute,
+            ApiEndpointType::Upload => self.config.upload_requests_per_minute,
+            ApiEndpointType::Cado => self.config.cado_requests_per_minute,
+            ApiEndpointType::Health => self.config.health_requests_per_minute,
+        };
+
+        let now = Instant::now();
+        let window = Duration::from_secs(60);
+
+        let client_requests = self.clients.entry(client_id.to_string()).or_default();
+
+        // Remove old requests outside the time window
+        client_requests.retain(|&time| now.duration_since(time) <= window);
+
+        // Check if we're under the limit
+        if client_requests.len() < max_requests as usize {
+            client_requests.push(now);
+            true
+        } else {
+            warn!(
+                "Rate limit exceeded for client {} on endpoint type {:?}: {} requests in the last minute",
+                client_id, endpoint_type, client_requests.len()
+            );
+            false
+        }
+    }
+}
+
+/// Extract client identifier from request headers
+pub(crate) fn extract_client_id(headers: &HeaderMap) -> String {
+    // Try to get X-Forwarded-For header first (for proxied requests)
+    if let Some(forwarded_for) = headers.get("X-Forwarded-For") {
+        if let Ok(forwarded_for_str) = forwarded_for.to_str() {
+            // Take the first IP in the chain
+            if let Some(first_ip) = forwarded_for_str.split(',').next() {
+                return first_ip.trim().to_string();
+            }
+        }
+    }
+
+    // Fall back to X-Real-IP header
+    if let Some(real_ip) = headers.get("X-Real-IP") {
+        if let Ok(real_ip_str) = real_ip.to_str() {
+            return real_ip_str.to_string();
+        }
+    }
+
+    // Default to a placeholder (in production, you'd want to extract the actual IP)
+    "unknown".to_string()
+}
+
+/// Check rate limit for a request
+pub(crate) async fn check_rate_limit(
+    rate_limit_state: &Arc<RwLock<RateLimitState>>,
+    endpoint_type: ApiEndpointType,
+    headers: &HeaderMap,
+) -> Result<(), ApiError> {
+    let client_id = extract_client_id(headers);
+
+    let rate_limit_exceeded = {
+        let mut state = rate_limit_state.write().await;
+        !state.is_allowed(&client_id, endpoint_type)
+    };
+
+    if rate_limit_exceeded {
+        return Err(ApiError::ServiceUnavailable {
+            message: "Rate limit exceeded. Please try again later.".to_string(),
+            details: Some("Too many requests from this client".to_string()),
+        });
+    }
+
+    Ok(())
+}
 
 /// Create rate limiting configuration from environment variables
 pub fn create_api_rate_limit_config_from_env() -> ApiRateLimitConfig {
