@@ -1,4 +1,4 @@
-use super::consensus::ConsensusConnection;
+use super::ConsensusConnection;
 use crate::storage::traits::ConsensusConnectionStorage;
 use abci::types::ResponseDeliverTx;
 use async_trait::async_trait;

@@ -6,7 +6,7 @@ use abci::types::ResponseDeliverTx;
 use async_trait::async_trait;
 use eld_common::tx::{PayloadInner, Tx, UnstakeTx};
 
-/// Extension trait so a validated [`Tx`] can dispatch to [`TransactionProcessor`] (e.g. [`ConsensusConnection`](super::consensus::ConsensusConnection)).
+/// Extension trait so a validated [`Tx`] can dispatch to [`TransactionProcessor`] (e.g. [`ConsensusConnection`](super::ConsensusConnection)).
 #[async_trait]
 pub trait ConsensusTxDeliver {
     /// Runs the payload-specific deliver handler for this transaction.
