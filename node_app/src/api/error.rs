@@ -16,8 +16,6 @@ pub struct ApiErrorResponse {
     pub message: String,
     /// Detailed error information
     pub details: Option<String>,
-    /// Request ID for tracking (if available)
-    pub request_id: Option<String>,
     /// Timestamp of the error
     pub timestamp: String,
 }
@@ -121,7 +119,6 @@ impl IntoResponse for ApiError {
             code: self.error_code().to_string(),
             message: self.message(),
             details: self.details(),
-            request_id: None, // TODO: Implement request ID tracking
             timestamp: chrono::Utc::now().to_rfc3339(),
         };
 
@@ -283,7 +280,6 @@ mod tests {
             code: "NOT_FOUND".to_string(),
             message: "Resource not found".to_string(),
             details: Some("No such resource".to_string()),
-            request_id: Some("req-456".to_string()),
             timestamp: "2024-01-01T12:00:00Z".to_string(),
         };
 
@@ -291,7 +287,6 @@ mod tests {
         assert!(json.contains("NOT_FOUND"));
         assert!(json.contains("Resource not found"));
         assert!(json.contains("No such resource"));
-        assert!(json.contains("req-456"));
         assert!(json.contains("2024-01-01T12:00:00Z"));
     }
 
@@ -301,7 +296,6 @@ mod tests {
         "code": "BAD_REQUEST",
         "message": "Invalid input",
         "details": "Missing required field",
-        "request_id": "req-789",
         "timestamp": "2024-01-01T12:00:00Z"
     }"#;
 
@@ -313,7 +307,6 @@ mod tests {
             error_response.details,
             Some("Missing required field".to_string())
         );
-        assert_eq!(error_response.request_id, Some("req-789".to_string()));
         assert_eq!(error_response.timestamp, "2024-01-01T12:00:00Z");
     }
 }

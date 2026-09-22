@@ -13,7 +13,6 @@ pub struct ApiErrorResponse {
     pub code: String,
     pub message: String,
     pub details: Option<String>,
-    pub request_id: Option<String>,
     pub timestamp: String,
 }
 
