@@ -53,7 +53,12 @@ use tracing::{debug, error, info, warn};
 const DEFAULT_P2P_KEYPAIR_CONFIG_PATH: &str = "./config/p2p_keypair.json";
 
 #[derive(Parser, Debug)]
-#[command(author = "BREE LABS", version, about = "Bree Tendermint App")]
+#[command(
+    name = "eld-node",
+    author,
+    version,
+    about = "Eld ABCI application, REST API, and libp2p content sync"
+)]
 struct Args {
     /// Chain Id
     #[arg()]
@@ -103,12 +108,12 @@ where
 #[tokio::main]
 async fn main() -> Result<(), EldError> {
     let (_shutdown_tx, mut shutdown_rx) = broadcast::channel::<()>(1);
-    print_name();
     let args = Args::parse();
 
     init_default_logging().unwrap_or_else(|e| {
         handle_fatal_eld_error(e);
     });
+    info!("Eld node starting");
 
     // Get configurable paths
     let config_path = ConsensusConfig::resolve_path(args.config_path.clone());
@@ -722,16 +727,6 @@ async fn main() -> Result<(), EldError> {
 
     info!("Eld node shutdown complete");
     Ok(())
-}
-
-fn print_name() {
-    info!("\x1b[34m             "); // Blue color
-    info!("=                          =");
-    info!("=== === = = ==   ==  === === ===");
-    info!("= = === === = =  = = = = = = =");
-    info!("=== = = = = = =  = = === === ===");
-    info!("    \x1b[0m"); // Reset color
-    info!("\nEld Node Starting...\n");
 }
 
 #[cfg(test)]
