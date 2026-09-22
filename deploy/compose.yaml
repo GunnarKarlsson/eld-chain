@@ -1,3 +1,6 @@
+x-app-log: &app-log
+  RUST_LOG: eld_node=info,eld_common=info,eld_client=info,abci=warn
+
 x-app-eld: &app-eld
   image: eld-app:${NODE_APP_VERSION_TAG}
   pull_policy: never
@@ -9,6 +12,8 @@ x-app-eld: &app-eld
       max-file: "2"
   networks:
     - eld-network
+  environment:
+    <<: *app-log
 
 x-tendermint: &tendermint-common
   image: eld-tendermint:${TENDERMINT_VERSION_TAG}
@@ -37,11 +42,11 @@ services:
       - ./nodes/1/app:/app/config:ro
       - ./wallets/wallets.json:/app/wallets/wallets.json:ro
     environment:
-      - ELD_CONSENSUS_CONFIG_PATH=/app/config/consensus_config.json
-      - ELD_DB_PATH=/app/data/rocksdb
-      - TENDERMINT_RPC_URL=http://tendermint-1:26657
-      - ELD_CAPACITY_VALIDATOR_WALLET_NAME=wallet-capacity-validator-1
-      - RUST_LOG=info,abci=warn
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-1:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-1
 
   eld-app-2:
     <<: *app-eld
@@ -57,11 +62,11 @@ services:
       - ./nodes/2/app:/app/config:ro
       - ./wallets/wallets.json:/app/wallets/wallets.json:ro
     environment:
-      - ELD_CONSENSUS_CONFIG_PATH=/app/config/consensus_config.json
-      - ELD_DB_PATH=/app/data/rocksdb
-      - TENDERMINT_RPC_URL=http://tendermint-2:26657
-      - ELD_CAPACITY_VALIDATOR_WALLET_NAME=wallet-capacity-validator-2
-      - RUST_LOG=info,abci=warn
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-2:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-2
 
   eld-app-3:
     <<: *app-eld
@@ -77,11 +82,11 @@ services:
       - ./nodes/3/app:/app/config:ro
       - ./wallets/wallets.json:/app/wallets/wallets.json:ro
     environment:
-      - ELD_CONSENSUS_CONFIG_PATH=/app/config/consensus_config.json
-      - ELD_DB_PATH=/app/data/rocksdb
-      - TENDERMINT_RPC_URL=http://tendermint-3:26657
-      - ELD_CAPACITY_VALIDATOR_WALLET_NAME=wallet-capacity-validator-3
-      - RUST_LOG=info,abci=warn
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-3:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-3
 
   eld-app-4:
     <<: *app-eld
@@ -97,11 +102,11 @@ services:
       - ./nodes/4/app:/app/config:ro
       - ./wallets/wallets.json:/app/wallets/wallets.json:ro
     environment:
-      - ELD_CONSENSUS_CONFIG_PATH=/app/config/consensus_config.json
-      - ELD_DB_PATH=/app/data/rocksdb
-      - TENDERMINT_RPC_URL=http://tendermint-4:26657
-      - ELD_CAPACITY_VALIDATOR_WALLET_NAME=wallet-capacity-validator-4
-      - RUST_LOG=info,abci=warn
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-4:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-4
 
   tendermint-1:
     <<: *tendermint-common

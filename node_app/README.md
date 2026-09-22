@@ -56,7 +56,7 @@ Do not commit `wallets.json`, `p2p_keypair.json`, or Tendermint validator keys.
 | `ELD_CONSENSUS_CONFIG_PATH` | Consensus JSON path (default `./config/consensus_config.json`) |
 | `ELD_ADMIN_TOKEN` | If set, required on `/admin/v1/status` |
 | `ELD_CAPACITY_VALIDATOR_WALLET_NAME` | Wallet name in `wallets.json` for capacity registration |
-| `RUST_LOG` | Tracing filter (default in-process: `eld=info`) |
+| `RUST_LOG` | Tracing filter. Targets are crate names (`eld_node`, not `eld-node` or `eld`). Default when unset: `eld_node=info,eld_common=info,eld_client=info,abci=warn`. Debug example: `RUST_LOG=eld_node=debug,eld_common=info,eld_client=info,abci=warn`. If you use a global `info` instead, quiet noisy crates with `hyper=warn,tower=warn,h2=warn,tokio=warn,rustls=warn`. |
 
 ## HTTP / ABCI docs
 
