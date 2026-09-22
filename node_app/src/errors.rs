@@ -18,7 +18,7 @@ pub fn handle_recoverable_eld_error(e: EldError) -> EldError {
     e
 }
 
-/// Log detailed IO-related server startup error messages, used by main.rs.
+/// Log detailed IO-related server startup error messages, used by process shutdown.
 pub fn log_server_io_error_details(
     server_name: &str,
     err: &(dyn std::error::Error + Send + Sync + 'static),
