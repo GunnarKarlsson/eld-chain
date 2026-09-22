@@ -18,7 +18,6 @@ mod wallet;
 use crate::errors::handle_fatal_eld_error;
 use crate::process_logging::init_default_logging;
 use clap::Parser;
-use eld_common::error::EldError;
 use tracing::info;
 
 #[derive(Parser, Debug)]
@@ -44,11 +43,13 @@ pub(crate) struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), EldError> {
+async fn main() {
     let args = Args::parse();
     init_default_logging().unwrap_or_else(|e| handle_fatal_eld_error(e));
     info!("Eld node starting");
-    runtime::run(args).await
+    if let Err(e) = runtime::run(args).await {
+        handle_fatal_eld_error(e);
+    }
 }
 
 #[cfg(test)]

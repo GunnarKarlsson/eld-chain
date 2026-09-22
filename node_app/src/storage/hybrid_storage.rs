@@ -4,7 +4,6 @@ use crate::storage::traits::{
     PinboardQueryStorage, PinboardStorage, SnapshotChunk, SnapshotMetadata, SnapshotStorage,
     VerifiedProofRewardDedupStorage, VerifiedProofSubmissionClaimStorage,
 };
-use anyhow::Result;
 use eld_common::account::Account;
 use eld_common::cado::{CADOMap, CADOMetadata, CadoBody, CadoPath};
 use eld_common::error::EldError;

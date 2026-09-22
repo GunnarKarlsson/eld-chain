@@ -18,7 +18,6 @@ path = "src/main.rs"
 
 [dependencies]
 abci-rs = { version = "0.11.3", features = ["use-tokio"] }
-anyhow = "1.0.95"
 async-trait = "0.1.77"
 axum = { version = "0.8.1", features = ["ws"] }
 eld_common = { path = "../common", package = "eld-common" }

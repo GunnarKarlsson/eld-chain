@@ -34,13 +34,7 @@ fn default_max_tx_bytes() -> usize {
 }
 
 impl ConsensusConfig {
-    // Legacy methods for backward compatibility
-    pub fn from_file(file: &str) -> Self {
-        <Self as crate::config::loader::ConfigLoadable>::from_file(file)
-            .expect("Failed to load consensus config")
-    }
-
-    pub fn from_file_result(file: &str) -> Result<Self, EldError> {
+    pub fn from_file(file: &str) -> Result<Self, EldError> {
         <Self as crate::config::loader::ConfigLoadable>::from_file(file)
     }
 
@@ -66,7 +60,7 @@ impl ConsensusConfig {
         Self::validate_file_permissions(config_path)?;
         Self::validate_integrity(config_path)?;
 
-        let mut cfg = Self::from_file_result(config_path)?;
+        let mut cfg = Self::from_file(config_path)?;
 
         // Apply CLI override for chain_id if provided
         if let Some(id) = override_chain_id {
@@ -391,14 +385,14 @@ mod tests {
                 .path()
                 .to_str()
                 .expect("Unable to get temp file path"),
-        );
+        )
+        .expect("valid consensus config should load");
         assert_eq!(config.chain_id, MOCK_CHAIN_ID);
         assert_eq!(config.max_tx_bytes, 10 * 1024 * 1024);
     }
 
     #[test]
-    #[should_panic(expected = "Configuration validation failed")]
-    fn test_consensus_config_empty_chain_id_panics() {
+    fn test_consensus_config_empty_chain_id_is_err() {
         let invalid_config = r#"{
             "chain_id": "",
             "app_host": "0.0.0.0",
@@ -411,17 +405,21 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Unable to create temp file");
         fs::write(&temp_file, invalid_config).expect("Unable to write to temp file");
 
-        ConsensusConfig::from_file(
+        let err = ConsensusConfig::from_file(
             temp_file
                 .path()
                 .to_str()
                 .expect("Unable to get temp file path"),
+        )
+        .expect_err("empty chain_id should fail validation");
+        assert!(
+            err.to_string().contains("Configuration validation failed"),
+            "unexpected error: {err}"
         );
     }
 
     #[test]
-    #[should_panic(expected = "Configuration validation failed")]
-    fn test_consensus_config_whitespace_chain_id_panics() {
+    fn test_consensus_config_whitespace_chain_id_is_err() {
         let invalid_config = r#"{
             "chain_id": "   ",
             "app_host": "0.0.0.0",
@@ -434,11 +432,16 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Unable to create temp file");
         fs::write(&temp_file, invalid_config).expect("Unable to write to temp file");
 
-        ConsensusConfig::from_file(
+        let err = ConsensusConfig::from_file(
             temp_file
                 .path()
                 .to_str()
                 .expect("Unable to get temp file path"),
+        )
+        .expect_err("whitespace chain_id should fail validation");
+        assert!(
+            err.to_string().contains("Configuration validation failed"),
+            "unexpected error: {err}"
         );
     }
 
@@ -504,12 +507,12 @@ mod tests {
                 .path()
                 .to_str()
                 .expect("Unable to get temp file path"),
-        );
+        )
+        .expect("consensus config with accounts should load");
         assert!(config.validate().is_ok());
     }
 
     #[test]
-    #[should_panic(expected = "Configuration validation failed")]
     fn test_consensus_config_rejects_duplicate_account_addresses() {
         let config_with_duplicate_addresses = format!(
             r#"{{
@@ -536,11 +539,16 @@ mod tests {
         fs::write(&temp_file, config_with_duplicate_addresses)
             .expect("Unable to write to temp file");
 
-        ConsensusConfig::from_file(
+        let err = ConsensusConfig::from_file(
             temp_file
                 .path()
                 .to_str()
                 .expect("Unable to get temp file path"),
+        )
+        .expect_err("duplicate account addresses should fail validation");
+        assert!(
+            err.to_string().contains("Configuration validation failed"),
+            "unexpected error: {err}"
         );
     }
 }

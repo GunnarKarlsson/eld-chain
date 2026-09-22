@@ -1,5 +1,4 @@
 use crate::indexer::{IndexedEvent, IndexedTransaction, TransactionStatus};
-use anyhow::Result;
 use bincode;
 use eld_common::address::Address;
 use eld_common::cado::{CADOMap, CADOMetadata, CadoBody, CadoPath, DeserializableBin};

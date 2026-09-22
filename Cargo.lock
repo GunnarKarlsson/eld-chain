@@ -1138,7 +1138,6 @@ name = "eld-node"
 version = "0.1.0"
 dependencies = [
  "abci-rs",
- "anyhow",
  "async-trait",
  "axum",
  "base64 0.22.1",

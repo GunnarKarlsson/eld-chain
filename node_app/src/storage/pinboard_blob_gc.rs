@@ -46,7 +46,7 @@ async fn run_gc_tick(
     storage: &RocksDBStorage,
     chain_tip: &ChainTip,
     capacity_manager: &CapacityManager,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), EldError> {
     let current_height = chain_tip.committed_height_u64();
     let mut page = 0usize;
     let mut scanned = 0usize;

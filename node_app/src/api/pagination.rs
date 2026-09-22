@@ -1,4 +1,3 @@
-use anyhow::Result;
 use eld_common::error::EldError;
 use serde::{Deserialize, Serialize};
 

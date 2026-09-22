@@ -2,7 +2,6 @@ use crate::app_state::app_state_snapshot::AppStateSnapshot;
 use crate::app_state::committed_cado_cache::CommittedCadoCache;
 use crate::app_state::state_trie::StateTrie;
 use crate::errors::{handle_fatal_eld_error, handle_recoverable_eld_error};
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
