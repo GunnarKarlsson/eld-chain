@@ -21,7 +21,8 @@ impl AppConfig {
 
 impl crate::config::loader::ConfigValidator for AppConfig {
     fn validate(&self) -> Result<(), eld_common::error::EldError> {
-        self.client.validate()
+        self.client.validate()?;
+        self.node.validate()
     }
 }
 

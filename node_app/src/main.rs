@@ -117,7 +117,7 @@ async fn main() -> Result<(), EldError> {
 
     // Get configurable paths
     let config_path = ConsensusConfig::resolve_path(args.config_path.clone());
-    let db_path = config::StorageConfig::resolve_db_path(args.db_path.clone());
+    let db_path = config::resolve_db_path(args.db_path.clone());
 
     info!(
         "Using configuration file: {}",

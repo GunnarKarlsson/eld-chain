@@ -3,7 +3,6 @@ use crate::app_state::committed_cado_cache::CommittedCadoCache;
 use crate::app_state::state_trie::StateTrie;
 use crate::errors::{handle_fatal_eld_error, handle_recoverable_eld_error};
 use anyhow::Result;
-use clap::Parser;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -32,13 +31,6 @@ use eld_common::storage::AccountStorage;
 use eld_common::validation::{safe_deserialize_account_data, safe_deserialize_cado_data};
 use eld_common::validator::CapacityValidatorInfo;
 use eld_common::validator::{ActiveCapacityValidator, ValidatorInfo};
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    #[arg(long)]
-    init_data: bool,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppStateTip {

@@ -44,7 +44,7 @@ Compose remaps per-node ABCI and host REST/RPC; see [`deploy/README.md`](../depl
 | `wallets/wallets.json` | Local signing keys (gitignored) |
 | `config/p2p_keypair.json` | libp2p identity (gitignored) |
 
-RocksDB lives under `ELD_DB_PATH` or `--db-path` (default `./data/rocksdb`). A committed `storage_config.json` is **not** loaded at runtime.
+RocksDB lives under `ELD_DB_PATH` or `--db-path` (default `./data/rocksdb`).
 
 Do not commit `wallets.json`, `p2p_keypair.json`, or Tendermint validator keys.
 
