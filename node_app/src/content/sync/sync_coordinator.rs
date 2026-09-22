@@ -182,12 +182,6 @@ impl P2pSyncCoordinator {
             .allow_self_origin(true) // ← ADD: Allows receiving/processing own messages without penalty
             .build()?;
 
-        // TODO: Add Mplex support alongside Yamux for Android client compatibility
-        // Current issue: libp2p-mplex 0.43.1 is not compatible with libp2p 0.53.2
-        // Options: 1) Update Android client to use Yamux (recommended)
-        //          2) Downgrade libp2p to version compatible with libp2p-mplex 0.43.1
-        //          3) Wait for libp2p-mplex update compatible with libp2p 0.53.2
-        // For now, using Yamux which is more modern and better supported
         let mut swarm = libp2p::SwarmBuilder::with_existing_identity(local_key.clone())
             .with_tokio()
             .with_tcp(
