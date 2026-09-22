@@ -1,3 +1,4 @@
+mod heartbeat;
 mod periodic_sync;
 mod sync_coordinator;
 

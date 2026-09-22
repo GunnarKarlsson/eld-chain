@@ -118,7 +118,7 @@ enum P2pCommand {
 pub struct P2pSyncCoordinator {
     _swarm_task: tokio::task::JoinHandle<()>,
     cmd_tx: mpsc::UnboundedSender<P2pCommand>,
-    committed_state: Arc<Mutex<Option<Arc<std::sync::Mutex<AppState>>>>>,
+    pub(crate) committed_state: Arc<Mutex<Option<Arc<std::sync::Mutex<AppState>>>>>,
     local_identity: Arc<RwLock<LocalNodeIdentity>>,
     storage: Arc<dyn SyncCoordinatorStorage>,
     /// Capacity challenge `VerifiedProof` broadcasts (optimistic nonce + persisted dedup).
@@ -312,7 +312,7 @@ impl P2pSyncCoordinator {
                                 warn!("[P2PKey] Incoming connection error: {}", error);
                             }
                             _ => {
-                                info!("XZXZ5: Other event received");
+                                debug!("Other swarm event received");
                             }
                         }
                     }
@@ -350,32 +350,41 @@ impl P2pSyncCoordinator {
                                 }
                             }
                             P2pCommand::SubscribeToTopic { topic: topic_str } => {
-                                info!("P2P XZXZ16: SubscribeToTopic command received topic={}", topic_str);
+                                debug!(topic = %topic_str, "SubscribeToTopic command received");
                                 let challenge_topic = IdentTopic::new(&topic_str);
                                 let topic_hash = challenge_topic.hash();
-                                info!("P2P XZXZ17: Created IdentTopic for subscription topic={} hash={}", topic_str, topic_hash);
+                                debug!(topic = %topic_str, hash = %topic_hash, "Created IdentTopic for subscription");
                                 match swarm.behaviour_mut().gossipsub.subscribe(&challenge_topic) {
                                     Ok(_) => {
-                                        info!("P2P XZXZ18: Successfully subscribed to topic topic={} hash={}", topic_str, topic_hash);
+                                        debug!(topic = %topic_str, hash = %topic_hash, "Subscribed to topic");
                                         // Track subscription ourselves
                                         subscribed_topics.lock().unwrap().insert(topic_str.clone());
                                     }
                                     Err(e) => {
-                                        warn!("P2P XZXZ19: Failed to subscribe to topic topic={} hash={} error={}", topic_str, topic_hash, e);
+                                        warn!(
+                                            topic = %topic_str,
+                                            hash = %topic_hash,
+                                            error = %e,
+                                            "Failed to subscribe to topic"
+                                        );
                                     }
                                 }
                             }
                             P2pCommand::PublishToTopic { topic: topic_str, msg } => {
-                                info!("XZXZ6: Received PublishToTopic command topic={}", topic_str);
+                                debug!(topic = %topic_str, "Received PublishToTopic command");
                                 if let Ok(data) = bincode::serialize(&msg) {
-                                    info!("XZXZ7: Message serialized successfully, size={} bytes", data.len());
+                                    debug!(size = data.len(), "Message serialized successfully");
                                     let topic_ident = IdentTopic::new(&topic_str);
-                                    let topic_hash = topic_ident.hash();
-                                    info!("XZXZ8: Created IdentTopic for publish topic={} hash={}", topic_str, topic_hash);
+                                    debug!(topic = %topic_str, hash = %topic_ident.hash(), "Created IdentTopic for publish");
                                     // Check if we're subscribed to this topic using our own tracking
                                     let is_subscribed = subscribed_topics.lock().unwrap().contains(&topic_str);
-                                    let subscribed_count = subscribed_topics.lock().unwrap().len();
-                                    info!("XZXZ20: Currently subscribed topics count={} is_subscribed_to_topic={} publish_topic={} publish_hash={}", subscribed_count, is_subscribed, topic_str, topic_hash);
+                                    debug!(
+                                        subscribed_count = subscribed_topics.lock().unwrap().len(),
+                                        is_subscribed,
+                                        topic = %topic_str,
+                                        hash = %topic_ident.hash(),
+                                        "Currently subscribed topics"
+                                    );
 
                                     // Clone data for potential manual injection
                                     let data_clone = data.clone();
@@ -383,25 +392,33 @@ impl P2pSyncCoordinator {
                                     // Try to publish - even if we get InsufficientPeers, the message might still be delivered locally
                                     match swarm.behaviour_mut().gossipsub.publish(topic_ident, data) {
                                         Ok(message_id) => {
-                                            info!("XZXZ9: Published message to topic: {} message_id={:?}", topic_str, message_id);
+                                            debug!(topic = %topic_str, ?message_id, "Published message to topic");
                                         }
                                         Err(e) => {
                                             // Even if publish fails with InsufficientPeers, manually inject the message locally
                                             // if we're subscribed (for single-node testing)
                                             if is_subscribed {
-                                                warn!("XZXZ10: Failed to publish to topic '{}': {} (but we're subscribed, manually injecting locally)", topic_str, e);
+                                                warn!(
+                                                    topic = %topic_str,
+                                                    error = %e,
+                                                    "Failed to publish (subscribed; injecting locally)"
+                                                );
                                                 // Manually send the message to our handler since gossipsub isn't delivering it locally
                                                 if let Ok(sync_msg) = bincode::deserialize::<SyncMsg>(&data_clone) {
-                                                    info!("XZXZ11: Manually injecting message locally for topic={}", topic_str);
+                                                    debug!(topic = %topic_str, "Manually injecting message locally");
                                                     let _ = msg_tx.send(sync_msg);
                                                 }
                                             } else {
-                                                warn!("XZXZ10: Failed to publish to topic '{}': {} (NOT subscribed!)", topic_str, e);
+                                                warn!(
+                                                    topic = %topic_str,
+                                                    error = %e,
+                                                    "Failed to publish to topic (not subscribed)"
+                                                );
                                             }
                                         }
                                     }
                                 } else {
-                                    warn!("XZXZ11: Failed to serialize message for topic '{}'", topic_str);
+                                    warn!(topic = %topic_str, "Failed to serialize message for topic");
                                 }
                             }
                         }
@@ -429,149 +446,6 @@ impl P2pSyncCoordinator {
             *state = Some(committed_state);
             info!("Committed state set for proof validation");
         }
-    }
-
-    /// Start the heartbeat task that sends heartbeats every 5 seconds to all registered capacity providers
-    pub fn start_heartbeat_task(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
-        use eld_common::constants::p2p::ELD_STORAGE_CHALLENGE_TOPIC_PREFIX;
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
-            // Skip the first tick to avoid immediate execution
-            interval.tick().await;
-
-            info!("Heartbeat task started (sending heartbeats every 5 seconds to registered capacity providers)");
-
-            loop {
-                interval.tick().await;
-
-                // Get committed state
-                let committed_state = match self.committed_state.lock() {
-                    Ok(state) => state.clone(),
-                    Err(e) => {
-                        warn!(
-                            error = %e,
-                            "Failed to acquire committed_state lock for heartbeat"
-                        );
-                        continue;
-                    }
-                };
-
-                let capacity_validators = match committed_state {
-                    Some(state_lock) => {
-                        let state = match state_lock.lock() {
-                            Ok(state) => state,
-                            Err(e) => {
-                                warn!(
-                                    error = %e,
-                                    "Failed to acquire app_state lock for heartbeat"
-                                );
-                                continue;
-                            }
-                        };
-                        state.envelope.capacity_validators.clone()
-                    }
-                    None => {
-                        // No committed state yet, skip this iteration
-                        continue;
-                    }
-                };
-
-                if capacity_validators.is_empty() {
-                    info!("No registered capacity providers, skipping heartbeat");
-                    continue;
-                }
-
-                // Get current timestamp
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-
-                // Send heartbeat to each registered capacity provider
-                for provider in &capacity_validators {
-                    let capacity_provider = &provider.address;
-                    let challenge_topic =
-                        format!("{ELD_STORAGE_CHALLENGE_TOPIC_PREFIX}{capacity_provider}");
-
-                    let heartbeat_msg = SyncMsg::Heartbeat { timestamp };
-
-                    match self.publish_to_topic(&challenge_topic, heartbeat_msg) {
-                        Ok(_) => {
-                            info!(
-                                capacity_provider = %capacity_provider,
-                                topic = %challenge_topic,
-                                timestamp = timestamp,
-                                "Sent heartbeat to capacity provider"
-                            );
-                        }
-                        Err(e) => {
-                            warn!(
-                                capacity_provider = %capacity_provider,
-                                topic = %challenge_topic,
-                                error = %e,
-                                "Failed to send heartbeat to capacity provider"
-                            );
-                        }
-                    }
-                }
-
-                info!(
-                    provider_count = capacity_validators.len(),
-                    "Sent heartbeats to all registered capacity providers"
-                );
-            }
-        })
-    }
-
-    /// Start the content sync heartbeat task that sends ContentSyncHeartbeat every 5 seconds on `P2P_TOPIC_CONTENT_SYNC`
-    pub fn start_content_sync_heartbeat_task(self: Arc<Self>) -> tokio::task::JoinHandle<()> {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
-            // Skip the first tick to avoid immediate execution
-            interval.tick().await;
-
-            info!(
-                "Content sync heartbeat task started (sending ContentSyncHeartbeat every 5 seconds to {} topic)",
-                P2P_TOPIC_CONTENT_SYNC
-            );
-
-            loop {
-                interval.tick().await;
-
-                // Get current timestamp
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-
-                // Send ContentSyncHeartbeat to content sync topic
-                let content_sync_topic = P2P_TOPIC_CONTENT_SYNC;
-                let heartbeat_msg = SyncMsg::ContentSyncHeartbeat { timestamp };
-
-                match self.publish_to_topic(content_sync_topic, heartbeat_msg) {
-                    Ok(_) => {
-                        info!(
-                            topic = %content_sync_topic,
-                            timestamp = timestamp,
-                            "Sent ContentSyncHeartbeat to {} topic",
-                            content_sync_topic
-                        );
-                    }
-                    Err(e) => {
-                        warn!(
-                            topic = %content_sync_topic,
-                            error = %e,
-                            "Failed to send ContentSyncHeartbeat to {} topic",
-                            content_sync_topic
-                        );
-                    }
-                }
-            }
-        })
     }
 
     /// Start the message handler task that processes incoming P2P sync messages
@@ -606,30 +480,28 @@ impl P2pSyncCoordinator {
     ) {
         match msg {
             SyncMsg::Heartbeat { timestamp } => {
-                info!(
+                debug!(
                     timestamp = timestamp,
-                    "💓 P2P Heartbeat received from storage validator (debugging message)"
+                    "P2P Heartbeat received from storage validator"
                 );
             }
             SyncMsg::ContentSyncHeartbeat { timestamp } => {
-                info!(
+                debug!(
                     timestamp = timestamp,
-                    "💓 P2P ContentSyncHeartbeat received on {} topic (debugging message)",
-                    P2P_TOPIC_CONTENT_SYNC
+                    topic = P2P_TOPIC_CONTENT_SYNC,
+                    "P2P ContentSyncHeartbeat received"
                 );
             }
             SyncMsg::ContentSyncHeartbeatResponse {
                 provider_id: provider,
                 timestamp,
             } => {
-                info!(
+                debug!(
                     provider = %provider,
                     timestamp = timestamp,
-                    "💓 P2P ContentSyncHeartbeatResponse received from capacity provider on {} topic",
-                    P2P_TOPIC_CONTENT_SYNC
+                    topic = P2P_TOPIC_CONTENT_SYNC,
+                    "P2P ContentSyncHeartbeatResponse received from capacity provider"
                 );
-                // Log that we received a heartbeat response from a capacity provider
-                // This confirms the provider is active and can receive/send messages
             }
             SyncMsg::Announce { content_id } => {
                 // Compatibility mode: keep SyncMsg field name `content_id`, but treat it as a generic blob key.
@@ -827,7 +699,7 @@ impl P2pSyncCoordinator {
                     expiration_block = expiration_block,
                     merkle_root = hex::encode(merkle_root),
                     timestamp = timestamp,
-                    "✅ XZXZ2 CAPACITY PROVIDER: Received capacity challenge via P2P"
+                    "Received capacity challenge via P2P"
                 );
 
                 // Generate proofs for the challenge
@@ -1252,20 +1124,17 @@ impl P2pCoordinatorTrait for P2pSyncCoordinator {
     }
 
     fn publish_to_topic(&self, topic: &str, msg: SyncMsg) -> Result<(), String> {
-        info!("XZXZ12: publish_to_topic called topic={}", topic);
+        debug!(topic = %topic, "publish_to_topic called");
         match self.cmd_tx.send(P2pCommand::PublishToTopic {
             topic: topic.to_string(),
             msg,
         }) {
             Ok(_) => {
-                info!("XZXZ13: PublishToTopic command sent to channel successfully");
+                debug!("PublishToTopic command sent to channel");
                 Ok(())
             }
             Err(e) => {
-                warn!(
-                    "XZXZ14: Failed to send PublishToTopic command to channel: {}",
-                    e
-                );
+                warn!(error = %e, "Failed to send PublishToTopic command to channel");
                 Err(format!("Failed to send command: {e}"))
             }
         }
@@ -1321,7 +1190,7 @@ impl P2pCoordinatorTrait for MockP2pSyncCoordinator {
 
     fn publish_to_topic(&self, _topic: &str, _msg: SyncMsg) -> Result<(), String> {
         // No-op in single-node mode
-        info!("XZXZ15: Mock sync coordinator");
+        debug!("Mock sync coordinator publish_to_topic");
         Ok(())
     }
 

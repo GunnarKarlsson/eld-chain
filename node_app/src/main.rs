@@ -47,7 +47,7 @@ use tokio::{
     net::TcpListener,
     sync::{broadcast, mpsc, oneshot},
 };
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 // Default paths that can be overridden by environment variables or command-line arguments
 const DEFAULT_P2P_KEYPAIR_CONFIG_PATH: &str = "./config/p2p_keypair.json";
@@ -460,13 +460,9 @@ async fn main() -> Result<(), EldError> {
         coordinator_arc.set_committed_state(committed_state.clone());
         info!("Committed state set for proof validation");
 
-        // Start heartbeat task for debugging - sends heartbeats every 5 seconds to registered capacity providers
         coordinator_arc.clone().start_heartbeat_task();
-        info!("Heartbeat task started for P2P debugging");
-
-        // Start content sync heartbeat task for debugging - sends ContentSyncHeartbeat every 5 seconds on P2P_TOPIC_CONTENT_SYNC
         coordinator_arc.start_content_sync_heartbeat_task();
-        info!("Content sync heartbeat task started for P2P debugging");
+        info!("P2P heartbeat tasks started");
     }
 
     let consensus_server = async move {
@@ -534,7 +530,11 @@ async fn main() -> Result<(), EldError> {
                                     eld_common::constants::p2p::ELD_STORAGE_CHALLENGE_TOPIC_PREFIX,
                                     provider_id
                                 );
-                                info!("XZXZ21: Subscribing to challenge topic on startup provider_id={} topic={}", provider_id, challenge_topic);
+                                debug!(
+                                    provider_id = %provider_id,
+                                    topic = %challenge_topic,
+                                    "Subscribing to challenge topic on startup"
+                                );
                                 if let Err(e) =
                                     p2p_sync_coordinator.subscribe_to_topic(&challenge_topic)
                                 {
@@ -619,7 +619,11 @@ async fn main() -> Result<(), EldError> {
                                     eld_common::constants::p2p::ELD_STORAGE_CHALLENGE_TOPIC_PREFIX,
                                     provider_id
                                 );
-                                info!("XZXZ21: Subscribing to challenge topic provider_id={} topic={}", provider_id, challenge_topic);
+                                debug!(
+                                    provider_id = %provider_id,
+                                    topic = %challenge_topic,
+                                    "Subscribing to challenge topic after registration"
+                                );
                                 if let Err(e) =
                                     p2p_sync_coordinator.subscribe_to_topic(&challenge_topic)
                                 {
