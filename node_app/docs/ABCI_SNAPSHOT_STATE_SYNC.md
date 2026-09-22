@@ -29,7 +29,7 @@ The node app exposes four separate ABCI connections (see `init_abci_server` in `
 
 ```
 ┌─────────────────┐     consensus / mempool / info / snapshot
-│   Tendermint    │◄────────────────────────────────────────────►  eld_node_app
+│   Tendermint    │◄────────────────────────────────────────────►  eld-node
 └─────────────────┘
         │
         │  state sync P2P (ListSnapshots, LoadSnapshotChunk)
@@ -442,7 +442,7 @@ Wipe TM and app volumes together when intentionally resetting. Never reset only 
 ### 3. Start Eld node app
 
 ```
-eld_node_app --chainid <chain_id>
+eld-node --chainid <chain_id>
 # Do NOT use --init-data on a fresh state-sync bootstrap
 ```
 

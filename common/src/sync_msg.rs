@@ -1,5 +1,5 @@
 //! P2P message types for content sync and capacity challenges.
-//! Used by both eld_node_app and cli for GossipSub messaging.
+//! Used by both eld-node and cli for GossipSub messaging.
 
 use crate::address::Address;
 use crate::capacity_proof::ChunkProof;

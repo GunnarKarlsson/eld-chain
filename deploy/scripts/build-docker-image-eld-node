@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build eld_node_app into a local Docker image (eld-base + runtime), same two-stage
+# Build eld-node into a local Docker image (eld-base + runtime), same two-stage
 # flow as old eld Dockerfile.eld-base / Dockerfile.app-multi.
 # NODE_APP_VERSION_TAG comes from deploy/.env (or DEPLOY_ENV_FILE).
 # Builds eld-base first (Rust compile), then eld-app FROM that image — same split as

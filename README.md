@@ -1,6 +1,6 @@
 # Eld chain
 
-Protocol types (`eld-common`), off-chain client helpers (`eld-client`), and the ABCI node application (`eld_node_app`) for the Eld blockchain.
+Protocol types (`eld-common`), off-chain client helpers (`eld-client`), and the ABCI node application (`eld-node`) for the Eld blockchain.
 
 Library crates ship `LICENSE`, `README.md`, `NOTICE`, and (where relevant) `CHANGELOG.md` and `TYPE_DESIGN.md` so a future crates.io/docs.rs package is self-contained. Crates here are not published yet (`publish = false`).
 
@@ -10,9 +10,9 @@ Library crates ship `LICENSE`, `README.md`, `NOTICE`, and (where relevant) `CHAN
 |---|---|---|
 | [`common/`](common/README.md) | `eld-common` | Protocol types, validation, `Wallet` identity, CADO, capacity, pinboard |
 | [`client/`](client/README.md) | `eld-client` | Tendermint RPC, app REST, faucet HTTP, `ChainClient`, CWD config, wallet files |
-| [`node_app/`](node_app/README.md) | `eld_node_app` | ABCI application (Tendermint, RocksDB, libp2p, Axum REST) |
+| [`node_app/`](node_app/README.md) | `eld-node` | ABCI application (Tendermint, RocksDB, libp2p, Axum REST) |
 
-Rust imports use underscores (`eld_common`, `eld_client`) because Cargo package names may contain hyphens.
+Rust imports use underscores (`eld_common`, `eld_client`, `eld_node`) because Cargo package names may contain hyphens.
 
 CosmWasm / on-chain WASM contracts are not part of this repo.
 
@@ -29,7 +29,7 @@ CosmWasm / on-chain WASM contracts are not part of this repo.
 
 Config loaders return `Result`; binaries can exit after they see an error.
 
-[`eld_node_app`](node_app/README.md) is the ABCI application. Runtime data (`data/`, `tx_responses/`), wallets, and P2P key files are not shipped in git — create them locally or copy from [`node_app/config/`](node_app/config/) samples before running.
+[`eld-node`](node_app/README.md) is the ABCI application. Runtime data (`data/`, `tx_responses/`), wallets, and P2P key files are not shipped in git — create them locally or copy from [`node_app/config/`](node_app/config/) samples before running.
 
 Hex and ID conventions: [common/TYPE_DESIGN.md](common/TYPE_DESIGN.md) (canonical; workspace root [TYPE_DESIGN.md](TYPE_DESIGN.md) points there).
 

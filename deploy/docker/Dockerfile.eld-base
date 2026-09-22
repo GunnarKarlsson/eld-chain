@@ -15,4 +15,4 @@ COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY common ./common
 COPY client ./client
 COPY node_app ./node_app
-RUN cargo build -p eld_node_app
+RUN cargo build -p eld-node

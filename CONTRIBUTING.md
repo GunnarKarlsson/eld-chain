@@ -1,6 +1,6 @@
 # Contributing
 
-This repo is the Eld workspace: `eld-common` (`common/`), `eld-client` (`client/`), and the ABCI node (`eld_node_app` in `node_app/`). Crates are not on crates.io yet (`publish = false`).
+This repo is the Eld workspace: `eld-common` (`common/`), `eld-client` (`client/`), and the ABCI node (`eld-node` in `node_app/`). Crates are not on crates.io yet (`publish = false`).
 
 ## Pull requests
 
@@ -18,10 +18,10 @@ Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md). Report securi
 |---|---|---|
 | `common/` | `eld-common` | Protocol types, validation, `Wallet`, `SlotAllocator` |
 | `client/` | `eld-client` | Tendermint RPC, app REST, faucet HTTP, CWD config, `wallets.json` I/O, `ChainClient` |
-| `node_app/` | `eld_node_app` | ABCI node binary and server logic |
+| `node_app/` | `eld-node` | ABCI node binary and server logic |
 | `deploy/` | — | CI script, local four-node Compose, Dockerfiles |
 
-Package names are hyphenated for libraries (`eld-common`); the node package is `eld_node_app`. Rust imports use underscores (`eld_common`).
+Package names are hyphenated (`eld-common`, `eld-client`, `eld-node`). Rust imports use underscores (`eld_common`, `eld_client`, `eld_node`).
 
 Each library crate directory includes `LICENSE`, `README.md`, and `NOTICE`. `eld-common` and `eld-client` also maintain `CHANGELOG.md`; hex/ID rules live in `common/TYPE_DESIGN.md`.
 

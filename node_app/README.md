@@ -1,4 +1,4 @@
-# eld_node_app
+# eld-node
 
 ABCI application for the Eld blockchain: Tendermint integration, RocksDB state, libp2p content sync, and Axum REST APIs.
 
@@ -11,7 +11,7 @@ Runtime secrets and data are **not** shipped in git: `wallets/`, `p2p_keypair.js
 | [`eld-common`](../common/README.md) | Protocol types, validation, signing |
 | [`eld-client`](../client/README.md) | Shared HTTP/config types; some internal reuse |
 
-Package name: `eld_node_app` (`publish = false`). Rust import: `eld_node_app`.
+Package name: `eld-node` (`publish = false`). Binary: `eld-node`. Rust import: `eld_node`.
 
 ## Configuration
 
@@ -38,14 +38,14 @@ From the repo root (same gate as CI):
 Build only this crate:
 
 ```sh
-cargo build -p eld_node_app
-cargo test -p eld_node_app
+cargo build -p eld-node
+cargo test -p eld-node
 ```
 
-Run the binary against local Tendermint (after configs and secrets are in place):
+Run the `eld-node` binary against local Tendermint (after configs and secrets are in place):
 
 ```sh
-cargo run -p eld_node_app
+cargo run -p eld-node
 ```
 
 Query accounts and submit transfers with [`eld-client`](../client/README.md) examples or your own binary built on `ChainClient`.

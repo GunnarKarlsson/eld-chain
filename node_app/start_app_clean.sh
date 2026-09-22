@@ -13,7 +13,7 @@ if [ -n "$EXISTING_PIDS" ]; then
 fi
 
 # Also check for cargo processes running in this directory
-CARGO_PIDS=$(ps aux | grep -E "cargo.*run|eld_node_app" | grep -v grep | awk '{print $2}')
+CARGO_PIDS=$(ps aux | grep -E "cargo.*run|eld-node" | grep -v grep | awk '{print $2}')
 if [ -n "$CARGO_PIDS" ]; then
     echo "Found existing cargo/eld processes, killing them..."
     kill -TERM $CARGO_PIDS 2>/dev/null
@@ -285,15 +285,15 @@ cleanup() {
         # Running in another terminal, try to find and kill it
         echo "Shutting down eld node app..."
         pkill -f "cargo run" 2>/dev/null
-        pkill -f "eld_node_app" 2>/dev/null
+        pkill -f "eld-node" 2>/dev/null
         # Also kill any rust processes that might be the node app
-        pkill -f "target/debug/eld_node_app" 2>/dev/null
-        pkill -f "target/release/eld_node_app" 2>/dev/null
+        pkill -f "target/debug/eld-node" 2>/dev/null
+        pkill -f "target/release/eld-node" 2>/dev/null
         sleep 1
         pkill -9 -f "cargo run" 2>/dev/null
-        pkill -9 -f "eld_node_app" 2>/dev/null
-        pkill -9 -f "target/debug/eld_node_app" 2>/dev/null
-        pkill -9 -f "target/release/eld_node_app" 2>/dev/null
+        pkill -9 -f "eld-node" 2>/dev/null
+        pkill -9 -f "target/debug/eld-node" 2>/dev/null
+        pkill -9 -f "target/release/eld-node" 2>/dev/null
     fi
     wait $TM_PID 2>/dev/null
     exit 0
@@ -2343,7 +2343,7 @@ else
 fi
 
 # Return to original directory
-cd ../eld_node_app || exit 1
+cd ../node_app || exit 1
 
 echo "Contract deployments completed (eSOL, STAR, BasicReceiver, and AMM). App is running (PID: $APP_PID)"
 echo "Press Ctrl+C to stop the app"
@@ -2394,8 +2394,8 @@ if [ -n "$AMM_CONTRACT_ID" ] && [ "$AMM_CONTRACT_ID" != "null" ] && [ "$AMM_CONT
     
     echo ""
     echo "=========================================="
-    # Return to eld_node_app directory
-    cd ../eld_node_app || exit 1
+    # Return to node_app directory
+    cd ../node_app || exit 1
 fi
 
 # Wait for the app process to keep the script alive

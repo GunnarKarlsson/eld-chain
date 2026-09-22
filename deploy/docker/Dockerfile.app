@@ -21,4 +21,4 @@ EXPOSE 8085
 EXPOSE 4001
 EXPOSE 4002
 
-CMD ["./target/debug/eld_node_app"]
+CMD ["./target/debug/eld-node"]
