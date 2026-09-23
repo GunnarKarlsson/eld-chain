@@ -32,10 +32,89 @@ pub fn resolve_eld_app_version() -> String {
     }
 }
 
-#[derive(Serialize)]
+/// Committed tip copied into [`StateData`] when [`AppState`] has an app hash.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredAppState {
+    pub block_height: i64,
+    pub chain_id: String,
+    pub current_epoch: i64,
+    /// Lowercase hex, 32 bytes, no `0x` prefix.
+    pub app_hash: String,
+    /// Lowercase hex of the state-trie root (`AppStateTip.cado_root_hash`).
+    pub cado_root_hash: String,
+}
+
+/// JSON body of ABCI `ResponseInfo.data`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StateData {
     /// Cached at process start from [`resolve_eld_app_version`].
     pub eld_app_version: String,
+    /// Set when committed state was restored or committed. Omitted while the app hash is unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stored_state: Option<StoredAppState>,
+}
+
+impl StateData {
+    pub fn new(eld_app_version: impl Into<String>) -> Self {
+        Self {
+            eld_app_version: eld_app_version.into(),
+            stored_state: None,
+        }
+    }
+
+    /// Parses `ResponseInfo.data` JSON and checks stored hashes are 32 bytes.
+    pub fn parse(data: &str) -> Result<Self, EldError> {
+        let parsed: Self = serde_json::from_str(data).map_err(|e| EldError::ValidationError {
+            field: "state_data".to_string(),
+            value: "response_info.data".to_string(),
+            details: format!("Failed to parse stored state: {e}"),
+        })?;
+        if let Some(stored) = &parsed.stored_state {
+            decode_hash(&stored.app_hash, "app_hash")?;
+            decode_hash(&stored.cado_root_hash, "cado_root_hash")?;
+        }
+        Ok(parsed)
+    }
+
+    /// Holds the committed tip from `state` when an app hash is set. Clears it otherwise.
+    pub fn hold_stored_state(&mut self, state: &AppState) {
+        self.stored_state = state
+            .app_hash()
+            .get()
+            .copied()
+            .map(|app_hash| StoredAppState {
+                block_height: state.envelope.block_height,
+                chain_id: state.chain_id.clone(),
+                current_epoch: state.envelope.current_epoch,
+                app_hash: hex::encode(app_hash),
+                cado_root_hash: hex::encode(state.envelope.state_trie.root_hash()),
+            });
+    }
+
+    /// JSON for `ResponseInfo.data`. Round-trips through [`Self::parse`].
+    pub fn to_info_json(eld_app_version: &str, state: &AppState) -> String {
+        let mut data = Self::new(eld_app_version);
+        data.hold_stored_state(state);
+        let json = serde_json::to_string(&data).expect("Can serialize info data");
+        Self::parse(&json).expect("emitted info data must parse");
+        json
+    }
+}
+
+fn decode_hash(hex_str: &str, field: &str) -> Result<[u8; 32], EldError> {
+    let bytes = hex::decode(hex_str).map_err(|e| EldError::ValidationError {
+        field: field.to_string(),
+        value: hex_str.to_string(),
+        details: e.to_string(),
+    })?;
+    let len = bytes.len();
+    bytes
+        .try_into()
+        .map_err(|_bytes: Vec<u8>| EldError::ValidationError {
+            field: field.to_string(),
+            value: hex_str.to_string(),
+            details: format!("expected 32 bytes, got {len}"),
+        })
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -357,12 +436,8 @@ where
     async fn info(&self, _info_request: RequestInfo) -> ResponseInfo {
         let state = self.state.lock().expect("Failed to lock state for info");
 
-        let state_data = StateData {
-            eld_app_version: self.eld_app_version.clone(),
-        };
-
         ResponseInfo {
-            data: serde_json::to_string(&state_data).expect("Can serialize info data"),
+            data: StateData::to_info_json(&self.eld_app_version, &state),
             version: self.eld_app_version.clone(),
             app_version: Default::default(),
             last_block_height: state.envelope.block_height,
@@ -416,11 +491,47 @@ mod tests {
 
     #[test]
     fn state_data_serializes_eld_app_version_for_abci_info() {
-        let data = StateData {
-            eld_app_version: "0.0.39".to_string(),
-        };
+        let data = StateData::new("0.0.39");
         let json = serde_json::to_string(&data).expect("serialize");
         assert_eq!(json, r#"{"eld_app_version":"0.0.39"}"#);
+        let parsed = StateData::parse(&json).expect("parse");
+        assert_eq!(parsed, data);
+    }
+
+    #[test]
+    fn state_data_holds_and_parses_committed_tip() {
+        let mut state = AppState::default();
+        state.set_app_hash([0xAB; 32]);
+        state.chain_id = "eld-dev".to_string();
+        state.envelope.block_height = 12;
+        state.envelope.current_epoch = 2;
+
+        let json = StateData::to_info_json("0.0.39", &state);
+        let parsed = StateData::parse(&json).expect("parse");
+        let stored = parsed.stored_state.expect("stored state");
+        assert_eq!(parsed.eld_app_version, "0.0.39");
+        assert_eq!(stored.block_height, 12);
+        assert_eq!(stored.chain_id, "eld-dev");
+        assert_eq!(stored.current_epoch, 2);
+        assert_eq!(stored.app_hash, hex::encode([0xABu8; 32]));
+        assert_eq!(
+            stored.cado_root_hash,
+            hex::encode(state.envelope.state_trie.root_hash())
+        );
+    }
+
+    #[test]
+    fn state_data_omits_stored_state_when_app_hash_unset() {
+        let state = AppState::default();
+        let json = StateData::to_info_json("0.0.0", &state);
+        assert_eq!(json, r#"{"eld_app_version":"0.0.0"}"#);
+        assert!(StateData::parse(&json).unwrap().stored_state.is_none());
+    }
+
+    #[test]
+    fn state_data_parse_rejects_short_app_hash() {
+        let json = r#"{"eld_app_version":"0.0.1","stored_state":{"block_height":1,"chain_id":"x","current_epoch":0,"app_hash":"abcd","cado_root_hash":"0000000000000000000000000000000000000000000000000000000000000000"}}"#;
+        assert!(StateData::parse(json).is_err());
     }
 
     #[test]
