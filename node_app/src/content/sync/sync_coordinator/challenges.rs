@@ -350,7 +350,6 @@ impl P2pSyncCoordinator {
                     errors = ?errors,
                     "Proof validation failed"
                 );
-                // TODO: Record failure in challenge tracker and check threshold for slashing
             }
         }
     }

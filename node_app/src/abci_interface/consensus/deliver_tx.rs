@@ -316,7 +316,6 @@ where
 
             let updated_sender = Account::new(sender_addr, updated_balance, expected_nonce);
 
-            // TODO: save sender cado
             let sender_serialized = match bincode::serialize(&updated_sender) {
                 Ok(serialized) => serialized,
                 Err(e) => {

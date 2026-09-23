@@ -41,7 +41,6 @@ impl CapacityManager {
                     // For content slots, we need to read from file
                     // This will be handled when content is actually stored
                     // For now, we'll need to read from file if it exists
-                    // TODO: Handle content slots during initial build
                     // For now, treat as zero (will be updated when content is stored)
                     let zero_chunk = vec![0u8; slot.size];
                     Self::hash_chunk(&zero_chunk)

@@ -33,7 +33,6 @@ pub fn resolve_eld_app_version() -> String {
 }
 
 #[derive(Serialize)]
-// TODO: Add fields and methods for state data to parse and hold stored state
 pub struct StateData {
     /// Cached at process start from [`resolve_eld_app_version`].
     pub eld_app_version: String,
@@ -358,7 +357,6 @@ where
     async fn info(&self, _info_request: RequestInfo) -> ResponseInfo {
         let state = self.state.lock().expect("Failed to lock state for info");
 
-        // TODO: state data should be restored here if it exists.
         let state_data = StateData {
             eld_app_version: self.eld_app_version.clone(),
         };

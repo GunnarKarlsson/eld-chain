@@ -66,19 +66,38 @@ where
         return response_deliver_tx_error_insufficient_funds();
     }
 
-    // Check state is >= minimum stake size (this means each stake tx needs to >= this amount)
-    // TODO: Change this so initial amount >= minimum then can add smaller amounts on top
-    debug!("stake: {}, min: {}", amount_coin, MIN_STAKE_AMOUNT);
-    let min_stake_coin = match Coin::new(MIN_STAKE_AMOUNT) {
-        Ok(amount) => amount,
-        Err(e) => {
-            error!("Failed to create minimum stake amount coin: {}", e);
-            return response_deliver_tx_error_validation_failed(e.to_string());
+    // The first stake must meet the minimum. Later top-ups can be any positive amount.
+    let staking_account_path = CadoPath::new(
+        CadoType::StakingAccount,
+        CadoPathKey::Address(stake_tx.sender),
+    )
+    .expect("Failed to create staking account CadoPath");
+    let existing_staking_account = current_state
+        .envelope
+        .get_staking_account_from_cado(&*connection.storage, &staking_account_path);
+    let existing_stake = existing_staking_account
+        .as_ref()
+        .map(|account| account.account.stake_balance)
+        .unwrap_or_else(Coin::zero);
+
+    if existing_stake.is_zero() {
+        debug!("stake: {}, min: {}", amount_coin, MIN_STAKE_AMOUNT);
+        let min_stake_coin = match Coin::new(MIN_STAKE_AMOUNT) {
+            Ok(amount) => amount,
+            Err(e) => {
+                error!("Failed to create minimum stake amount coin: {}", e);
+                return response_deliver_tx_error_validation_failed(e.to_string());
+            }
+        };
+        if amount_coin < min_stake_coin {
+            debug!("Initial stake is less than min stake amount");
+            return response_deliver_tx_error_minimum_stake();
         }
-    };
-    if amount_coin < min_stake_coin {
-        debug!("Amount is less than min stake amount");
-        return response_deliver_tx_error_minimum_stake();
+    } else if amount_coin.is_zero() {
+        debug!("Stake amount is zero");
+        return response_deliver_tx_error_validation_failed(
+            "Stake amount cannot be zero".to_string(),
+        );
     }
 
     // Update sender and store in cache
@@ -105,16 +124,7 @@ where
         .update_cado_cache(sender_path, sender_cado);
 
     // Update staking account
-    // Get staking account
-    let staking_account_path = CadoPath::new(
-        CadoType::StakingAccount,
-        CadoPathKey::Address(stake_tx.sender),
-    )
-    .expect("Failed to create staking account CadoPath");
-    let staking_account_with_hash = match current_state
-        .envelope
-        .get_staking_account_from_cado(&*connection.storage, &staking_account_path)
-    {
+    let staking_account_with_hash = match existing_staking_account {
         Some(account_with_hash) => account_with_hash,
         None => {
             let sender_addr = stake_tx.sender;

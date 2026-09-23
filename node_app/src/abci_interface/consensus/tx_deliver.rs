@@ -38,7 +38,6 @@ impl ConsensusTxDeliver for Tx {
             }
             PayloadInner::Transfer(transfer_tx) => conn.process_transfer(transfer_tx).await,
             PayloadInner::Stake(stake_tx) => {
-                // TODO: Fix unstake parsing in serde to distinguish between stake and unstake
                 if self.payload.r#type == "Unstake" {
                     match UnstakeTx::new(stake_tx.sender, stake_tx.amount) {
                         Ok(unstake_tx) => conn.process_unstake(unstake_tx).await,

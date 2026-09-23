@@ -5,10 +5,7 @@
 
 use crate::address::Address;
 use crate::coin::Coin;
-use crate::constants::{
-    cado::MAX_APP_STATE_SNAPSHOT_CADO_SIZE_BYTES, protocol::MIN_STAKE_AMOUNT, token::MAX_COIN,
-    tx_type,
-};
+use crate::constants::{cado::MAX_APP_STATE_SNAPSHOT_CADO_SIZE_BYTES, token::MAX_COIN, tx_type};
 use crate::error::EldError;
 #[cfg(test)]
 use crate::tx::{StakeTx, TransferTx, UnstakeTx};
@@ -42,16 +39,17 @@ pub(crate) fn validate_transfer_amount(amount: &Coin) -> Result<(), EldError> {
     Ok(())
 }
 
-/// Validate that a stake amount meets minimum requirements
+/// Validate that a stake amount is positive and within bounds.
+/// The opening-stake minimum is enforced at delivery, so top-ups may be smaller.
 #[cfg(test)]
 pub(crate) fn validate_stake_amount(amount: &Coin) -> Result<(), EldError> {
     let value: u128 = (*amount).into();
 
-    if value < MIN_STAKE_AMOUNT {
+    if value == 0 {
         return EldError::validation_error(
             "stake amount",
             &value.to_string(),
-            &format!("Stake amount {value} is below minimum required {MIN_STAKE_AMOUNT}"),
+            "Stake amount cannot be zero",
         );
     }
 
@@ -752,13 +750,11 @@ fn validate_stake_payload(
             });
         }
     };
-    if amount < MIN_STAKE_AMOUNT {
+    if amount == 0 {
         return Err(EldError::ValidationError {
             field: "stake payload amount".to_string(),
             value: amount.to_string(),
-            details: format!(
-                "Stake payload 'amount' {amount} is below minimum required {MIN_STAKE_AMOUNT}"
-            ),
+            details: "Stake payload 'amount' cannot be zero".to_string(),
         });
     }
     if amount > MAX_COIN {
@@ -1485,6 +1481,7 @@ pub fn safe_deserialize_account_data<T: for<'de> serde::Deserialize<'de>>(
 mod tests {
     use super::*;
     use crate::address::Address;
+    use crate::constants::protocol::MIN_STAKE_AMOUNT;
     use crate::tx::StakeTx;
     use crate::tx::TransferTx;
 
@@ -1510,10 +1507,13 @@ mod tests {
             Coin::new(MIN_STAKE_AMOUNT).expect("Failed to create valid stake coin in test");
         assert!(validate_stake_amount(&valid_stake).is_ok());
 
-        // Below minimum should fail
+        // Below the opening minimum is still a valid stake amount. Delivery enforces the floor.
         let low_stake =
             Coin::new(MIN_STAKE_AMOUNT - 1).expect("Failed to create low stake coin in test");
-        assert!(validate_stake_amount(&low_stake).is_err());
+        assert!(validate_stake_amount(&low_stake).is_ok());
+
+        let zero_stake = Coin::zero();
+        assert!(validate_stake_amount(&zero_stake).is_err());
 
         // Maximum amount should be valid
         let max_amount = Coin::max();
@@ -1681,9 +1681,11 @@ mod tests {
         );
         assert!(invalid_pk_tx.is_err());
 
-        // Below minimum stake amount
+        // Below the opening minimum is a valid stake tx. Delivery enforces that floor.
         let low_amount_tx = StakeTx::new(sender, (MIN_STAKE_AMOUNT - 1).into(), None);
-        assert!(low_amount_tx.is_err());
+        assert!(low_amount_tx.is_ok());
+
+        assert!(StakeTx::new(sender, 0.into(), None).is_err());
     }
 
     #[test]

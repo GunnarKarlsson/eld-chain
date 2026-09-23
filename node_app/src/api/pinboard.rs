@@ -67,7 +67,6 @@ async fn submit_transaction_to_tendermint(
     });
 
     // Send POST request to Tendermint RPC
-    // TODO: Can we do this via abci call - ?
     let client = reqwest::Client::new();
     let response = client
         .post(tendermint_rpc_url)
@@ -247,7 +246,6 @@ pub(crate) async fn handle_pinboard_submit(
         load_pinboard_blob_from_capacity_slots(capacity_manager.as_ref(), &body.user.content_key)
             .await?
             .is_some();
-    // TODO: Also check it doesn't exist in temp blob storage. if it does, should extend ttl?
     if !confirmed_blob_exists {
         storage
             .put_pinboard_temp_blob(
@@ -484,7 +482,6 @@ async fn load_pinboard_blob_from_capacity_slots(
 ) -> Result<Option<Vec<u8>>, ApiError> {
     match capacity_manager.get_content_from_slots(content_key).await {
         Ok(bytes) => Ok(Some(bytes)),
-        // TODO: get-content_from_slots should return None if not found but no error
         Err(EldError::NotFoundError { resource_type, .. })
             if resource_type == CONTENT_ID_NOT_IN_SLOT_MAP =>
         {

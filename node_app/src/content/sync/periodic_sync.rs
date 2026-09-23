@@ -75,7 +75,6 @@ impl PeriodicSyncService {
     /// Check missing content and request it
     async fn check_and_request_missing(&self) -> Result<(), EldError> {
         // Get all missing content
-        // TODO: Limit the get to N items as a type of iteration
         let missing = {
             let tracker = self.missing_content_tracker.lock().unwrap();
             tracker.get_all_missing_content()?

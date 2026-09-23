@@ -73,7 +73,7 @@ impl RocksDBStorage {
             None => Ok(None),
         }
     }
-    // TODO: Return result
+
     pub fn search_cado_path(&self, prefix: &str) -> Result<Vec<(String, CadoBody)>, EldError> {
         // Validate prefix for security issues
         Self::validate_cado_prefix_security(prefix)?;

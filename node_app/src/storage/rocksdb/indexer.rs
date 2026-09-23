@@ -357,8 +357,8 @@ impl TransactionIndexerStorage for RocksDBStorage {
             timestamp,
             tx: tx.clone(),
             status,
-            gas_used: None,     // TODO: Extract from response if available
-            events: Vec::new(), // TODO: Extract events from response if available
+            gas_used: None,
+            events: Vec::new(),
         };
 
         // Use JSON serialization since IndexedTransaction contains Tx which has variable-length sequences

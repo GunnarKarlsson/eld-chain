@@ -207,7 +207,6 @@ impl KeyGenerator for GeneralKeyGenerator {
                 });
             }
             if name_bytes != hash[..] {
-                // TODO: fix this for mutable items
                 //return Err(EldError::ValidationError {
                 //    field: "path_name".to_string(),
                 //    value: path.name().to_string(),

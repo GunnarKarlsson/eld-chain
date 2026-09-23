@@ -59,18 +59,16 @@ impl StakeTx {
         amount: TxAmount,
         public_key: Option<String>,
     ) -> Result<Self, EldError> {
-        let amount_coin = Coin::new(amount.into())?;
-        if amount_coin < Coin::new(crate::constants::protocol::MIN_STAKE_AMOUNT)? {
-            EldError::validation_error(
-                "stake amount",
-                &amount.to_string(),
-                &format!(
-                    "Stake amount {} is below minimum required {}",
-                    amount_coin,
-                    Coin::new(crate::constants::protocol::MIN_STAKE_AMOUNT)?
-                ),
-            )?;
+        if amount == 0 {
+            return Err(EldError::ValidationError {
+                field: "stake amount".to_string(),
+                value: amount.to_string(),
+                details: "Stake amount cannot be zero".to_string(),
+            });
         }
+
+        // Opening-stake minimum is enforced at delivery. Top-ups may be smaller.
+        Coin::new(amount.into())?;
 
         if let Some(ref pk) = public_key {
             stake_validate_public_key(pk, 64)?;

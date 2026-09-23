@@ -502,7 +502,6 @@ where
                     app_state_snapshot_path.as_str(),
                     e
                 );
-                // TODO: Should this be fatal?
                 handle_fatal_eld_error(e);
             }
 
