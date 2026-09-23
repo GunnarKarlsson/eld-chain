@@ -15,8 +15,11 @@ pub mod protocol {
     pub const CHALLENGES_PER_EPOCH: usize = 5; // N randomly selected providers to challenge per epoch
     pub const CHUNKS_PER_CHALLENGE: usize = 10; // Number of chunks to challenge per provider
 
-    /// Default capacity registration duration in blocks (eventual consistency lease).
-    pub const DEFAULT_REGISTRATION_DURATION_BLOCKS: u64 = 1000;
+    /// Capacity registration lease in blocks.
+    ///
+    /// Temporary stand-in. Open issue: how a capacity validator re-registers after this
+    /// lease ends. `end_block` drops the expired entry; there is no re-register path yet.
+    pub const DEFAULT_REGISTRATION_DURATION_BLOCKS: u64 = 1_000_000;
 
     pub const DEFAULT_TX_FEE: u128 = 5000;
 

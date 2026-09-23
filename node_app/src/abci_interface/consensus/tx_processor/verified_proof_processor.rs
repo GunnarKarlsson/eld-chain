@@ -275,7 +275,7 @@ where
         .envelope
         .update_cado_cache(provider_path, provider_cado);
 
-    // Extend capacity registration duration on successful proof: duration = (current_block - registered_block) + 1000
+    // Extend the lease on a successful proof: duration = (current_block - registered_block) + DEFAULT_REGISTRATION_DURATION_BLOCKS.
     let current_block = (current_state.envelope.block_height + 1) as u64;
     for cv in current_state.envelope.capacity_validators.iter_mut() {
         if cv.address == provider && cv.registered_block != 0 {

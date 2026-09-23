@@ -5,7 +5,38 @@ use abci::types::*;
 use eld_common::address::Address;
 use eld_common::constants::protocol::BLOCKS_PER_EPOCH;
 use eld_common::error::EldError;
+use eld_common::validator::CapacityValidatorInfo;
 use tracing::{info, warn};
+
+/// True when `current_block` is past `registered_block + registration_duration`.
+fn capacity_registration_expired(provider: &CapacityValidatorInfo, current_block: u64) -> bool {
+    current_block
+        > provider
+            .registered_block
+            .saturating_add(provider.registration_duration)
+}
+
+/// Drops capacity validators whose registration lease has ended. Returns how many were removed.
+fn expire_capacity_registrations(
+    capacity_validators: &mut Vec<CapacityValidatorInfo>,
+    current_block: u64,
+) -> usize {
+    let before_count = capacity_validators.len();
+    capacity_validators.retain(|provider| {
+        let expired = capacity_registration_expired(provider, current_block);
+        if expired {
+            info!(
+                address = %provider.address,
+                registered_block = provider.registered_block,
+                registration_duration = provider.registration_duration,
+                current_block,
+                "Capacity registration expired, removing from capacity_validators"
+            );
+        }
+        !expired
+    });
+    before_count - capacity_validators.len()
+}
 
 impl<S> ConsensusConnection<S>
 where
@@ -48,38 +79,17 @@ where
             if new_epoch > current_epoch {
                 info!(new_epoch = new_epoch, "Starting new epoch");
 
-                // TODO: Resolve how to handle capacity registration lease expiry
-                // (re-register, challenge failure, VerifiedProof renewal, etc.).
-                // Disabled for now: do not drop/unregister providers when
-                // current_block > registered_block + registration_duration.
-                //
-                // let current_block = new_block_height as u64;
-                // let before_count = current_state.envelope.capacity_validators.len();
-                // current_state
-                //     .envelope
-                //     .capacity_validators
-                //     .retain(|provider| {
-                //         let expired = current_block
-                //             > provider.registered_block + provider.registration_duration;
-                //         if expired {
-                //             tracing::info!(
-                //                 address = %provider.address,
-                //                 registered_block = provider.registered_block,
-                //                 registration_duration = provider.registration_duration,
-                //                 current_block = current_block,
-                //                 "Capacity registration expired, removing from capacity_validators"
-                //             );
-                //         }
-                //         !expired
-                //     });
-                // let removed = before_count - current_state.envelope.capacity_validators.len();
-                // if removed > 0 {
-                //     info!(
-                //         removed = removed,
-                //         remaining = current_state.envelope.capacity_validators.len(),
-                //         "Removed expired capacity registrations from capacity_validators"
-                //     );
-                // }
+                let removed = expire_capacity_registrations(
+                    &mut current_state.envelope.capacity_validators,
+                    new_block_height as u64,
+                );
+                if removed > 0 {
+                    info!(
+                        removed,
+                        remaining = current_state.envelope.capacity_validators.len(),
+                        "Removed expired capacity registrations from capacity_validators"
+                    );
+                }
 
                 // Calculate and log total reserved capacity across all capacity providers
                 let total_reserved_capacity: u64 = current_state
@@ -223,5 +233,55 @@ where
         }
 
         resp
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::expire_capacity_registrations;
+    use ed25519_dalek::SigningKey;
+    use eld_common::address::Address;
+    use eld_common::coin::Coin;
+    use eld_common::public_key::PublicKey;
+    use eld_common::validator::CapacityValidatorInfo;
+
+    fn provider(
+        address_byte: u8,
+        registered_block: u64,
+        registration_duration: u64,
+    ) -> CapacityValidatorInfo {
+        CapacityValidatorInfo {
+            address: Address::from_bytes([address_byte; 20]),
+            stake: Coin::zero(),
+            public_key: PublicKey::from(
+                SigningKey::from_bytes(&[address_byte; 32]).verifying_key(),
+            ),
+            storage_capacity: 1,
+            merkle_root: None,
+            seed: None,
+            chunk_count: None,
+            registered_at: Some(registered_block),
+            last_merkle_root_update: None,
+            registered_block,
+            registration_duration,
+        }
+    }
+
+    #[test]
+    fn expire_capacity_registrations_drops_only_past_lease() {
+        let active = provider(0x11, 10, 100);
+        let expired = provider(0x22, 10, 100);
+        let mut validators = vec![active.clone(), expired];
+
+        assert_eq!(expire_capacity_registrations(&mut validators, 110), 0);
+        assert_eq!(validators.len(), 2);
+
+        assert_eq!(expire_capacity_registrations(&mut validators, 111), 2);
+        assert!(validators.is_empty());
+
+        let mut mixed = vec![provider(0x11, 10, 100), provider(0x22, 1, 5)];
+        assert_eq!(expire_capacity_registrations(&mut mixed, 10), 1);
+        assert_eq!(mixed.len(), 1);
+        assert_eq!(mixed[0].address, active.address);
     }
 }
