@@ -719,8 +719,11 @@ pub(crate) async fn handle_get_pinboard_post_by_path(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::capacity::capacity_manager::CapacityManager;
+    use crate::storage::traits::PinboardStorage;
+    use eld_common::capacity::CapacityConfig;
     use eld_common::constants::{abci_query, cado};
-    use eld_common::pinboard::PinboardMessageMetadata;
+    use eld_common::pinboard::{pinboard_eld_post_cado_path, PinboardMessageMetadata};
     use eld_common::Address;
 
     #[test]
@@ -768,6 +771,106 @@ mod tests {
             "/@eld/pinboard/post/0x1111111111111111111111111111111111111111/msg1"
         ));
         assert!(!path_uses_eld_pinboard_lookup("/@captainhook/msg1"));
+    }
+
+    #[tokio::test]
+    async fn get_pinboard_post_by_path_returns_metadata_when_blob_is_absent() {
+        let wallet_dir = tempfile::TempDir::new().expect("wallet dir");
+        let db_dir = tempfile::TempDir::new().expect("db dir");
+        let capacity_dir = tempfile::TempDir::new().expect("capacity dir");
+
+        let wallet_path = wallet_dir.path().join("wallets.json");
+        std::fs::write(&wallet_path, "[]").expect("empty wallets file");
+        let cli = Arc::new(
+            ChainClient::with_wallets(
+                eld_client::config::ClientConfig {
+                    node_host: "127.0.0.1".to_string(),
+                    node_port: "26657".to_string(),
+                    chain_id: "test-chain".to_string(),
+                    faucet_host: "127.0.0.1".to_string(),
+                    faucet_port: "8080".to_string(),
+                    faucet_end_point: "/faucet/request".to_string(),
+                    faucet_url: None,
+                    app_port: "9001".to_string(),
+                    node_url: None,
+                    app_url: None,
+                },
+                eld_common::fee::FeeConfig::default(),
+                wallet_path,
+            )
+            .expect("test ChainClient"),
+        );
+        let consensus_config = Arc::new(Mutex::new(ConsensusConfig {
+            chain_id: "test-chain".to_string(),
+            app_host: "127.0.0.1".to_string(),
+            app_port: "26658".to_string(),
+            accounts: std::collections::HashMap::new(),
+            max_tx_bytes: 10 * 1024 * 1024,
+            fee_config: eld_common::fee::FeeConfig::default(),
+            storage_limits: crate::config::StorageLimits::default(),
+        }));
+        let provider =
+            Address::parse_hex_str("0x0000000000000000000000000000000000000001").expect("provider");
+        let capacity_manager = Arc::new(CapacityManager::new(
+            CapacityConfig {
+                capacity_dir: capacity_dir.path().to_path_buf(),
+                max_capacity_gb: 1,
+                provider_id: provider,
+                auto_register: false,
+                registration_retry_interval_secs: 60,
+                tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
+            },
+            "capacity".to_string(),
+            cli,
+            consensus_config,
+        ));
+
+        let wallet =
+            Address::parse_hex_str("0x1111111111111111111111111111111111111111").expect("wallet");
+        let meta = PinboardMessageMetadata {
+            message_id: "msg1".to_string(),
+            original_signer: wallet,
+            content_key: "deadbeef".to_string(),
+            content_type: "text/plain".to_string(),
+            expires_height: 50,
+            visibility: "public".to_string(),
+            topic: None,
+            tags: vec![],
+            committed_height: 1,
+            received_timestamp: 1_710_000_000,
+            namespace: None,
+        };
+        let storage = Arc::new(RocksDBStorage::new(db_dir.path()).expect("rocksdb"));
+        let tx = storage.begin_transaction();
+        storage
+            .put_pinboard_metadata_with_tx(&meta.message_id, &meta, &tx)
+            .expect("put metadata");
+        tx.commit().expect("commit metadata");
+
+        let path = pinboard_eld_post_cado_path(&wallet.hex_with_prefix(), &meta.message_id);
+        let rate_limit_state = Arc::new(RwLock::new(RateLimitState::new(
+            crate::api::api_rate_limiting::ApiRateLimitConfig {
+                enabled: false,
+                ..crate::api::api_rate_limiting::ApiRateLimitConfig::default()
+            },
+        )));
+        let committed_state = Arc::new(Mutex::new(AppState::default()));
+
+        let Json(item) = handle_get_pinboard_post_by_path(
+            State(storage),
+            State(committed_state),
+            State(rate_limit_state),
+            State(capacity_manager),
+            HeaderMap::new(),
+            extract::Query(PinboardPostByPathQueryParams { path }),
+        )
+        .await
+        .expect("pinboard get");
+
+        assert_eq!(item.meta, meta);
+        assert_eq!(item.cado_path, pinboard_response_cado_path(&meta));
+        assert!(item.message_b64.is_none());
+        assert_eq!(item.blob_status, "missing");
     }
 
     #[test]

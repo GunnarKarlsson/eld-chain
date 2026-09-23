@@ -38,3 +38,23 @@ pub(crate) async fn handle_get_node_identity(
         &capacity_provider_address,
     )))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::api_rate_limiting::ApiRateLimitConfig;
+
+    #[tokio::test]
+    async fn health_returns_ok() {
+        let rate_limit_state = Arc::new(RwLock::new(RateLimitState::new(ApiRateLimitConfig {
+            enabled: false,
+            ..ApiRateLimitConfig::default()
+        })));
+
+        let body = health(State(rate_limit_state), HeaderMap::new())
+            .await
+            .expect("health");
+
+        assert_eq!(body, "OK");
+    }
+}
