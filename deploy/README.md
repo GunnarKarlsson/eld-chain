@@ -14,7 +14,7 @@ Local development infrastructure for [`eld-chain`](../README.md): CI scripts, Do
 | [`host/single/config/`](host/single/config/) | Localhost sample for a binary next to a Tendermint you start yourself (`127.0.0.1`, `./data/capacity`) |
 | [`.env.example`](.env.example) | Template for image tags and external paths used by build scripts |
 
-Image builds, CI, and secret sync stay in [`scripts/`](scripts/). Start and stop scripts live next to the stack they run: [`scripts/docker/local/cluster/`](scripts/docker/local/cluster/), [`scripts/docker/local/single/`](scripts/docker/local/single/), and [`scripts/host/`](scripts/host/).
+Image builds and CI stay in [`scripts/`](scripts/). Start and stop scripts live next to the stack they run: [`scripts/docker/local/cluster/`](scripts/docker/local/cluster/), [`scripts/docker/local/single/`](scripts/docker/local/single/), and [`scripts/host/`](scripts/host/).
 
 ## CI
 
@@ -54,7 +54,7 @@ Before first run, each node needs local key material under `deploy/docker/local/
 - `nodes/N/app/p2p_keypair.json` (N = 1..4)
 - `nodes/N/tendermint/node_key.json` and `priv_validator_key.json`
 
-If you already maintain these files elsewhere, `./deploy/scripts/sync-secrets-from-eld.sh` copies them when `ELD_ROOT` in `.env` points at that tree (see script for expected layout).
+Create them locally. They are gitignored.
 
 ## Images
 
