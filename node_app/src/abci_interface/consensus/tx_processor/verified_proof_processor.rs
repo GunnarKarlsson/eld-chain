@@ -9,11 +9,14 @@ use eld_common::{
     challenge_id::ChallengeId,
     coin::Coin,
     constants::{
-        protocol::{DEFAULT_REGISTRATION_DURATION_BLOCKS, VERIFIED_PROOF_REWARD_BASE_AMOUNT},
+        protocol::{
+            BLOCKS_PER_EPOCH, DEFAULT_REGISTRATION_DURATION_BLOCKS,
+            VERIFIED_PROOF_REWARD_BASE_AMOUNT,
+        },
         tx_type,
     },
     tx::{create_event_attribute, VerifiedProofTx},
-    validator::{ActiveCapacityValidator, CapacityValidatorInfo},
+    validator::EpochRecord,
 };
 use tracing::warn;
 
@@ -28,22 +31,80 @@ pub(crate) struct VerifiedProofBinding {
     pub expected_challenge_id: ChallengeId,
 }
 
-/// Gates 1–4: sender must be active V, provider challenged, challenge_id recomputable.
+/// Proof epoch is `block_height / BLOCKS_PER_EPOCH`, matching challenge issuance in `end_block`.
 ///
-/// Pure / sync so unit tests can cover fabricated-tx rejection without spinning ABCI.
-pub(crate) fn validate_verified_proof_binding(
-    active_sv: Option<&ActiveCapacityValidator>,
-    capacity_validators: &[CapacityValidatorInfo],
+/// Accept the current epoch or the immediately previous one. Older and future epochs are rejected.
+pub(crate) fn proof_epoch_in_window(block_height: i64, current_epoch: i64) -> Result<i64, String> {
+    if block_height <= 0 {
+        return Err("VerifiedProof rejected: block_height must be positive".to_string());
+    }
+    if current_epoch < 0 {
+        return Err("VerifiedProof rejected: current epoch is invalid".to_string());
+    }
+    let proof_epoch = block_height / BLOCKS_PER_EPOCH;
+    let in_window =
+        proof_epoch == current_epoch || (current_epoch > 0 && proof_epoch == current_epoch - 1);
+    if in_window {
+        Ok(proof_epoch)
+    } else if proof_epoch > current_epoch {
+        Err(format!(
+            "VerifiedProof rejected: proof epoch {proof_epoch} is after current epoch {current_epoch}"
+        ))
+    } else {
+        Err(format!(
+            "VerifiedProof rejected: proof epoch {proof_epoch} is older than the previous epoch (current {current_epoch})"
+        ))
+    }
+}
+
+/// Window check, then gates 1–4 against that epoch's [`EpochRecord`].
+///
+/// `epoch_record` is `None` when the snapshot was not stored. Pure / sync so unit tests can
+/// cover rejection without spinning ABCI.
+pub(crate) fn bind_verified_proof(
+    epoch_record: Option<&EpochRecord>,
+    current_epoch: i64,
     sender: Address,
     provider: Address,
     challenge_id: &str,
     block_height: i64,
 ) -> Result<VerifiedProofBinding, String> {
-    // Gate 1: rewards only from the epoch's active capacity validator.
-    let active_sv = active_sv.ok_or_else(|| {
-        "VerifiedProof rejected: no active_capacity_validator for current epoch".to_string()
+    let proof_epoch = proof_epoch_in_window(block_height, current_epoch)?;
+    let epoch_record = epoch_record.ok_or_else(|| {
+        format!("VerifiedProof rejected: no epoch record for epoch {proof_epoch}")
     })?;
-    // TODO: Handle case if epoch change while tx is in mempool (handle in Mempool)
+    validate_verified_proof_binding(epoch_record, sender, provider, challenge_id, block_height)
+}
+
+/// Gates 1–4 against one epoch snapshot: sender, challenged set, merkle root, chunk count.
+fn validate_verified_proof_binding(
+    epoch_record: &EpochRecord,
+    sender: Address,
+    provider: Address,
+    challenge_id: &str,
+    block_height: i64,
+) -> Result<VerifiedProofBinding, String> {
+    let proof_epoch = block_height / BLOCKS_PER_EPOCH;
+    if epoch_record.epoch != proof_epoch {
+        return Err(format!(
+            "VerifiedProof rejected: epoch record {} does not match proof epoch {proof_epoch}",
+            epoch_record.epoch
+        ));
+    }
+
+    // Gate 1: rewards only from the epoch's active capacity validator.
+    let active_sv = epoch_record
+        .active_capacity_validator
+        .as_ref()
+        .ok_or_else(|| {
+            format!("VerifiedProof rejected: no active_capacity_validator for epoch {proof_epoch}")
+        })?;
+    if active_sv.epoch != proof_epoch {
+        return Err(format!(
+            "VerifiedProof rejected: active capacity validator epoch {} does not match proof epoch {proof_epoch}",
+            active_sv.epoch
+        ));
+    }
     if sender != active_sv.validator_address {
         return Err(format!(
             "VerifiedProof rejected: sender {sender} is not active_capacity_validator {}",
@@ -59,13 +120,14 @@ pub(crate) fn validate_verified_proof_binding(
     }
     let challenged_provider_id = provider;
 
-    // Gate 3: provider must have on-chain chunk_count + merkle_root.
-    let provider_info = capacity_validators
+    // Gate 3: chunk_count + merkle_root frozen on the epoch record, not the live set.
+    let provider_info = epoch_record
+        .challenged_capacity_validators
         .iter()
         .find(|p| p.address == provider)
         .ok_or_else(|| {
             format!(
-                "VerifiedProof rejected: capacity_provider {provider} not in capacity_validators"
+                "VerifiedProof rejected: capacity_provider {provider} not in epoch {proof_epoch} challenged_capacity_validators"
             )
         })?;
     let chunk_count = match provider_info.chunk_count {
@@ -160,9 +222,28 @@ where
         }
     }
 
-    let binding = match validate_verified_proof_binding(
-        current_state.envelope.active_capacity_validator.as_ref(),
-        &current_state.envelope.capacity_validators,
+    let current_epoch = current_state.envelope.current_epoch;
+    let epoch_record = match proof_epoch_in_window(verified_proof_tx.block_height, current_epoch) {
+        Ok(proof_epoch) => {
+            match current_state
+                .envelope
+                .get_epoch_record(&*connection.storage, proof_epoch)
+            {
+                Ok(record) => record,
+                Err(e) => {
+                    return response_deliver_tx_error_validation_failed(e.to_string());
+                }
+            }
+        }
+        Err(e) => {
+            warn!(reason = %e, "VerifiedProof rejected: epoch window");
+            return response_deliver_tx_error_validation_failed(e);
+        }
+    };
+
+    let binding = match bind_verified_proof(
+        epoch_record.as_ref(),
+        current_epoch,
         sender,
         provider,
         &challenge_id,
@@ -228,7 +309,8 @@ where
         return response_deliver_tx_error_validation_failed(e.to_string());
     }
 
-    // Extend the lease on a successful proof: duration = (current_block - registered_block) + DEFAULT_REGISTRATION_DURATION_BLOCKS.
+    // Extend the live lease only while this provider is still registered.
+    // A previous-epoch proof still mints when the provider was dropped at the boundary.
     let current_block = (current_state.envelope.block_height + 1) as u64;
     for cv in current_state.envelope.capacity_validators.iter_mut() {
         if cv.address == provider && cv.registered_block != 0 {
@@ -301,6 +383,7 @@ mod tests {
     use ed25519_dalek::SigningKey;
     use eld_common::address::Address;
     use eld_common::public_key::PublicKey;
+    use eld_common::validator::{ActiveCapacityValidator, CapacityValidatorInfo};
 
     fn addr(hex: &str) -> Address {
         Address::parse_hex_str(hex).expect("test address")
@@ -314,15 +397,27 @@ mod tests {
     const PROVIDER: &str = "0x2222222222222222222222222222222222222222";
     const OTHER: &str = "0x3333333333333333333333333333333333333333";
     const EPOCH: i64 = 3;
-    const BLOCK_HEIGHT: i64 = 100;
+    /// Epoch-start height. Challenges are issued at `epoch * BLOCKS_PER_EPOCH`.
+    const BLOCK_HEIGHT: i64 = EPOCH * BLOCKS_PER_EPOCH;
     const CHUNK_COUNT: u32 = 50;
 
-    fn active_sv(challenged: Vec<&str>) -> ActiveCapacityValidator {
-        ActiveCapacityValidator {
-            validator_address: addr(VALIDATOR),
-            epoch: EPOCH,
-            challenged_providers: challenged.iter().map(|s| addr(s)).collect(),
-            subscribed_topics: vec![],
+    fn epoch_record(
+        epoch: i64,
+        challenged: Vec<&str>,
+        providers: Vec<CapacityValidatorInfo>,
+        with_active: bool,
+    ) -> EpochRecord {
+        EpochRecord {
+            epoch,
+            start_block: epoch * BLOCKS_PER_EPOCH,
+            active_validators: vec![],
+            active_capacity_validator: with_active.then(|| ActiveCapacityValidator {
+                validator_address: addr(VALIDATOR),
+                epoch,
+                challenged_providers: challenged.iter().map(|s| addr(s)).collect(),
+                subscribed_topics: vec![],
+            }),
+            challenged_capacity_validators: providers,
         }
     }
 
@@ -353,18 +448,43 @@ mod tests {
         compute_challenge_id(&addr(VALIDATOR), &addr(provider), BLOCK_HEIGHT, &indices)
     }
 
+    fn bind_current(
+        record: Option<&EpochRecord>,
+        sender: &str,
+        provider: &str,
+        challenge_id: &str,
+    ) -> Result<VerifiedProofBinding, String> {
+        bind_verified_proof(
+            record,
+            EPOCH,
+            addr(sender),
+            addr(provider),
+            challenge_id,
+            BLOCK_HEIGHT,
+        )
+    }
+
+    #[test]
+    fn proof_epoch_window_accepts_current_and_previous_only() {
+        assert_eq!(proof_epoch_in_window(BLOCK_HEIGHT, EPOCH).unwrap(), EPOCH);
+        assert_eq!(
+            proof_epoch_in_window(BLOCK_HEIGHT, EPOCH + 1).unwrap(),
+            EPOCH
+        );
+
+        let older = proof_epoch_in_window(BLOCK_HEIGHT, EPOCH + 2).unwrap_err();
+        assert!(older.contains("older than the previous epoch"), "{older}");
+
+        let future = proof_epoch_in_window(BLOCK_HEIGHT, EPOCH - 1).unwrap_err();
+        assert!(future.contains("after current epoch"), "{future}");
+    }
+
     #[test]
     fn binding_accepts_matching_sender_provider_and_challenge_id() {
         let challenge_id = expected_challenge_id_for(PROVIDER);
-        let binding = validate_verified_proof_binding(
-            Some(&active_sv(vec![PROVIDER])),
-            &[provider_info(PROVIDER)],
-            addr(VALIDATOR),
-            addr(PROVIDER),
-            &challenge_id.to_hex(),
-            BLOCK_HEIGHT,
-        )
-        .expect("binding should succeed");
+        let record = epoch_record(EPOCH, vec![PROVIDER], vec![provider_info(PROVIDER)], true);
+        let binding = bind_current(Some(&record), VALIDATOR, PROVIDER, &challenge_id.to_hex())
+            .expect("binding should succeed");
 
         assert_eq!(binding.expected_challenge_id, challenge_id);
         assert_eq!(binding.challenged_provider_id, addr(PROVIDER));
@@ -377,61 +497,116 @@ mod tests {
     }
 
     #[test]
-    fn binding_rejects_wrong_sender() {
+    fn binding_accepts_previous_epoch_record() {
         let challenge_id = expected_challenge_id_for(PROVIDER);
-        let err = validate_verified_proof_binding(
-            Some(&active_sv(vec![PROVIDER])),
-            &[provider_info(PROVIDER)],
+        let record = epoch_record(EPOCH, vec![PROVIDER], vec![provider_info(PROVIDER)], true);
+        // Current epoch has moved on; the proof still names epoch EPOCH's validator.
+        let binding = bind_verified_proof(
+            Some(&record),
+            EPOCH + 1,
+            addr(VALIDATOR),
+            addr(PROVIDER),
+            &challenge_id.to_hex(),
+            BLOCK_HEIGHT,
+        )
+        .expect("previous epoch proof should bind to that epoch's record");
+        assert_eq!(binding.validator_address, addr(VALIDATOR));
+
+        let err = bind_verified_proof(
+            Some(&record),
+            EPOCH + 1,
             addr(OTHER),
             addr(PROVIDER),
             &challenge_id.to_hex(),
             BLOCK_HEIGHT,
         )
-        .expect_err("wrong sender");
+        .expect_err("a different epoch's validator must not pass");
+        assert!(err.contains("not active_capacity_validator"), "{err}");
+    }
+
+    #[test]
+    fn binding_uses_epoch_snapshot_root_and_chunk_count() {
+        const SNAPSHOT_ROOT: [u8; 32] = [4u8; 32];
+        const SNAPSHOT_CHUNKS: u32 = 11;
+        let provider = addr(PROVIDER);
+        let validator = addr(VALIDATOR);
+        let snapshot_indices = select_challenge_chunk_indices(
+            EPOCH,
+            &provider,
+            BLOCK_HEIGHT,
+            &validator,
+            SNAPSHOT_CHUNKS,
+        );
+        let live_indices =
+            select_challenge_chunk_indices(EPOCH, &provider, BLOCK_HEIGHT, &validator, CHUNK_COUNT);
+        assert_ne!(snapshot_indices, live_indices);
+        let challenge_id =
+            compute_challenge_id(&validator, &provider, BLOCK_HEIGHT, &snapshot_indices);
+
+        let mut snapshot_provider = provider_info(PROVIDER);
+        snapshot_provider.merkle_root = Some(SNAPSHOT_ROOT);
+        snapshot_provider.chunk_count = Some(SNAPSHOT_CHUNKS);
+        let record = epoch_record(EPOCH, vec![PROVIDER], vec![snapshot_provider], true);
+
+        let binding = bind_current(Some(&record), VALIDATOR, PROVIDER, &challenge_id.to_hex())
+            .expect("snapshot binding");
+
+        assert_eq!(
+            binding.expected_merkle_root,
+            CapacityMerkleRoot::new(SNAPSHOT_ROOT)
+        );
+        assert_ne!(
+            binding.expected_merkle_root,
+            CapacityMerkleRoot::new([9u8; 32])
+        );
+        assert_eq!(binding.expected_indices, snapshot_indices);
+    }
+
+    #[test]
+    fn binding_rejects_wrong_sender() {
+        let challenge_id = expected_challenge_id_for(PROVIDER);
+        let record = epoch_record(EPOCH, vec![PROVIDER], vec![provider_info(PROVIDER)], true);
+        let err = bind_current(Some(&record), OTHER, PROVIDER, &challenge_id.to_hex())
+            .expect_err("wrong sender");
         assert!(err.contains("not active_capacity_validator"), "{err}");
     }
 
     #[test]
     fn binding_rejects_provider_not_challenged() {
         let challenge_id = expected_challenge_id_for(PROVIDER);
-        let err = validate_verified_proof_binding(
-            Some(&active_sv(vec![OTHER])),
-            &[provider_info(PROVIDER)],
-            addr(VALIDATOR),
-            addr(PROVIDER),
-            &challenge_id.to_hex(),
-            BLOCK_HEIGHT,
-        )
-        .expect_err("provider not challenged");
+        let record = epoch_record(EPOCH, vec![OTHER], vec![provider_info(PROVIDER)], true);
+        let err = bind_current(Some(&record), VALIDATOR, PROVIDER, &challenge_id.to_hex())
+            .expect_err("provider not challenged");
         assert!(err.contains("not in challenged_providers"), "{err}");
     }
 
     #[test]
     fn binding_rejects_fabricated_challenge_id() {
-        let err = validate_verified_proof_binding(
-            Some(&active_sv(vec![PROVIDER])),
-            &[provider_info(PROVIDER)],
-            addr(VALIDATOR),
-            addr(PROVIDER),
+        let record = epoch_record(EPOCH, vec![PROVIDER], vec![provider_info(PROVIDER)], true);
+        let err = bind_current(
+            Some(&record),
+            VALIDATOR,
+            PROVIDER,
             "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-            BLOCK_HEIGHT,
         )
         .expect_err("fabricated challenge_id");
         assert!(err.contains("challenge_id mismatch"), "{err}");
     }
 
     #[test]
+    fn binding_rejects_missing_epoch_record() {
+        let challenge_id = expected_challenge_id_for(PROVIDER);
+        let err = bind_current(None, VALIDATOR, PROVIDER, &challenge_id.to_hex())
+            .expect_err("missing epoch record");
+        assert!(err.contains("no epoch record"), "{err}");
+    }
+
+    #[test]
     fn binding_rejects_missing_active_capacity_validator() {
         let challenge_id = expected_challenge_id_for(PROVIDER);
-        let err = validate_verified_proof_binding(
-            None,
-            &[provider_info(PROVIDER)],
-            addr(VALIDATOR),
-            addr(PROVIDER),
-            &challenge_id.to_hex(),
-            BLOCK_HEIGHT,
-        )
-        .expect_err("missing active SV");
+        let record = epoch_record(EPOCH, vec![PROVIDER], vec![provider_info(PROVIDER)], false);
+        let err = bind_current(Some(&record), VALIDATOR, PROVIDER, &challenge_id.to_hex())
+            .expect_err("missing active SV");
         assert!(err.contains("no active_capacity_validator"), "{err}");
     }
 
@@ -444,13 +619,12 @@ mod tests {
         let issuance_challenge_id =
             compute_challenge_id(&validator, &provider, BLOCK_HEIGHT, &indices);
 
-        let binding = validate_verified_proof_binding(
-            Some(&active_sv(vec![PROVIDER])),
-            &[provider_info(PROVIDER)],
-            validator,
-            provider,
+        let record = epoch_record(EPOCH, vec![PROVIDER], vec![provider_info(PROVIDER)], true);
+        let binding = bind_current(
+            Some(&record),
+            VALIDATOR,
+            PROVIDER,
             &issuance_challenge_id.to_hex(),
-            BLOCK_HEIGHT,
         )
         .expect("binding should accept consensus-issued challenge_id");
 

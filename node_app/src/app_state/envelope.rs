@@ -6,7 +6,10 @@ use crate::app_state::state_trie::StateTrie;
 use crate::errors::handle_recoverable_eld_error;
 use crate::storage::traits::{CADOStorage, VerifiedProofRewardDedupStorage};
 use eld_common::account::Account;
-use eld_common::cado::{epoch_from_record_path_name, CADOMarkedForDeletion, CadoBody, CadoPath};
+use eld_common::cado::{
+    epoch_from_record_path_name, epoch_record_path_name, CADOMarkedForDeletion, CadoBody, CadoPath,
+    CadoPathKey, CadoType,
+};
 use eld_common::coin::Coin;
 use eld_common::constants::cado::PATH_PREFIX_EPOCH_RECORD;
 use eld_common::constants::cado::PATH_PREFIX_NAMESPACE_REGISTRY;
@@ -17,8 +20,9 @@ use eld_common::namespace::{
 use eld_common::pinboard::PinboardMessageMetadata;
 use eld_common::staking_account::StakingAccount;
 use eld_common::validation::{safe_deserialize_account_data, safe_deserialize_cado_data};
-use eld_common::validator::CapacityValidatorInfo;
-use eld_common::validator::{ActiveCapacityValidator, ValidatorInfo};
+use eld_common::validator::{
+    ActiveCapacityValidator, CapacityValidatorInfo, EpochRecord, ValidatorInfo,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -316,6 +320,22 @@ impl AppStateEnvelope {
         };
         let record = NamespaceRecord::deserialize_bin(cado.data())?;
         Ok(Some(record))
+    }
+
+    /// Epoch-start snapshot: staged cache, then committed cache, then storage.
+    ///
+    /// Bytes are [`EpochRecord::deserialize_bin`] (bincode), not serde.
+    pub fn get_epoch_record(
+        &self,
+        storage: &impl CADOStorage,
+        epoch: i64,
+    ) -> Result<Option<EpochRecord>, EldError> {
+        let epoch_key = epoch_record_path_name(epoch)?;
+        let path = CadoPath::new(CadoType::EpochRecord, CadoPathKey::Name(&epoch_key))?;
+        let Some(cado) = self.lookup_cado_staged_committed_then_db(storage, &path) else {
+            return Ok(None);
+        };
+        Ok(Some(EpochRecord::deserialize_bin(cado.data())?))
     }
 
     fn lookup_cado_staged_committed_then_db(
