@@ -458,6 +458,19 @@ async fn app_state_snapshot_roundtrip_via_abci_payload_restores_original_state()
         .create_snapshot_from_latest_state(original.envelope.block_height)
         .await
         .expect("create snapshot from canonical state");
+    let metadata = manager
+        .get_metadata(original.envelope.block_height)
+        .await
+        .expect("snapshot metadata")
+        .expect("metadata missing");
+    assert_eq!(metadata.accounts_count, 1);
+    assert_eq!(metadata.staking_accounts_count, 0);
+    assert_eq!(metadata.storage_staking_accounts_count, 0);
+    assert_eq!(metadata.namespaces_count, 0);
+    assert_eq!(
+        metadata.app_hash,
+        original.app_hash().bytes().expect("app hash")
+    );
     let payload = manager
         .get_snapshot(original.envelope.block_height)
         .await

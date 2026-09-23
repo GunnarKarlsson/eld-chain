@@ -2,7 +2,7 @@ use super::RocksDBStorage;
 use crate::api::pagination::{PaginationParams, PrefixQueryOptions};
 use crate::storage::traits::{
     EpochRecordListOrder, PinboardGlobalFeedOrder, PinboardStorage, SnapshotChunk,
-    SnapshotChunkMetadata, SnapshotMetadata, SnapshotStorage, SnapshotStorageTestExt,
+    SnapshotMetadata, SnapshotStorage, SnapshotStorageTestExt,
 };
 use eld_common::address::Address;
 use eld_common::cado::{CADOMap, CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType};
@@ -20,6 +20,33 @@ use tempfile::TempDir;
 fn create_test_storage() -> RocksDBStorage {
     let temp_dir = TempDir::new().unwrap();
     RocksDBStorage::new(temp_dir.path()).unwrap()
+}
+
+fn test_snapshot_metadata(
+    height: i64,
+    chunk_count: u32,
+    total_size: u64,
+    app_hash: [u8; 32],
+    chunk_hashes: &[&str],
+) -> SnapshotMetadata {
+    SnapshotMetadata {
+        height,
+        epoch: 1,
+        format_version: 1,
+        chunk_count,
+        total_size,
+        compression: "zstd".to_string(),
+        created_at: 1234567890,
+        app_hash,
+        accounts_count: 0,
+        staking_accounts_count: 0,
+        storage_staking_accounts_count: 0,
+        namespaces_count: 0,
+        chunk_hashes: chunk_hashes
+            .iter()
+            .map(|hash| (*hash).to_string())
+            .collect(),
+    }
 }
 
 fn put_test_epoch_record(storage: &RocksDBStorage, epoch: i64) {
@@ -378,17 +405,7 @@ fn test_pinboard_list_global_paginated_ordering() {
 #[test]
 fn test_snapshot_storage() {
     let storage = create_test_storage();
-    let metadata = SnapshotMetadata {
-        height: 100,
-        epoch: 1,
-        format_version: 1,
-        chunk_count: 5,
-        total_size: 1024,
-        compression: "zstd".to_string(),
-        created_at: 1234567890,
-        app_hash: vec![1, 2, 3, 4],
-        chunk_hashes: vec!["hash1".to_string(), "hash2".to_string()],
-    };
+    let metadata = test_snapshot_metadata(100, 5, 1024, [1u8; 32], &["hash1", "hash2"]);
 
     // Test put and get
     storage.put_snapshot_metadata(&metadata).unwrap();
@@ -402,13 +419,6 @@ fn test_snapshot_storage() {
         data: vec![1, 2, 3, 4, 5],
         hash: "chunk_hash".to_string(),
         size: 5,
-        metadata: SnapshotChunkMetadata {
-            accounts_count: 10,
-            staking_accounts_count: 5,
-            devices_count: 3,
-            manifests_count: 2,
-            chunk_proofs_count: 1,
-        },
     };
 
     storage.put_snapshot_chunk(100, &chunk).unwrap();
@@ -626,17 +636,8 @@ fn test_snapshot_manager_multiple_snapshots() {
 
     // Create multiple snapshots
     for height in 100..105 {
-        let metadata = SnapshotMetadata {
-            height,
-            epoch: 1,
-            format_version: 1,
-            chunk_count: 2,
-            total_size: 1024,
-            compression: "zstd".to_string(),
-            created_at: 1234567890,
-            app_hash: vec![height as u8],
-            chunk_hashes: vec!["hash1".to_string(), "hash2".to_string()],
-        };
+        let metadata =
+            test_snapshot_metadata(height, 2, 1024, [height as u8; 32], &["hash1", "hash2"]);
         storage.put_snapshot_metadata(&metadata).unwrap();
 
         // Add chunks for each snapshot
@@ -646,13 +647,6 @@ fn test_snapshot_manager_multiple_snapshots() {
                 data: vec![height as u8, chunk_index as u8],
                 hash: format!("hash_{height}_{chunk_index}"),
                 size: 2,
-                metadata: SnapshotChunkMetadata {
-                    accounts_count: 10,
-                    staking_accounts_count: 5,
-                    devices_count: 3,
-                    manifests_count: 2,
-                    chunk_proofs_count: 1,
-                },
             };
             storage.put_snapshot_chunk(height, &chunk).unwrap();
         }
@@ -690,17 +684,7 @@ fn test_snapshot_manager_retrieval_edge_cases() {
     assert!(!exists);
 
     // Create a snapshot and test
-    let metadata = SnapshotMetadata {
-        height: 100,
-        epoch: 1,
-        format_version: 1,
-        chunk_count: 1,
-        total_size: 512,
-        compression: "zstd".to_string(),
-        created_at: 1234567890,
-        app_hash: vec![1, 2, 3, 4],
-        chunk_hashes: vec!["hash1".to_string()],
-    };
+    let metadata = test_snapshot_metadata(100, 1, 512, [1u8; 32], &["hash1"]);
     storage.put_snapshot_metadata(&metadata).unwrap();
 
     let exists = storage.snapshot_exists(100).unwrap();
@@ -716,13 +700,6 @@ fn test_snapshot_manager_retrieval_edge_cases() {
         data: vec![1, 2, 3],
         hash: "chunk_hash".to_string(),
         size: 3,
-        metadata: SnapshotChunkMetadata {
-            accounts_count: 5,
-            staking_accounts_count: 2,
-            devices_count: 1,
-            manifests_count: 1,
-            chunk_proofs_count: 0,
-        },
     };
     storage.put_snapshot_chunk(100, &chunk).unwrap();
 
@@ -781,17 +758,7 @@ fn test_snapshot_operations_with_corrupted_data() {
 
     let storage = create_test_storage();
     // Insert a valid snapshot
-    let metadata = SnapshotMetadata {
-        height: 1,
-        epoch: 1,
-        format_version: 1,
-        chunk_count: 1,
-        total_size: 100,
-        compression: "zstd".to_string(),
-        created_at: 1234567890,
-        app_hash: vec![1, 2, 3],
-        chunk_hashes: vec!["hash1".to_string()],
-    };
+    let metadata = test_snapshot_metadata(1, 1, 100, [1u8; 32], &["hash1"]);
     storage.put_snapshot_metadata(&metadata).unwrap();
 
     // Insert a corrupted snapshot (invalid bincode data)
@@ -1310,13 +1277,6 @@ fn system_delete_cado_with_tx_commits_atomically() {
         data: vec![1, 2, 3],
         hash: "0xabc".to_string(),
         size: 3,
-        metadata: SnapshotChunkMetadata {
-            accounts_count: 0,
-            staking_accounts_count: 0,
-            devices_count: 0,
-            manifests_count: 0,
-            chunk_proofs_count: 0,
-        },
     };
     storage.put_snapshot_chunk(height, &chunk).unwrap();
     assert!(storage.get_snapshot_chunk(height, 0).unwrap().is_some());
@@ -1348,13 +1308,6 @@ fn system_delete_cado_with_tx_rollback_leaves_cado_intact() {
         data: vec![4, 5, 6],
         hash: "0xdef".to_string(),
         size: 3,
-        metadata: SnapshotChunkMetadata {
-            accounts_count: 0,
-            staking_accounts_count: 0,
-            devices_count: 0,
-            manifests_count: 0,
-            chunk_proofs_count: 0,
-        },
     };
     storage.put_snapshot_chunk(height, &chunk).unwrap();
     assert!(storage.get_snapshot_chunk(height, 1).unwrap().is_some());

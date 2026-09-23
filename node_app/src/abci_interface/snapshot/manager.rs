@@ -1,7 +1,9 @@
 use crate::abci_interface::snapshot::codec::{serialize_abci_snapshot, AbciSnapshot};
 use crate::app_state::app_state_snapshot::AppStateSnapshot;
 use crate::app_state::AppStateTip;
-use crate::storage::traits::{CADOStorage, SnapshotChunk, SnapshotMetadata, SnapshotStorage};
+use crate::storage::traits::{
+    CADOStorage, SnapshotChunk, SnapshotMetadata, SnapshotStateCounts, SnapshotStorage,
+};
 use eld_common::error::EldError;
 use eld_common::{
     cado::{CadoPath, CadoPathKey, CadoType},
@@ -48,17 +50,12 @@ where
         self.storage.list_snapshots(limit)
     }
 
-    #[cfg(test)]
-    pub async fn create_snapshot(&self, height: i64, data: Vec<u8>) -> Result<(), EldError> {
-        self.create_snapshot_with_app_hash(height, data, vec![])
-            .await
-    }
-
     pub async fn create_snapshot_with_app_hash(
         &self,
         height: i64,
         data: Vec<u8>,
-        app_hash: Vec<u8>,
+        app_hash: [u8; 32],
+        counts: SnapshotStateCounts,
     ) -> Result<(), EldError> {
         // Split data into chunks (10MB each)
         const CHUNK_SIZE: usize = 10_000_000;
@@ -99,6 +96,10 @@ where
                 .expect("Failed to get current time")
                 .as_secs(),
             app_hash,
+            accounts_count: counts.accounts_count,
+            staking_accounts_count: counts.staking_accounts_count,
+            storage_staking_accounts_count: counts.storage_staking_accounts_count,
+            namespaces_count: counts.namespaces_count,
             chunk_hashes,
         };
 
@@ -112,13 +113,6 @@ where
                 data: chunk_data,
                 hash: metadata.chunk_hashes[i].clone(),
                 size: CHUNK_SIZE as u64,
-                metadata: crate::storage::traits::SnapshotChunkMetadata {
-                    accounts_count: 0, // TODO: Get from state
-                    staking_accounts_count: 0,
-                    devices_count: 0,
-                    manifests_count: 0,
-                    chunk_proofs_count: 0,
-                },
             };
 
             self.storage.put_snapshot_chunk(height, &chunk)?;
@@ -194,8 +188,13 @@ where
 
         let snapshot = AbciSnapshot::new(app_state_snapshot.clone());
         let payload = serialize_abci_snapshot(&snapshot)?;
-        self.create_snapshot_with_app_hash(height, payload, app_state_snapshot.app_hash.to_vec())
-            .await
+        self.create_snapshot_with_app_hash(
+            height,
+            payload,
+            app_state_snapshot.app_hash,
+            app_state_snapshot.state_counts(),
+        )
+        .await
     }
 }
 
@@ -298,7 +297,12 @@ mod tests {
         // Test creating a snapshot
         let test_data = vec![1, 2, 3, 4, 5];
         manager
-            .create_snapshot(100, test_data.clone())
+            .create_snapshot_with_app_hash(
+                100,
+                test_data.clone(),
+                [0x11; 32],
+                SnapshotStateCounts::default(),
+            )
             .await
             .expect("Failed to create snapshot");
 
@@ -341,7 +345,12 @@ mod tests {
         for height in &heights {
             let data = vec![*height as u8];
             manager
-                .create_snapshot(*height, data)
+                .create_snapshot_with_app_hash(
+                    *height,
+                    data,
+                    [*height as u8; 32],
+                    SnapshotStateCounts::default(),
+                )
                 .await
                 .expect("Failed to create snapshot");
         }
@@ -406,7 +415,12 @@ mod tests {
         // Create a large snapshot (larger than chunk size)
         let large_data: Vec<u8> = vec![1; 20_000_000]; // 20MB
         manager
-            .create_snapshot(100, large_data.clone())
+            .create_snapshot_with_app_hash(
+                100,
+                large_data.clone(),
+                [0x11; 32],
+                SnapshotStateCounts::default(),
+            )
             .await
             .expect("Failed to create snapshot");
 
@@ -454,7 +468,12 @@ mod tests {
         // Create a snapshot with compressible data
         let data = vec![0; 1_000_000]; // 1MB of zeros (highly compressible)
         manager
-            .create_snapshot(100, data.clone())
+            .create_snapshot_with_app_hash(
+                100,
+                data.clone(),
+                [0x11; 32],
+                SnapshotStateCounts::default(),
+            )
             .await
             .expect("Failed to create snapshot");
 
@@ -504,7 +523,7 @@ mod tests {
         // Create a snapshot
         let data = vec![1, 2, 3, 4, 5];
         manager
-            .create_snapshot(100, data)
+            .create_snapshot_with_app_hash(100, data, [0x11; 32], SnapshotStateCounts::default())
             .await
             .expect("Failed to create snapshot");
 

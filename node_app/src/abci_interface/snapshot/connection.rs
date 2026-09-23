@@ -108,7 +108,6 @@ where
             data: chunk.data.clone(),
             hash,
             size: chunk.data.len() as u64,
-            metadata: chunk.metadata.clone(),
         };
 
         // 5. Store the chunk using the SnapshotManager's put_chunk method
@@ -308,7 +307,7 @@ where
                         height: s.height as u64,
                         format: s.format_version,
                         chunks: s.chunk_count,
-                        hash: s.app_hash,
+                        hash: s.app_hash.to_vec(),
                         metadata: Default::default(),
                     })
                     .collect();
@@ -436,13 +435,6 @@ where
             data: chunk_data,
             hash: "".to_string(), // We don't have the hash here, it would be verified later
             size: request.chunk.len() as u64,
-            metadata: crate::storage::traits::SnapshotChunkMetadata {
-                accounts_count: 0,
-                staking_accounts_count: 0,
-                devices_count: 0,
-                manifests_count: 0,
-                chunk_proofs_count: 0,
-            },
         };
 
         // Store the chunk

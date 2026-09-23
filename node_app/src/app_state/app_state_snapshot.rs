@@ -1,5 +1,6 @@
 use crate::app_state::committed_cado_cache::CommittedCadoCache;
 use crate::app_state::AppState;
+use crate::storage::traits::SnapshotStateCounts;
 use eld_common::cado::CadoType;
 use eld_common::cado::{CADOMetadata, CadoBody, CadoPath, CadoPathKey, DeserializableBin};
 use eld_common::error::EldError;
@@ -54,6 +55,25 @@ impl AppStateSnapshot {
             capacity_validators: envelope.capacity_validators.clone(),
             active_capacity_validator: envelope.active_capacity_validator.clone(),
         })
+    }
+
+    /// Counts account-like CADOs in the committed cache. Other types are ignored.
+    pub fn state_counts(&self) -> SnapshotStateCounts {
+        use eld_common::constants::cado::{
+            TYPE_ACCOUNT, TYPE_NAMESPACE, TYPE_STAKING_ACCOUNT, TYPE_STORAGE_STAKING_ACCOUNT,
+        };
+
+        let mut counts = SnapshotStateCounts::default();
+        for (_path, cado) in self.committed_cado_cache.iter() {
+            match cado.metadata().type_() {
+                TYPE_ACCOUNT => counts.accounts_count += 1,
+                TYPE_STAKING_ACCOUNT => counts.staking_accounts_count += 1,
+                TYPE_STORAGE_STAKING_ACCOUNT => counts.storage_staking_accounts_count += 1,
+                TYPE_NAMESPACE => counts.namespaces_count += 1,
+                _ => {}
+            }
+        }
+        counts
     }
 
     /// Restores committed snapshot fields into `state` and validates trie roots.
@@ -319,6 +339,11 @@ mod tests {
 
         let state = sample_app_state_for_snapshot();
         let snapshot = AppStateSnapshot::new(&state).expect("snapshot");
+        let counts = snapshot.state_counts();
+        assert_eq!(counts.accounts_count, 1);
+        assert_eq!(counts.staking_accounts_count, 0);
+        assert_eq!(counts.storage_staking_accounts_count, 0);
+        assert_eq!(counts.namespaces_count, 0);
         let cado = snapshot.to_cado().expect("to_cado");
 
         match &cado {
@@ -334,6 +359,36 @@ mod tests {
             bincode::serialize(&snapshot).expect("serialize original"),
             bincode::serialize(&restored).expect("serialize restored")
         );
+    }
+
+    #[test]
+    fn state_counts_includes_account_staking_storage_staking_and_namespace() {
+        let mut state = AppState::default();
+        state.set_app_hash([0xAB; 32]);
+        state.envelope.init_empty_trie();
+        for (i, cado_type) in [
+            CadoType::Account,
+            CadoType::StakingAccount,
+            CadoType::StorageStakingAccount,
+            CadoType::Namespace,
+            CadoType::EpochRecord,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            state.envelope.committed_cado_cache.insert(
+                format!("k{i}").as_bytes(),
+                CadoBody::mutable_new(vec![1], CADOMetadata::new(cado_type, "owner")),
+            );
+        }
+
+        let counts = AppStateSnapshot::new(&state)
+            .expect("snapshot")
+            .state_counts();
+        assert_eq!(counts.accounts_count, 1);
+        assert_eq!(counts.staking_accounts_count, 1);
+        assert_eq!(counts.storage_staking_accounts_count, 1);
+        assert_eq!(counts.namespaces_count, 1);
     }
 
     #[test]

@@ -53,8 +53,21 @@ pub struct SnapshotMetadata {
     pub total_size: u64,
     pub compression: String,
     pub created_at: u64,
-    pub app_hash: Vec<u8>,
+    pub app_hash: [u8; 32],
+    pub accounts_count: u64,
+    pub staking_accounts_count: u64,
+    pub storage_staking_accounts_count: u64,
+    pub namespaces_count: u64,
     pub chunk_hashes: Vec<String>,
+}
+
+/// Account-like totals for one committed snapshot. Not per chunk.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SnapshotStateCounts {
+    pub accounts_count: u64,
+    pub staking_accounts_count: u64,
+    pub storage_staking_accounts_count: u64,
+    pub namespaces_count: u64,
 }
 
 impl SnapshotMetadata {
@@ -73,21 +86,11 @@ impl DeserializableBin for SnapshotMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SnapshotChunkMetadata {
-    pub accounts_count: u64,
-    pub staking_accounts_count: u64,
-    pub devices_count: u64,
-    pub manifests_count: u64,
-    pub chunk_proofs_count: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotChunk {
     pub index: u32,
     pub data: Vec<u8>,
     pub hash: String,
     pub size: u64,
-    pub metadata: SnapshotChunkMetadata,
 }
 
 impl SnapshotChunk {
