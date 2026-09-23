@@ -69,11 +69,7 @@ Canonical client-facing surfaces:
 
 ## Run with Tendermint
 
-**Single node (local):** Tendermint must be running first, with its ABCI proxy pointed at `consensus_config.json` `app_host`:`app_port` (sample `26658`) and RPC on `node_port` (sample `26657`). From the repo root, with configs and secrets in place under `node_app/` (or CWD matching those relative paths):
-
-```sh
-cargo run -p eld-node
-```
+**Single node (local):** the checked-in localhost sample is [`deploy/host/single/config/`](../deploy/host/single/config/) (`127.0.0.1`, `./data/capacity`). [`host-start-without-history.sh`](../deploy/scripts/host/host-start-without-history.sh) runs `tendermint unsafe_reset_all`, starts `tendermint node --proxy_app=tcp://127.0.0.1:26658`, then `eld-node`. [`host-start-with-history.sh`](../deploy/scripts/host/host-start-with-history.sh) starts Tendermint without resetting it and passes `--init-data`.
 
 Query accounts and submit transfers with [`eld-client`](../client/README.md) or a binary built on `ChainClient`.
 

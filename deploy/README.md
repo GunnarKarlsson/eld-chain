@@ -11,9 +11,10 @@ Local development infrastructure for [`eld-chain`](../README.md): CI scripts, Do
 | [`docker/local/cluster/`](docker/local/cluster/) | Four `eld-app` + four Tendermint pairs. Checked-in config is `nodes/N/{app,tendermint}` |
 | [`docker/local/single/`](docker/local/single/) | One app + one Tendermint. Mounts cluster node 1; no config of its own |
 | [`docker/remote/cluster/`](docker/remote/cluster/) | Same four pairs on one host, images pulled from ECR |
+| [`host/single/config/`](host/single/config/) | Localhost sample for a binary next to a Tendermint you start yourself (`127.0.0.1`, `./data/capacity`) |
 | [`.env.example`](.env.example) | Template for image tags and external paths used by build scripts |
 
-Image builds, CI, and secret sync stay in [`scripts/`](scripts/). Start and stop scripts live next to the stack they run: [`scripts/docker/local/cluster/`](scripts/docker/local/cluster/) and [`scripts/docker/local/single/`](scripts/docker/local/single/).
+Image builds, CI, and secret sync stay in [`scripts/`](scripts/). Start and stop scripts live next to the stack they run: [`scripts/docker/local/cluster/`](scripts/docker/local/cluster/), [`scripts/docker/local/single/`](scripts/docker/local/single/), and [`scripts/host/`](scripts/host/).
 
 ## CI
 
@@ -126,4 +127,20 @@ IMAGE_VERSION_APP=0.0.2 IMAGE_VERSION_TM=0.0.2 \
   docker compose -f deploy/docker/remote/cluster/compose.yaml pull
 IMAGE_VERSION_APP=0.0.2 IMAGE_VERSION_TM=0.0.2 \
   docker compose -f deploy/docker/remote/cluster/compose.yaml up -d
+```
+
+## Host binary
+
+`host/single/config/` is the localhost sample (`127.0.0.1`, `./data/capacity`). It is not mounted by Compose. These scripts start a local `tendermint` on PATH first (`--proxy_app=tcp://127.0.0.1:26658`), then `eld-node` from `host/single`. Tendermint logs go to `host/single/tendermint.log`. Ctrl-C stops both.
+
+Wipe Tendermint data (`tendermint unsafe_reset_all`) and `host/single/data`, then start:
+
+```sh
+./deploy/scripts/host/host-start-without-history.sh
+```
+
+Keep Tendermint data and pass `--init-data` to `eld-node`:
+
+```sh
+./deploy/scripts/host/host-start-with-history.sh
 ```

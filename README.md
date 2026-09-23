@@ -29,7 +29,7 @@ CosmWasm / on-chain WASM contracts are not part of this repo.
 
 Config loaders return `Result`; binaries can exit after they see an error.
 
-[`eld-node`](node_app/README.md) is the ABCI application. Runtime data (`data/`, `tx_responses/`), wallets, and P2P key files are not shipped in git — create them locally or copy from [`node_app/config/`](node_app/config/) samples before running.
+[`eld-node`](node_app/README.md) is the ABCI application. Runtime data (`data/`, `tx_responses/`), wallets, and P2P key files are not shipped in git — create them locally or copy from [`deploy/host/single/config/`](deploy/host/single/config/) samples before running.
 
 Hex and ID conventions: [common/TYPE_DESIGN.md](common/TYPE_DESIGN.md) (canonical; workspace root [TYPE_DESIGN.md](TYPE_DESIGN.md) points there).
 
@@ -69,7 +69,7 @@ That runs the same checks as GitHub Actions: `cargo fmt --check`, Clippy, build,
 
 Binaries read endpoint and runtime settings from `config/config.json` (client fields are used by `eld-client`; the node also reads P2P, capacity, and indexer fields from the same file). See [`client/config/config.json.example`](client/config/config.json.example) for client fields.
 
-Wallet files (`wallets/wallets.json`) hold unencrypted Ed25519 private keys; do not commit them. Sample non-secret configs live under `node_app/config/`; do not add `p2p_keypair.json` or `wallets.json`.
+Wallet files (`wallets/wallets.json`) hold unencrypted Ed25519 private keys; do not commit them. Sample non-secret configs live under `deploy/host/single/config/`; do not add `p2p_keypair.json` or `wallets.json`.
 
 Protocol constants in `eld_common::constants::protocol` (minimum stake, validators per epoch, blocks per epoch, block reward) are local-dev values, not mainnet economics.
 
