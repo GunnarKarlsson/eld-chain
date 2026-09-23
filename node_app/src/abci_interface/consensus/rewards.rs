@@ -1,104 +1,106 @@
-use crate::app_state::AppState;
-use crate::errors::handle_recoverable_eld_error;
+use crate::app_state::{AccountWithCadoHash, AppState};
+use crate::storage::traits::CADOStorage;
+use eld_common::account::Account;
+use eld_common::address::Address;
+use eld_common::cado::{CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType};
 use eld_common::coin::Coin;
-use eld_common::constants::protocol::BLOCK_REWARD;
-use eld_common::storage::AccountStorage;
+use eld_common::error::EldError;
+use eld_common::nonce::Nonce;
 use std::sync::Arc;
-use tracing::error;
 
 #[derive(Debug)]
 pub struct ValidatorRewardManager<T>
 where
-    T: AccountStorage,
+    T: CADOStorage,
 {
-    _storage: Arc<T>,
+    storage: Arc<T>,
 }
 
 impl<T> ValidatorRewardManager<T>
 where
-    T: AccountStorage,
+    T: CADOStorage,
 {
     pub(crate) fn new(storage: Arc<T>) -> Self {
-        Self { _storage: storage }
+        Self { storage }
     }
 
-    pub(crate) fn calculate_validator_rewards(&self, current_state: &mut AppState) {
-        // Calculate total reward for this block (pending fees + block reward)
-        let block_reward = match Coin::new(BLOCK_REWARD) {
-            Ok(coin) => coin,
-            Err(e) => {
-                handle_recoverable_eld_error(e);
-                return;
-            }
-        };
-
-        let reward_this_block = match current_state.envelope.pending_fee_rewards + block_reward {
-            Ok(reward) => reward,
-            Err(e) => {
-                handle_recoverable_eld_error(e);
-                return; // Skip reward calculation if arithmetic fails
-            }
-        };
-
-        // Get total stake of active validators
-        let total_stake = match current_state
+    /// Credits `reward` to the capacity provider account.
+    ///
+    /// Called only from `VerifiedProof` delivery. The transaction is in the block, so every
+    /// node applies the same balance change.
+    pub(crate) fn credit_verified_proof_reward(
+        &self,
+        current_state: &mut AppState,
+        provider: Address,
+        reward: Coin,
+    ) -> Result<(), EldError> {
+        let provider_path = CadoPath::new(CadoType::Account, CadoPathKey::Address(provider))?;
+        let provider_account_with_hash = current_state
             .envelope
-            .active_validators
-            .iter()
-            .try_fold(Coin::zero(), |acc, v| acc + v.stake)
-        {
-            Ok(coin) => coin,
-            Err(e) => {
-                error!("Failed to sum validator stakes: {}", e);
-                return;
-            }
-        };
+            .get_account_from_cado(&*self.storage, &provider_path)
+            .unwrap_or_else(|| AccountWithCadoHash {
+                account: Account::new(provider, Coin::zero(), Nonce::new(Nonce::ZERO)),
+                hash: [0; 32],
+            });
+        let provider_account = provider_account_with_hash.account;
 
-        if total_stake.is_zero() {
-            return;
-        }
-
-        // Distribute rewards proportionally based on stake
-        // Use Coin operations: (reward * validator_stake) / total_stake
-        let validator_rewards: Vec<(String, Coin)> = current_state
+        let updated_balance = (provider_account.balance() + reward)?;
+        let updated_provider = Account::new(
+            *provider_account.address(),
+            updated_balance,
+            provider_account.nonce(),
+        );
+        let provider_serialized =
+            bincode::serialize(&updated_provider).map_err(|e| EldError::StorageError {
+                operation: "serialize_account".to_string(),
+                details: format!("Failed to serialize provider account: {e}"),
+            })?;
+        let provider_meta = CADOMetadata::new(CadoType::Account, provider.to_string());
+        let provider_cado = CadoBody::mutable_updated(
+            provider_account_with_hash.hash,
+            provider_serialized,
+            provider_meta,
+        );
+        current_state
             .envelope
-            .active_validators
-            .iter()
-            .filter_map(|validator| {
-                // Calculate proportional share using Coin operations
-                // Formula: (reward * validator_stake) / total_stake
-                let product = match reward_this_block * validator.stake {
-                    Ok(coin) => coin,
-                    Err(e) => {
-                        handle_recoverable_eld_error(e);
-                        return None;
-                    }
-                };
-                match product / total_stake {
-                    Ok(reward) => Some((validator.address.to_string(), reward)),
-                    Err(e) => {
-                        handle_recoverable_eld_error(e);
-                        None // Skip this validator if division fails
-                    }
-                }
-            })
-            .collect();
+            .update_cado_cache(provider_path, provider_cado);
+        Ok(())
+    }
+}
 
-        // Update accounts with rewards
-        for (_address, _reward) in validator_rewards {
-            // TODO: update cado accounts with rewards
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::rocksdb::RocksDBStorage;
+    use eld_common::constants::protocol::VERIFIED_PROOF_REWARD_BASE_AMOUNT;
 
-        // Clear pending fees after distribution
-        current_state.envelope.pending_fee_rewards = match Coin::new(0) {
-            Ok(coin) => coin,
-            Err(e) => {
-                error!("Can't clear pending fee rewards");
-                // TODO: How handle this case?
-                handle_recoverable_eld_error(e);
-                // Keep existing pending fees if we can't create zero coin
-                current_state.envelope.pending_fee_rewards
-            }
-        };
+    #[test]
+    fn verified_proof_reward_credits_provider_account_cado() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let storage = Arc::new(RocksDBStorage::new(dir.path()).expect("rocksdb"));
+        let manager = ValidatorRewardManager::new(storage.clone());
+        let mut state = AppState::default();
+        let provider = Address::parse_hex_str("0x2222222222222222222222222222222222222222")
+            .expect("provider address");
+        let reward = Coin::new(VERIFIED_PROOF_REWARD_BASE_AMOUNT).expect("reward coin");
+
+        manager
+            .credit_verified_proof_reward(&mut state, provider, reward)
+            .expect("first credit");
+        manager
+            .credit_verified_proof_reward(&mut state, provider, reward)
+            .expect("second credit");
+
+        let path =
+            CadoPath::new(CadoType::Account, CadoPathKey::Address(provider)).expect("account path");
+        let credited = state
+            .envelope
+            .get_account_from_cado(&*storage, &path)
+            .expect("credited account");
+        assert_eq!(
+            credited.account.balance().amount(),
+            2 * VERIFIED_PROOF_REWARD_BASE_AMOUNT
+        );
+        assert_eq!(*credited.account.address(), provider);
     }
 }

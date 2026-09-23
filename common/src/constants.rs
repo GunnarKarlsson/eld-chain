@@ -23,7 +23,8 @@ pub mod protocol {
 
     pub const DEFAULT_TX_FEE: u128 = 5000;
 
-    /// Native units minted to the validator set each block (local-dev).
+    /// Legacy per-block subsidy. This node does not mint it.
+    /// Account credits come from a delivered `VerifiedProof` (`VERIFIED_PROOF_REWARD_BASE_AMOUNT`).
     pub const BLOCK_REWARD: u128 = 10;
 
     /// Native units minted to `capacity_provider` on each successful `VerifiedProof`.

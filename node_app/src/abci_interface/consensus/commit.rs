@@ -94,10 +94,6 @@ where
             self.select_validators_for_epoch(&mut current_state);
         }
 
-        // Calculate validator rewards
-        self.reward_manager
-            .calculate_validator_rewards(&mut current_state);
-
         // Begin a transaction for atomic storage writes.
         // Commit tx order: deletes → puts → pinboard → tip/snapshot.
         let tx = storage.begin_transaction();

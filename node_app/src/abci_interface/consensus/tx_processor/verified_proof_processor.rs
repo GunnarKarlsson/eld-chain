@@ -1,13 +1,9 @@
 use crate::abci_interface::ConsensusConnection;
-use crate::app_state::AccountWithCadoHash;
 use crate::errors::response_deliver_tx_error_validation_failed;
 use crate::storage::traits::ConsensusConnectionStorage;
 use abci::types::{Event, ResponseDeliverTx};
-use bincode;
 use eld_common::{
-    account::Account,
     address::Address,
-    cado::{CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType},
     capacity_challenge::{compute_challenge_id, select_challenge_chunk_indices},
     capacity_merkle_root::CapacityMerkleRoot,
     challenge_id::ChallengeId,
@@ -16,7 +12,6 @@ use eld_common::{
         protocol::{DEFAULT_REGISTRATION_DURATION_BLOCKS, VERIFIED_PROOF_REWARD_BASE_AMOUNT},
         tx_type,
     },
-    nonce::Nonce,
     tx::{create_event_attribute, VerifiedProofTx},
     validator::{ActiveCapacityValidator, CapacityValidatorInfo},
 };
@@ -224,56 +219,14 @@ where
         ));
     }
 
-    // Get provider account (create with balance 0 if not exists — mint)
-    let provider_path = CadoPath::new(
-        CadoType::Account,
-        CadoPathKey::Address(verified_proof_tx.capacity_provider),
-    )
-    .expect("Failed to create provider CadoPath");
-    let provider_account_with_hash = match current_state
-        .envelope
-        .get_account_from_cado(&*connection.storage, &provider_path)
-    {
-        Some(account_with_hash) => account_with_hash,
-        None => AccountWithCadoHash {
-            account: Account::new(
-                verified_proof_tx.capacity_provider,
-                Coin::zero(),
-                Nonce::new(Nonce::ZERO),
-            ),
-            hash: [0; 32],
-        },
-    };
-    let provider_account = provider_account_with_hash.account;
-
-    // Mint: add constant reward (1000 ELD) to provider balance
-    let updated_provider = match provider_account.balance() + reward_coin {
-        Ok(balance) => Account::new(
-            *provider_account.address(),
-            balance,
-            provider_account.nonce(),
-        ),
-        Err(e) => {
-            return response_deliver_tx_error_validation_failed(e.to_string());
-        }
-    };
-
-    let provider_serialized =
-        bincode::serialize(&updated_provider).expect("Failed to serialize provider account");
-    let provider_meta = CADOMetadata::new(CadoType::Account, provider.to_string());
-    let provider_cado = CadoBody::mutable_updated(
-        provider_account_with_hash.hash,
-        provider_serialized,
-        provider_meta,
-    );
-    let provider_path = CadoPath::new(
-        CadoType::Account,
-        CadoPathKey::Address(verified_proof_tx.capacity_provider),
-    )
-    .expect("Failed to create provider CadoPath");
-    current_state
-        .envelope
-        .update_cado_cache(provider_path, provider_cado);
+    // Mint the VerifiedProof reward onto the provider account. Same tx on every node.
+    if let Err(e) = connection.reward_manager.credit_verified_proof_reward(
+        current_state,
+        verified_proof_tx.capacity_provider,
+        reward_coin,
+    ) {
+        return response_deliver_tx_error_validation_failed(e.to_string());
+    }
 
     // Extend the lease on a successful proof: duration = (current_block - registered_block) + DEFAULT_REGISTRATION_DURATION_BLOCKS.
     let current_block = (current_state.envelope.block_height + 1) as u64;
