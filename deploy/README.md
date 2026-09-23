@@ -9,7 +9,7 @@ Local development infrastructure for [`eld-chain`](../README.md): CI scripts, Do
 | [`scripts/ci.sh`](scripts/ci.sh) | Workspace CI gate (fmt, Clippy, build, test, gitleaks) — same as GitHub Actions |
 | [`docker/Dockerfile.app`](docker/Dockerfile.app), [`Dockerfile.eld-base`](docker/Dockerfile.eld-base), [`Dockerfile.tendermint`](docker/Dockerfile.tendermint) | Local image build |
 | [`docker/local/cluster/`](docker/local/cluster/) | Four `eld-app` + four Tendermint pairs. Checked-in config is `nodes/N/{app,tendermint}` |
-| [`docker/local/single/`](docker/local/single/) | One app + one Tendermint. Mounts cluster node 1; no config of its own |
+| [`docker/local/single/`](docker/local/single/) | One app + one Tendermint. Own one-validator Tendermint config; app files and keys from cluster node 1 |
 | [`docker/remote/cluster/`](docker/remote/cluster/) | Same four pairs on one host, images pulled from ECR |
 | [`host/single/config/`](host/single/config/) | Localhost sample for a binary next to a Tendermint you start yourself (`127.0.0.1`, `./data/capacity`) |
 | [`.env.example`](.env.example) | Template for image tags and external paths used by build scripts |
@@ -104,7 +104,7 @@ The Compose project name is `deploy`, so existing named volumes (`deploy_eld-dat
 
 ## Local single pair
 
-`docker/local/single/compose.yaml` starts `eld-app-1` and `tendermint-1` only, with the same host ports as cluster node 1. It mounts `../cluster/nodes/1` and `../cluster/wallets/wallets.json`. Service names stay `eld-app-1` and `tendermint-1` because node 1's Tendermint config points `proxy_app` at `eld-app-1`. Node 1's genesis lists four validators, so this pair does not produce blocks.
+`docker/local/single/compose.yaml` starts `eld-app-1` and `tendermint-1` only, with the same host ports as cluster node 1. App config and wallets come from cluster node 1. Tendermint uses `docker/local/single/tendermint/` (one validator, no peers). `node_key.json` and `priv_validator_key.json` in that directory are local copies of cluster node 1's keys, gitignored, so `unsafe_reset_all` can rewrite them. The four-node files under `docker/local/cluster/nodes/` are unchanged.
 
 Same three actions as the cluster, against the single Compose project (`eld-single`). `single-start-without-history.sh` resets only `tendermint-1` and does not touch the 4-node volumes.
 

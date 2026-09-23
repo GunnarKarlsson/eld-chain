@@ -1,7 +1,6 @@
-# One app + one Tendermint, using cluster node 1's config and keys.
-# Service names stay eld-app-1 / tendermint-1 so node 1's config.toml
-# (proxy_app = tcp://eld-app-1:26658) still resolves.
-# Node 1 genesis lists four validators, so this pair does not produce blocks.
+# One app + one Tendermint for local development.
+# App config and wallets come from cluster node 1.
+# Tendermint config, including gitignored key copies, is ./tendermint (one validator, no peers).
 name: eld-single
 
 x-app-log: &app-log
@@ -63,7 +62,7 @@ services:
       - "26660:26660"  # Prometheus
     volumes:
       - tendermint-data-1:/tendermint/.tendermint/data
-      - ../cluster/nodes/1/tendermint:/tendermint/.tendermint/config
+      - ./tendermint:/tendermint/.tendermint/config
     environment:
       - TMHOME=/tendermint/.tendermint
       - PROXY_APP=tcp://eld-app-1:26658

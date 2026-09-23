@@ -30,3 +30,8 @@ deploy/docker/local/cluster/nodes/*/app/p2p_keypair.json
 deploy/docker/local/cluster/nodes/*/tendermint/node_key.json
 deploy/docker/local/cluster/nodes/*/tendermint/priv_validator_key.json
 deploy/docker/local/cluster/nodes/*/tendermint/addrbook.json
+
+# Local single-node Tendermint keys (copies; not committed)
+deploy/docker/local/single/tendermint/addrbook.json
+deploy/docker/local/single/tendermint/node_key.json
+deploy/docker/local/single/tendermint/priv_validator_key.json
