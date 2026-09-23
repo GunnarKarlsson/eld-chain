@@ -1,28 +1,39 @@
 use super::connection::ConsensusConnectionNewContext;
 use super::rewards::ValidatorRewardManager;
 use crate::abci_interface::chain_tip::ChainTip;
+use crate::abci_interface::mempool::MempoolConnection;
 use crate::abci_interface::snapshot::SnapshotManager;
 use crate::abci_interface::ConsensusConnection;
 use crate::app_state::AppState;
 use crate::capacity::capacity_manager::CapacityManager;
 use crate::config::ConsensusConfig;
 use crate::config::FeeConfig;
-use crate::content::sync::{P2pConfig, P2pSyncCoordinator};
+use crate::content::sync::{MockP2pSyncCoordinator, P2pConfig, P2pSyncCoordinator};
 use crate::node_identity::LocalNodeIdentity;
 use crate::storage::hybrid_storage::HybridStorage;
 use crate::storage::rocksdb::RocksDBStorage;
 use crate::wallet::VerifiedProofChainSubmitter;
-use abci::async_api::Consensus;
-use abci::types::{Header, PublicKey, RequestCommit, RequestDeliverTx, ValidatorUpdate};
+use abci::async_api::{Consensus, Mempool};
+use abci::types::{
+    Header, PublicKey, RequestBeginBlock, RequestCheckTx, RequestCommit, RequestDeliverTx,
+    RequestEndBlock, ValidatorUpdate,
+};
+use ed25519_dalek::SigningKey;
 use eld_client::config::ClientConfig;
 use eld_common::account::Account;
 use eld_common::address::Address;
+use eld_common::cado::{CadoPath, CadoPathKey, CadoType};
 use eld_common::capacity::CapacityConfig;
 use eld_common::coin::Coin;
+use eld_common::constants::protocol::BLOCKS_PER_EPOCH;
+use eld_common::fee::calculate_dynamic_fee;
 use eld_common::nonce::Nonce;
-use eld_common::tx::Tx;
+use eld_common::tx::{Payload, TransferTx, Tx, TxPublicKey, TxSig};
+use eld_common::validation::safe_deserialize_account_data;
 use std::sync::{Arc, Mutex, RwLock};
+use tempfile::TempDir;
 
+#[cfg(test)]
 fn mock_consensus_connection() -> ConsensusConnection<HybridStorage> {
     let config = ConsensusConfig {
         chain_id: "test-chain".to_string(),
@@ -199,6 +210,7 @@ async fn test_deliver_tx_deeply_nested_json() {
     assert_ne!(response.code, 0, "Deeply nested JSON should be rejected");
 }
 
+#[cfg(test)]
 fn seed_sender_account(
     state: &mut AppState,
     signing_key: &ed25519_dalek::SigningKey,
@@ -232,6 +244,7 @@ fn seed_sender_account(
         .insert(path.as_str().as_bytes(), cado);
 }
 
+#[cfg(test)]
 fn signed_add_namespace_tx(
     signing_key: &ed25519_dalek::SigningKey,
     slug: &str,
@@ -265,6 +278,7 @@ fn signed_add_namespace_tx(
     tx
 }
 
+#[cfg(test)]
 fn hex_encode_tx(tx: &Tx) -> Vec<u8> {
     hex::encode(serde_json::to_string(tx).expect("serialize tx")).into_bytes()
 }
@@ -578,4 +592,298 @@ fn build_challenged_capacity_provider_data_skips_unregistered_providers() {
     assert_eq!(data[0].1, Some([9u8; 32]));
     assert_eq!(data[0].2, Some([8u8; 32]));
     assert_eq!(data[0].3, Some(50));
+}
+
+#[cfg(test)]
+const TRANSFER_CHAIN_ID: &str = "test-chain";
+#[cfg(test)]
+const TRANSFER_SENDER_SEED: [u8; 32] = [11u8; 32];
+#[cfg(test)]
+const TRANSFER_INITIAL_BALANCE: u128 = 10_000_000;
+
+/// Test-only: keeps RocksDB alive and wires consensus without libp2p or Tendermint.
+#[cfg(test)]
+struct InProcessHarness {
+    _rocksdb_dir: TempDir,
+    consensus: ConsensusConnection<HybridStorage>,
+    storage: Arc<HybridStorage>,
+}
+
+#[cfg(test)]
+fn dummy_client_config() -> ClientConfig {
+    ClientConfig {
+        node_host: "127.0.0.1".to_string(),
+        node_port: "26657".to_string(),
+        chain_id: TRANSFER_CHAIN_ID.to_string(),
+        faucet_host: "127.0.0.1".to_string(),
+        faucet_port: "8080".to_string(),
+        faucet_end_point: "/faucet/request".to_string(),
+        faucet_url: None,
+        app_port: "9001".to_string(),
+        node_url: None,
+        app_url: None,
+    }
+}
+
+#[cfg(test)]
+fn configured_local_identity() -> LocalNodeIdentity {
+    LocalNodeIdentity {
+        consensus_validator_address: Some(
+            Address::parse_hex_str("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").expect("identity"),
+        ),
+        capacity_validator_address: None,
+    }
+}
+
+#[cfg(test)]
+fn in_process_harness() -> InProcessHarness {
+    let config = ConsensusConfig {
+        chain_id: TRANSFER_CHAIN_ID.to_string(),
+        app_host: "127.0.0.1".to_string(),
+        app_port: "8080".to_string(),
+        accounts: Default::default(),
+        max_tx_bytes: 1024 * 1024,
+        fee_config: FeeConfig::default(),
+        storage_limits: crate::config::StorageLimits::default(),
+    };
+    let consensus_config = Arc::new(Mutex::new(config));
+    let committed_state = Arc::new(Mutex::new(AppState::default()));
+    let current_state = Arc::new(Mutex::new(Some(AppState::default())));
+    let rocksdb_dir = TempDir::new().expect("tempdir");
+    let capacity_dir = rocksdb_dir.path().join("capacity");
+    std::fs::create_dir_all(&capacity_dir).expect("capacity dir");
+    let rocksdb_storage = Arc::new(RocksDBStorage::new(rocksdb_dir.path()).expect("rocksdb"));
+    let storage = Arc::new(HybridStorage::new(rocksdb_storage));
+    let snapshot_manager = Arc::new(SnapshotManager::new(storage.clone()));
+    let (mock_p2p, _rx) = MockP2pSyncCoordinator::new();
+    let cli = Arc::new(eld_client::facade::ChainClient::new(
+        dummy_client_config(),
+        eld_common::fee::FeeConfig::default(),
+    ));
+    let test_provider =
+        Address::parse_hex_str("0xcccccccccccccccccccccccccccccccccccccccc").expect("provider");
+    let capacity_config = CapacityConfig {
+        capacity_dir,
+        max_capacity_gb: 10,
+        provider_id: test_provider,
+        auto_register: true,
+        registration_retry_interval_secs: 60,
+        tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
+    };
+    let capacity_manager = Arc::new(CapacityManager::new(
+        capacity_config,
+        "wallet1".to_string(),
+        cli,
+        consensus_config.clone(),
+    ));
+    let local_identity = Arc::new(RwLock::new(configured_local_identity()));
+
+    let consensus = ConsensusConnection::new(ConsensusConnectionNewContext {
+        consensus_config,
+        committed_state,
+        chain_tip: Arc::new(ChainTip::default()),
+        current_state,
+        storage: storage.clone(),
+        snapshot_manager,
+        p2p_sync_coordinator: Arc::new(mock_p2p),
+        ready_tx: None,
+        capacity_manager,
+        local_identity,
+    });
+
+    InProcessHarness {
+        _rocksdb_dir: rocksdb_dir,
+        consensus,
+        storage,
+    }
+}
+
+#[cfg(test)]
+fn seed_harness_sender(harness: &InProcessHarness, signing_key: &SigningKey) {
+    {
+        let mut committed = harness.consensus.committed_state.lock().expect("committed");
+        seed_sender_account(&mut committed, signing_key, TRANSFER_INITIAL_BALANCE);
+    }
+    {
+        let mut current = harness.consensus.current_state.lock().expect("current");
+        seed_sender_account(
+            current.as_mut().expect("current state"),
+            signing_key,
+            TRANSFER_INITIAL_BALANCE,
+        );
+    }
+}
+
+#[cfg(test)]
+fn sender_account_path(signing_key: &SigningKey) -> CadoPath {
+    let sender =
+        Address::from_public_key(&signing_key.verifying_key()).expect("derive address in test");
+    CadoPath::new(CadoType::Account, CadoPathKey::Address(sender)).expect("account path")
+}
+
+#[cfg(test)]
+fn account_from_committed(state: &AppState, path: &CadoPath) -> Account {
+    let cado = state
+        .envelope
+        .committed_cado_cache
+        .get(path.as_str().as_bytes())
+        .expect("sender in committed cache");
+    safe_deserialize_account_data::<Account>(cado.data(), "test_account").expect("account")
+}
+
+#[cfg(test)]
+fn signed_transfer_tx(signing_key: &SigningKey, recipient: Address, nonce: u32) -> Tx {
+    let sender =
+        Address::from_public_key(&signing_key.verifying_key()).expect("derive address in test");
+    let inner = TransferTx::new(sender, recipient, 1.into()).expect("valid transfer");
+    let mut tx = Tx {
+        sig: TxSig::empty(),
+        nonce: nonce.into(),
+        payload: Payload::new(inner),
+        public_key: TxPublicKey::from(signing_key.verifying_key()),
+        fee: 0.into(),
+    };
+    let required_fee = calculate_dynamic_fee(&tx, &FeeConfig::default()).expect("fee estimate");
+    tx.fee = required_fee.amount().into();
+    tx.sign(signing_key, TRANSFER_CHAIN_ID).expect("sign");
+    tx
+}
+
+#[cfg(test)]
+fn transfer_recipient() -> Address {
+    Address::parse_hex_str("0xabcdef1234567890abcdef1234567890abcdef12").expect("recipient")
+}
+
+#[cfg(test)]
+fn snapshot_height() -> i64 {
+    BLOCKS_PER_EPOCH
+}
+
+#[cfg(test)]
+#[allow(clippy::needless_update)]
+async fn begin_deliver_end_commit(
+    consensus: &ConsensusConnection<HybridStorage>,
+    tx_bytes: Vec<u8>,
+) {
+    let height = snapshot_height();
+    consensus
+        .begin_block(RequestBeginBlock {
+            header: Some(Header {
+                height,
+                chain_id: TRANSFER_CHAIN_ID.into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+        .await;
+    let deliver = consensus
+        .deliver_tx(RequestDeliverTx { tx: tx_bytes })
+        .await;
+    assert_eq!(deliver.code, 0, "deliver_tx: {}", deliver.log);
+    consensus.end_block(RequestEndBlock { height }).await;
+    consensus.commit(RequestCommit::default()).await;
+}
+
+#[tokio::test]
+async fn check_tx_then_deliver_tx_transfer_commits_account() {
+    let harness = in_process_harness();
+    let signing_key = SigningKey::from_bytes(&TRANSFER_SENDER_SEED);
+    seed_harness_sender(&harness, &signing_key);
+    let path = sender_account_path(&signing_key);
+    let tx = signed_transfer_tx(&signing_key, transfer_recipient(), 1);
+    let tx_bytes = hex_encode_tx(&tx);
+
+    let mempool = MempoolConnection::new(
+        TRANSFER_CHAIN_ID.to_string(),
+        1024 * 1024,
+        FeeConfig::default(),
+        harness.consensus.committed_state.clone(),
+        harness.storage.clone(),
+    );
+    let check = mempool
+        .check_tx(RequestCheckTx {
+            tx: tx_bytes.clone(),
+            ..Default::default()
+        })
+        .await;
+    assert_eq!(check.code, 0, "check_tx: {}", check.log);
+
+    {
+        let committed = harness.consensus.committed_state.lock().expect("committed");
+        let account = account_from_committed(&committed, &path);
+        assert_eq!(account.nonce().value(), 0);
+        assert_eq!(account.balance().amount(), TRANSFER_INITIAL_BALANCE);
+    }
+
+    begin_deliver_end_commit(&harness.consensus, tx_bytes).await;
+
+    let committed = harness.consensus.committed_state.lock().expect("committed");
+    let account = account_from_committed(&committed, &path);
+    assert_eq!(account.nonce().value(), 1);
+    assert!(
+        account.balance().amount() < TRANSFER_INITIAL_BALANCE,
+        "fee and transfer must reduce sender balance"
+    );
+}
+
+#[tokio::test]
+async fn transfer_app_hash_is_stable_and_reloads_from_rocksdb() {
+    let signing_key = SigningKey::from_bytes(&TRANSFER_SENDER_SEED);
+    let tx = signed_transfer_tx(&signing_key, transfer_recipient(), 1);
+    let tx_bytes = hex_encode_tx(&tx);
+
+    let harness_a = in_process_harness();
+    seed_harness_sender(&harness_a, &signing_key);
+    begin_deliver_end_commit(&harness_a.consensus, tx_bytes.clone()).await;
+    let hash_a = harness_a
+        .consensus
+        .committed_state
+        .lock()
+        .expect("committed")
+        .app_hash
+        .clone();
+    let trie_a = harness_a
+        .consensus
+        .committed_state
+        .lock()
+        .expect("committed")
+        .envelope
+        .state_trie
+        .root_hash();
+
+    let harness_b = in_process_harness();
+    seed_harness_sender(&harness_b, &signing_key);
+    begin_deliver_end_commit(&harness_b.consensus, tx_bytes).await;
+    let hash_b = harness_b
+        .consensus
+        .committed_state
+        .lock()
+        .expect("committed")
+        .app_hash
+        .clone();
+    let trie_b = harness_b
+        .consensus
+        .committed_state
+        .lock()
+        .expect("committed")
+        .envelope
+        .state_trie
+        .root_hash();
+
+    assert_eq!(
+        hash_a, hash_b,
+        "same transfer sequence must yield same app_hash"
+    );
+    assert_eq!(
+        trie_a, trie_b,
+        "same transfer sequence must yield same trie root"
+    );
+    assert!(!hash_a.is_empty());
+
+    let mut restored = AppState::default();
+    restored
+        .initialize_with_data(harness_a.storage.as_ref())
+        .expect("reload from rocksdb");
+    assert_eq!(restored.app_hash, hash_a);
+    assert_eq!(restored.envelope.state_trie.root_hash(), trie_a);
 }
