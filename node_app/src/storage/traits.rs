@@ -362,7 +362,10 @@ pub trait TransactionIndexerStorage: Send + Sync {
     /// Calculate transaction ID from transaction
     fn calculate_tx_id(&self, tx: &Tx) -> String;
 
-    /// Index a transaction with all secondary indexes
+    /// Index a transaction with all secondary indexes.
+    ///
+    /// `events` are the ABCI events from the execution response, when the
+    /// response included any. They are stored on the indexed transaction.
     fn index_transaction(
         &self,
         tx: &Tx,
@@ -370,6 +373,7 @@ pub trait TransactionIndexerStorage: Send + Sync {
         block_index: u32,
         status: TransactionStatus,
         gas_used: Option<u64>,
+        events: &[abci::types::Event],
     ) -> Result<(), EldError>;
 
     /// Get a transaction by ID

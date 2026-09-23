@@ -27,7 +27,8 @@ impl TransactionIndexer {
     }
 
     /// Index a transaction
-    /// Delegates to RocksDBStorage's implementation which handles all database operations
+    /// Delegates to RocksDBStorage's implementation which handles all database operations.
+    /// `events` come from the execution response when it included any.
     pub fn index_transaction(
         &self,
         tx: &Tx,
@@ -35,9 +36,10 @@ impl TransactionIndexer {
         block_index: u32,
         status: TransactionStatus,
         gas_used: Option<u64>,
+        events: &[Event],
     ) -> Result<(), EldError> {
         self.storage
-            .index_transaction(tx, block_height, block_index, status, gas_used)
+            .index_transaction(tx, block_height, block_index, status, gas_used, events)
     }
 
     /// Get a transaction by ID

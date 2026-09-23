@@ -1360,7 +1360,7 @@ fn test_block_pos_chron_desc_order_newest_first_and_continuation_tuple() {
 
     let first = transfer_tx_fixture(&secret, 1);
     storage
-        .index_transaction(&first, 9, 0, TransactionStatus::Success, Some(21_000))
+        .index_transaction(&first, 9, 0, TransactionStatus::Success, Some(21_000), &[])
         .unwrap();
     storage
         .index_transaction(
@@ -1369,6 +1369,7 @@ fn test_block_pos_chron_desc_order_newest_first_and_continuation_tuple() {
             0,
             TransactionStatus::Success,
             None,
+            &[],
         )
         .unwrap();
 
@@ -1395,6 +1396,59 @@ fn test_block_pos_chron_desc_order_newest_first_and_continuation_tuple() {
         .unwrap();
     assert_eq!(page2.len(), 1);
     assert_eq!(page2[0].block_height, 9);
+}
+
+#[test]
+fn test_index_transaction_stores_response_events() {
+    use crate::indexer::TransactionStatus;
+    use crate::storage::traits::TransactionIndexerStorage;
+    use abci::types::{Event, EventAttribute};
+    use ed25519_dalek::SigningKey;
+    use eld_common::constants::{protocol::DEFAULT_TX_FEE, test::MOCK_CHAIN_ID};
+    use eld_common::tx::{Payload, TransferTx, Tx, TxPublicKey, TxSig};
+
+    let storage = create_test_storage();
+    let secret = SigningKey::from_bytes(&[13u8; 32]);
+    let verifying_key = secret.verifying_key();
+    let sender = Address::from_public_key(&verifying_key).unwrap();
+    let recipient = Address::parse_hex_str("0x0987654321098765432109876543210987654321").unwrap();
+    let inner = TransferTx::new(sender, recipient, 1.into()).unwrap();
+    let mut tx = Tx {
+        sig: TxSig::empty(),
+        nonce: 1.into(),
+        payload: Payload::new(inner),
+        public_key: TxPublicKey::from(&verifying_key),
+        fee: DEFAULT_TX_FEE.into(),
+    };
+    tx.sign(&secret, MOCK_CHAIN_ID).expect("sign");
+
+    let events = vec![Event {
+        r#type: "transfer".to_string(),
+        attributes: vec![EventAttribute {
+            key: b"amount".to_vec(),
+            value: b"1".to_vec(),
+            index: true,
+        }],
+    }];
+
+    storage
+        .index_transaction(&tx, 4, 1, TransactionStatus::Success, Some(21_000), &events)
+        .unwrap();
+
+    let stored = storage
+        .get_indexed_transaction(&storage.calculate_tx_id(&tx))
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.events.len(), 1);
+    assert_eq!(stored.events[0].event_index, 0);
+    assert_eq!(stored.events[0].event_type, "transfer");
+    assert_eq!(stored.events[0].block_height, 4);
+    assert_eq!(stored.events[0].block_index, 1);
+    assert_eq!(
+        stored.events[0].attributes,
+        vec![("amount".to_string(), "1".to_string())]
+    );
+    assert_eq!(stored.events[0].tx_id, stored.id);
 }
 
 #[test]
@@ -1509,6 +1563,7 @@ fn test_index_verified_proof_success_bumps_global_rollup() {
             0,
             TransactionStatus::Success,
             None,
+            &[],
         )
         .unwrap();
     storage
@@ -1518,6 +1573,7 @@ fn test_index_verified_proof_success_bumps_global_rollup() {
             1,
             TransactionStatus::Success,
             None,
+            &[],
         )
         .unwrap();
 
@@ -1580,6 +1636,7 @@ fn test_index_verified_proof_failed_does_not_bump_global_rollup() {
             0,
             TransactionStatus::Failed,
             None,
+            &[],
         )
         .unwrap();
 

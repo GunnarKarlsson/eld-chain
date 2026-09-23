@@ -16,6 +16,35 @@ use super::keys::{
 };
 use super::RocksDBStorage;
 
+fn indexed_event_from_abci(
+    tx_id: &str,
+    event_index: u32,
+    event: &Event,
+    block_height: u64,
+    block_index: u32,
+    timestamp: u64,
+) -> IndexedEvent {
+    let attributes = event
+        .attributes
+        .iter()
+        .map(|attr| {
+            (
+                String::from_utf8_lossy(&attr.key).to_string(),
+                String::from_utf8_lossy(&attr.value).to_string(),
+            )
+        })
+        .collect();
+    IndexedEvent {
+        tx_id: tx_id.to_string(),
+        event_index,
+        event_type: event.r#type.clone(),
+        attributes,
+        block_height,
+        block_index,
+        timestamp,
+    }
+}
+
 impl RocksDBStorage {
     /// Count primary indexed-transaction rows (same predicate as listing endpoints).
     pub(super) fn count_primary_indexed_transaction_keys(
@@ -341,6 +370,7 @@ impl TransactionIndexerStorage for RocksDBStorage {
         block_index: u32,
         status: TransactionStatus,
         gas_used: Option<u64>,
+        events: &[Event],
     ) -> Result<(), EldError> {
         let tx_id = self.calculate_tx_id(tx);
         let timestamp = std::time::SystemTime::now()
@@ -351,6 +381,21 @@ impl TransactionIndexerStorage for RocksDBStorage {
             })?
             .as_secs();
 
+        let events = events
+            .iter()
+            .enumerate()
+            .map(|(event_index, event)| {
+                indexed_event_from_abci(
+                    &tx_id,
+                    event_index as u32,
+                    event,
+                    block_height,
+                    block_index,
+                    timestamp,
+                )
+            })
+            .collect();
+
         let indexed_tx = IndexedTransaction {
             id: tx_id.clone(),
             block_height,
@@ -359,7 +404,7 @@ impl TransactionIndexerStorage for RocksDBStorage {
             tx: tx.clone(),
             status,
             gas_used,
-            events: Vec::new(),
+            events,
         };
 
         // Use JSON serialization since IndexedTransaction contains Tx which has variable-length sequences
@@ -544,29 +589,15 @@ impl TransactionIndexerStorage for RocksDBStorage {
             })?
             .as_secs();
 
-        // Convert ABCI Event to IndexedEvent format
-        // Event attributes are bytes, convert to String tuples
-        let attributes: Vec<(String, String)> = event
-            .attributes
-            .iter()
-            .map(|attr| {
-                let key = String::from_utf8_lossy(&attr.key).to_string();
-                let value = String::from_utf8_lossy(&attr.value).to_string();
-                (key, value)
-            })
-            .collect();
-
-        let event_type = event.r#type.clone();
-
-        let indexed_event = IndexedEvent {
-            tx_id: tx_id.to_string(),
+        let indexed_event = indexed_event_from_abci(
+            tx_id,
             event_index,
-            event_type: event_type.clone(),
-            attributes,
+            event,
             block_height,
             block_index,
             timestamp,
-        };
+        );
+        let event_type = indexed_event.event_type.clone();
 
         // Use JSON serialization (same as transactions)
         let serialized =
