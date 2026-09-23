@@ -4,11 +4,13 @@ pub mod nibbles;
 pub mod state_trie;
 
 mod app;
+mod app_hash;
 mod cado_hash;
 mod envelope;
 mod tip;
 
 pub use app::AppState;
+pub use app_hash::AppHash;
 pub use cado_hash::{AccountWithCadoHash, StakingAccountWithCadoHash};
 pub use tip::AppStateTip;
 

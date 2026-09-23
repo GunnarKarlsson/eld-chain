@@ -219,8 +219,8 @@ fn seed_sender_account(
     use eld_common::cado::{CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType};
     use sha2::{Digest, Sha256};
 
-    if state.app_hash.is_empty() {
-        state.app_hash = Sha256::digest("genesis").to_vec();
+    if state.app_hash().is_empty() {
+        state.set_app_hash(Sha256::digest("genesis").into());
     }
     if state.chain_id.is_empty() {
         state.chain_id = "test-chain".to_string();
@@ -835,13 +835,12 @@ async fn transfer_app_hash_is_stable_and_reloads_from_rocksdb() {
     let harness_a = in_process_harness();
     seed_harness_sender(&harness_a, &signing_key);
     begin_deliver_end_commit(&harness_a.consensus, tx_bytes.clone()).await;
-    let hash_a = harness_a
+    let hash_a = *harness_a
         .consensus
         .committed_state
         .lock()
         .expect("committed")
-        .app_hash
-        .clone();
+        .app_hash();
     let trie_a = harness_a
         .consensus
         .committed_state
@@ -854,13 +853,12 @@ async fn transfer_app_hash_is_stable_and_reloads_from_rocksdb() {
     let harness_b = in_process_harness();
     seed_harness_sender(&harness_b, &signing_key);
     begin_deliver_end_commit(&harness_b.consensus, tx_bytes).await;
-    let hash_b = harness_b
+    let hash_b = *harness_b
         .consensus
         .committed_state
         .lock()
         .expect("committed")
-        .app_hash
-        .clone();
+        .app_hash();
     let trie_b = harness_b
         .consensus
         .committed_state
@@ -884,6 +882,6 @@ async fn transfer_app_hash_is_stable_and_reloads_from_rocksdb() {
     restored
         .initialize_with_data(harness_a.storage.as_ref())
         .expect("reload from rocksdb");
-    assert_eq!(restored.app_hash, hash_a);
+    assert_eq!(restored.app_hash(), &hash_a);
     assert_eq!(restored.envelope.state_trie.root_hash(), trie_a);
 }

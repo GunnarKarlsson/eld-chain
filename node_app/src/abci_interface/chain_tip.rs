@@ -1,11 +1,11 @@
-use crate::app_state::AppState;
+use crate::app_state::{AppHash, AppState};
 use std::sync::RwLock;
 
 #[derive(Debug, Clone, Default)]
 pub struct ChainTipSnapshot {
     pub committed_height: i64,
     pub current_epoch: i64,
-    pub app_hash: Vec<u8>,
+    pub app_hash: AppHash,
 }
 
 /// Lightweight, read-optimized projection of committed chain head.
@@ -39,7 +39,7 @@ impl ChainTip {
             inner: RwLock::new(ChainTipSnapshot {
                 committed_height: state.envelope.block_height,
                 current_epoch: state.envelope.current_epoch,
-                app_hash: state.app_hash.clone(),
+                app_hash: *state.app_hash(),
             }),
         }
     }
@@ -48,7 +48,7 @@ impl ChainTip {
         if let Ok(mut guard) = self.inner.write() {
             guard.committed_height = state.envelope.block_height;
             guard.current_epoch = state.envelope.current_epoch;
-            guard.app_hash = state.app_hash.clone();
+            guard.app_hash = *state.app_hash();
         }
     }
 

@@ -7,7 +7,7 @@ use sha2::Digest;
 pub struct AppStateTip {
     pub block_height: i64,
     pub cado_root_hash: [u8; 32],
-    pub app_hash: Vec<u8>, // TODO: Change to [u8; 32]
+    pub app_hash: [u8; 32],
 }
 
 impl PartialEq for AppStateTip {
@@ -26,7 +26,7 @@ impl std::fmt::Display for AppStateTip {
             "  CADO Root Hash: 0x{}",
             hex::encode(self.cado_root_hash)
         )?;
-        writeln!(f, "  App Hash: 0x{}", hex::encode(&self.app_hash))
+        writeln!(f, "  App Hash: 0x{}", hex::encode(self.app_hash))
     }
 }
 
@@ -35,7 +35,7 @@ impl AppStateTip {
         Self {
             block_height: 0,
             cado_root_hash: StateTrie::empty_root_hash(),
-            app_hash: sha2::Sha256::digest("genesis").to_vec(),
+            app_hash: sha2::Sha256::digest("genesis").into(),
         }
     }
 

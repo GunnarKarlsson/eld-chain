@@ -18,7 +18,7 @@ use tracing::{error, info};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppStateSnapshot {
     pub block_height: i64,
-    pub app_hash: Vec<u8>,
+    pub app_hash: [u8; 32],
     pub chain_id: String,
     pub current_epoch: i64,
     pub committed_cado_cache: CommittedCadoCache,
@@ -36,12 +36,13 @@ pub struct AppStateSnapshot {
 
 impl AppStateSnapshot {
     /// Builds a snapshot from committed `state` at epoch boundary.
-    pub fn new(state: &AppState) -> Self {
+    pub fn new(state: &AppState) -> Result<Self, EldError> {
         let envelope = &state.envelope;
         let state_trie_root = envelope.state_trie.root_hash();
-        Self {
+        let app_hash = state.app_hash().bytes()?;
+        Ok(Self {
             block_height: envelope.block_height,
-            app_hash: state.app_hash.clone(),
+            app_hash,
             chain_id: state.chain_id.clone(),
             current_epoch: envelope.current_epoch,
             committed_cado_cache: envelope.committed_cado_cache.without_infrastructure(),
@@ -52,7 +53,7 @@ impl AppStateSnapshot {
             active_validators: envelope.active_validators.clone(),
             capacity_validators: envelope.capacity_validators.clone(),
             active_capacity_validator: envelope.active_capacity_validator.clone(),
-        }
+        })
     }
 
     /// Restores committed snapshot fields into `state` and validates trie roots.
@@ -61,7 +62,7 @@ impl AppStateSnapshot {
         state: &mut AppState,
         cado_root_hash: [u8; 32],
     ) -> Result<(), EldError> {
-        state.app_hash = self.app_hash.clone();
+        state.set_app_hash(self.app_hash);
         state.chain_id = self.chain_id.clone();
         state.envelope.block_height = self.block_height;
         state.envelope.current_epoch = self.current_epoch;
@@ -190,7 +191,7 @@ mod tests {
     #[allow(clippy::field_reassign_with_default)]
     fn sample_app_state_for_snapshot() -> AppState {
         let mut state = AppState::default();
-        state.app_hash = vec![0xAB; 32];
+        state.set_app_hash([0xAB; 32]);
         state.chain_id = "test-chain".to_string();
         state.envelope.init_empty_trie();
         state.envelope.block_height = 40;
@@ -317,7 +318,7 @@ mod tests {
         use eld_common::constants::cado::TYPE_APP_STATE_SNAPSHOT;
 
         let state = sample_app_state_for_snapshot();
-        let snapshot = AppStateSnapshot::new(&state);
+        let snapshot = AppStateSnapshot::new(&state).expect("snapshot");
         let cado = snapshot.to_cado().expect("to_cado");
 
         match &cado {
@@ -360,7 +361,8 @@ mod tests {
 
         assert_eq!(state.envelope.committed_cado_cache.len(), 2);
 
-        let snapshot = AppStateSnapshot::new(&state);
+        state.set_app_hash([0xAB; 32]);
+        let snapshot = AppStateSnapshot::new(&state).expect("snapshot");
         assert_eq!(snapshot.committed_cado_cache.len(), 1);
         assert!(snapshot.committed_cado_cache.get(b"test_key").is_some());
         assert!(snapshot

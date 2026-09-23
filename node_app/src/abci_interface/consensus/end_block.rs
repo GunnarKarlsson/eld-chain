@@ -136,11 +136,8 @@ where
             }
 
             // Calculate app hash before releasing lock
-            current_state.app_hash = current_state
-                .envelope
-                .calculate_hash()
-                .to_be_bytes()
-                .to_vec();
+            let app_hash = current_state.envelope.calculate_app_hash();
+            current_state.set_app_hash(app_hash);
 
             // Capture challenger plan only when a new epoch starts (heavy data built after identity check).
             if new_epoch > current_epoch {

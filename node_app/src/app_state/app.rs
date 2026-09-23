@@ -1,3 +1,4 @@
+use crate::app_state::app_hash::AppHash;
 use crate::app_state::app_state_snapshot::AppStateSnapshot;
 use crate::app_state::envelope::AppStateEnvelope;
 use crate::app_state::tip::AppStateTip;
@@ -11,7 +12,7 @@ use tracing::{error, info};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AppState {
-    pub app_hash: Vec<u8>,
+    app_hash: AppHash,
     pub envelope: AppStateEnvelope,
     pub chain_id: String,
 }
@@ -37,6 +38,15 @@ impl PartialEq for AppState {
 }
 
 impl AppState {
+    pub fn app_hash(&self) -> &AppHash {
+        &self.app_hash
+    }
+
+    /// Stores a 32-byte hash. Later calls replace those bytes and leave the hash set.
+    pub fn set_app_hash(&mut self, bytes: [u8; 32]) {
+        self.app_hash.set(bytes);
+    }
+
     /// True when RocksDB has a committed `AppStateTip` at the fixed `LATEST` path.
     ///
     /// `Commit` persists `AppStateTip` via `put_cado_type` (path_index), not `cado_map`.
@@ -65,7 +75,7 @@ impl AppState {
 
         match storage.get_deserialized_cado_by_path::<AppStateTip>(latest_app_state_tip_path) {
             Ok(app_state_tip) => {
-                self.app_hash = app_state_tip.app_hash.clone();
+                self.set_app_hash(app_state_tip.app_hash);
                 self.envelope.block_height = app_state_tip.block_height;
 
                 info!(
@@ -106,7 +116,7 @@ impl AppState {
                         if snapshot.app_hash != app_state_tip.app_hash {
                             handle_fatal_eld_error(EldError::ValidationError {
                                 field: "app_state_snapshot.app_hash".to_string(),
-                                value: hex::encode(&snapshot.app_hash),
+                                value: hex::encode(snapshot.app_hash),
                                 details: "AppStateSnapshot app_hash does not match AppStateTip"
                                     .to_string(),
                             });
@@ -152,7 +162,7 @@ impl AppState {
             Err(EldError::NotFoundError { .. }) => {
                 info!("No latest AppStateTip found in DB, initializing with genesis state");
                 let genesis_state = AppStateTip::genesis();
-                self.app_hash = genesis_state.app_hash;
+                self.set_app_hash(genesis_state.app_hash);
                 self.envelope.block_height = genesis_state.block_height;
                 info!("Genesis state initialized with empty trie");
             }

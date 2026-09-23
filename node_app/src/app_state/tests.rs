@@ -206,7 +206,7 @@ fn has_persisted_app_state_tip_detects_latest_app_state_tip_in_path_index() {
     let app_state_tip = AppStateTip {
         block_height: 42,
         cado_root_hash: [7u8; 32],
-        app_hash: vec![1, 2, 3],
+        app_hash: [1u8; 32],
     };
     let serialized = bincode::serialize(&app_state_tip).expect("serialize");
     let metadata = CADOMetadata::new(CadoType::AppStateTip, "system");
@@ -240,7 +240,7 @@ fn initialize_with_data_restores_committed_cado_objects_from_app_state_snapshot(
     let mut original = AppState::default();
     original.envelope.init_empty_trie();
     original.envelope.block_height = 55;
-    original.app_hash = vec![0xAB; 32];
+    original.set_app_hash([0xAB; 32]);
 
     let account_path = CadoPath::parse(&format!(
         "{}{}",
@@ -268,7 +268,7 @@ fn initialize_with_data_restores_committed_cado_objects_from_app_state_snapshot(
     let app_state_tip = AppStateTip {
         block_height: original.envelope.block_height,
         cado_root_hash: original.envelope.state_trie.root_hash(),
-        app_hash: original.app_hash.clone(),
+        app_hash: original.app_hash().bytes().expect("app hash"),
     };
     let latest_app_state_tip_path =
         CadoPath::new(CadoType::AppStateTip, CadoPathKey::Name(LATEST)).expect("sv path");
@@ -280,7 +280,7 @@ fn initialize_with_data_restores_committed_cado_objects_from_app_state_snapshot(
         .put_cado_type(latest_app_state_tip_path, app_state_tip_cado)
         .expect("persist app state tip");
 
-    let app_state_snapshot = AppStateSnapshot::new(&original);
+    let app_state_snapshot = AppStateSnapshot::new(&original).expect("snapshot");
     let app_state_snapshot_path = AppStateSnapshot::latest_path().expect("app state snapshot path");
     storage
         .put_cado_type(
@@ -316,7 +316,7 @@ fn initialize_with_data_strips_infrastructure_from_app_state_snapshot() {
     let mut original = AppState::default();
     original.envelope.init_empty_trie();
     original.envelope.block_height = 60;
-    original.app_hash = vec![0xAB; 32];
+    original.set_app_hash([0xAB; 32]);
 
     let account_path = CadoPath::parse(&format!(
         "{}{}",
@@ -343,7 +343,7 @@ fn initialize_with_data_strips_infrastructure_from_app_state_snapshot() {
     let app_state_tip = AppStateTip {
         block_height: original.envelope.block_height,
         cado_root_hash: original.envelope.state_trie.root_hash(),
-        app_hash: original.app_hash.clone(),
+        app_hash: original.app_hash().bytes().expect("app hash"),
     };
     let latest_app_state_tip_path =
         CadoPath::new(CadoType::AppStateTip, CadoPathKey::Name(LATEST)).expect("sv path");
@@ -357,7 +357,7 @@ fn initialize_with_data_strips_infrastructure_from_app_state_snapshot() {
         )
         .expect("persist app state tip");
 
-    let mut app_state_snapshot = AppStateSnapshot::new(&original);
+    let mut app_state_snapshot = AppStateSnapshot::new(&original).expect("snapshot");
     let infra_path = AppStateSnapshot::latest_path().expect("infra path");
     app_state_snapshot.committed_cado_cache.insert(
         infra_path.as_str().as_bytes(),
@@ -402,7 +402,7 @@ async fn app_state_snapshot_roundtrip_via_abci_payload_restores_original_state()
     let mut original = AppState::default();
     original.envelope.init_empty_trie();
     original.envelope.block_height = 77;
-    original.app_hash = vec![0xCD; 32];
+    original.set_app_hash([0xCD; 32]);
 
     let account_path = CadoPath::parse(&format!(
         "{}{}",
@@ -430,7 +430,7 @@ async fn app_state_snapshot_roundtrip_via_abci_payload_restores_original_state()
     let app_state_tip = AppStateTip {
         block_height: original.envelope.block_height,
         cado_root_hash: original.envelope.state_trie.root_hash(),
-        app_hash: original.app_hash.clone(),
+        app_hash: original.app_hash().bytes().expect("app hash"),
     };
     let latest_app_state_tip_path =
         CadoPath::new(CadoType::AppStateTip, CadoPathKey::Name(LATEST)).expect("sv path");
@@ -442,7 +442,7 @@ async fn app_state_snapshot_roundtrip_via_abci_payload_restores_original_state()
         .put_cado_type(latest_app_state_tip_path, app_state_tip_cado)
         .expect("persist app state tip");
 
-    let app_state_snapshot = AppStateSnapshot::new(&original);
+    let app_state_snapshot = AppStateSnapshot::new(&original).expect("snapshot");
     let app_state_snapshot_path = AppStateSnapshot::latest_path().expect("app state snapshot path");
     src_storage
         .put_cado_type(
@@ -476,7 +476,7 @@ async fn app_state_snapshot_roundtrip_via_abci_payload_restores_original_state()
     let restored_app_state_tip = AppStateTip {
         block_height: decoded.app_state_snapshot.block_height,
         cado_root_hash: decoded.app_state_snapshot.state_trie_root,
-        app_hash: decoded.app_state_snapshot.app_hash.clone(),
+        app_hash: decoded.app_state_snapshot.app_hash,
     };
     let restore_app_state_tip_cado = CadoBody::immutable(
         bincode::serialize(&restored_app_state_tip).expect("serialize restored app state tip"),

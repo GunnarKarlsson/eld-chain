@@ -20,8 +20,9 @@ use eld_common::validation::{safe_deserialize_account_data, safe_deserialize_cad
 use eld_common::validator::CapacityValidatorInfo;
 use eld_common::validator::{ActiveCapacityValidator, ValidatorInfo};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 use tracing::{error, info, warn};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -133,12 +134,11 @@ impl AppStateEnvelope {
         storage.is_verified_proof_challenge_rewarded(challenge_id)
     }
 
-    // Key is device id or sender (both should be updated)
-
-    pub fn calculate_hash(&self) -> u64 {
-        let mut s = DefaultHasher::new();
-        self.hash(&mut s);
-        s.finish()
+    /// SHA-256 over the same fields as [`Hash`] for this envelope.
+    pub fn calculate_app_hash(&self) -> [u8; 32] {
+        let mut collector = HashBytes::default();
+        self.hash(&mut collector);
+        Sha256::digest(&collector.0).into()
     }
 
     pub fn init_empty_trie(&mut self) {
@@ -449,5 +449,19 @@ impl AppStateEnvelope {
             path.as_str()
         );
         None
+    }
+}
+
+/// Collects the byte stream produced by [`std::hash::Hash`] so it can be SHA-256'd.
+#[derive(Default)]
+struct HashBytes(Vec<u8>);
+
+impl Hasher for HashBytes {
+    fn write(&mut self, bytes: &[u8]) {
+        self.0.extend_from_slice(bytes);
+    }
+
+    fn finish(&self) -> u64 {
+        0
     }
 }

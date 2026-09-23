@@ -179,7 +179,7 @@ where
         if app_state_snapshot.app_hash != app_state_tip.app_hash {
             return Err(EldError::ValidationError {
                 field: "app_state_snapshot.app_hash".to_string(),
-                value: hex::encode(&app_state_snapshot.app_hash),
+                value: hex::encode(app_state_snapshot.app_hash),
                 details: "AppStateSnapshot app_hash does not match latest AppStateTip".to_string(),
             });
         }
@@ -194,7 +194,7 @@ where
 
         let snapshot = AbciSnapshot::new(app_state_snapshot.clone());
         let payload = serialize_abci_snapshot(&snapshot)?;
-        self.create_snapshot_with_app_hash(height, payload, app_state_snapshot.app_hash)
+        self.create_snapshot_with_app_hash(height, payload, app_state_snapshot.app_hash.to_vec())
             .await
     }
 }

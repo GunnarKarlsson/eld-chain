@@ -368,7 +368,7 @@ where
             version: self.eld_app_version.clone(),
             app_version: Default::default(),
             last_block_height: state.envelope.block_height,
-            last_block_app_hash: state.app_hash.clone(),
+            last_block_app_hash: state.app_hash().to_vec(),
         }
     }
 

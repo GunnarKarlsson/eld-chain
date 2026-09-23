@@ -74,7 +74,7 @@ where
         }
 
         // Validate app_hash is not empty before proceeding
-        if current_state.app_hash.is_empty() {
+        if current_state.app_hash().is_empty() {
             handle_fatal_eld_error(EldError::ValidationError {
                 field: "app_hash".to_string(),
                 value: "empty".to_string(),
@@ -428,7 +428,10 @@ where
         let app_state_tip = AppStateTip {
             block_height: current_state.envelope.block_height,
             cado_root_hash: trie_root_hash, // Store trie hash in cado_root_hash field
-            app_hash: current_state.app_hash.clone(),
+            app_hash: match current_state.app_hash().bytes() {
+                Ok(bytes) => bytes,
+                Err(e) => handle_fatal_eld_error(e),
+            },
         };
         let app_state_tip_serialized = match bincode::serialize(&app_state_tip) {
             Ok(serialized) => serialized,
@@ -481,7 +484,10 @@ where
         if should_create_epoch_snapshot {
             let snapshot_start = std::time::Instant::now();
 
-            let app_state_snapshot = AppStateSnapshot::new(&current_state);
+            let app_state_snapshot = match AppStateSnapshot::new(&current_state) {
+                Ok(snapshot) => snapshot,
+                Err(e) => handle_fatal_eld_error(e),
+            };
             let app_state_snapshot_cado = match app_state_snapshot.to_cado() {
                 Ok(cado) => cado,
                 Err(e) => handle_fatal_eld_error(e),
@@ -594,7 +600,7 @@ where
         self.chain_tip.update_from_app_state(&committed_state);
 
         ResponseCommit {
-            data: committed_state.app_hash.clone(),
+            data: committed_state.app_hash().to_vec(),
             retain_height: 0,
         }
     }

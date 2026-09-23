@@ -454,7 +454,7 @@ mod tests {
             "committed_cado_cache must stay empty until first commit"
         );
         assert!(
-            state.app_hash.is_empty(),
+            state.app_hash().is_empty(),
             "app_hash deferred until end_block"
         );
     }

@@ -308,8 +308,8 @@ mod tests {
         balance: u128,
         nonce: u32,
     ) {
-        if state.app_hash.is_empty() {
-            state.app_hash = Sha256::digest("genesis").to_vec();
+        if state.app_hash().is_empty() {
+            state.set_app_hash(Sha256::digest("genesis").into());
         }
         state.chain_id = "test-chain".to_string();
 
