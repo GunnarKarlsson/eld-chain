@@ -206,12 +206,19 @@ impl KeyGenerator for GeneralKeyGenerator {
                     details: "Hash must be 32 bytes".to_string(),
                 });
             }
-            if name_bytes != hash[..] {
-                //return Err(EldError::ValidationError {
-                //    field: "path_name".to_string(),
-                //    value: path.name().to_string(),
-                //    details: "Hash does not match path name".to_string(),
-                //});
+            // Mutable names are the original hash or the current data hash.
+            // Updates keep the original hash and change latest_hash, so either
+            // match is valid. Immutable names here are identifiers, not payload hashes.
+            if let CadoBody::Mutable(cadomut) = cado {
+                let matches_original = name_bytes.as_slice() == cadomut.hash_bytes();
+                let matches_latest = name_bytes.as_slice() == cadomut.latest_hash();
+                if !matches_original && !matches_latest {
+                    return Err(EldError::ValidationError {
+                        field: "path_name".to_string(),
+                        value: path.name().to_string(),
+                        details: "Hash does not match path name".to_string(),
+                    });
+                }
             }
         }
         // Primary Storage-Key: Sha256(scope|type_|hash)
@@ -290,6 +297,7 @@ mod tests {
     use eld_common::address::Address;
     use eld_common::cado::{epoch_record_path_name, CADOMetadata, CadoPathKey, CadoType};
     use eld_common::constants::cado::LATEST;
+    use eld_common::error::EldError;
     use eld_common::namespace::{slug_to_namespace_cadopath, NamespaceRecord};
     use eld_common::validator::EpochRecord;
 
@@ -337,5 +345,54 @@ mod tests {
 
         let key_only = CADOKeyGenerator::generate_key(path, &cado).expect("key");
         assert_eq!(key_only, keys.original_key);
+    }
+
+    fn cado_map_path(name: &str) -> CadoPath {
+        CadoPath::new(CadoType::CadoMap, CadoPathKey::Name(name)).expect("path")
+    }
+
+    #[test]
+    fn mutable_path_name_matches_original_or_latest_hash() {
+        let original = [0x11u8; 32];
+        let cado = CadoBody::mutable_updated(
+            original,
+            b"current-state".to_vec(),
+            CADOMetadata::new(CadoType::CadoMap, "owner"),
+        );
+        let latest = cado.latest_hash().expect("latest hash");
+        assert_ne!(original, latest);
+
+        let original_name = format!("0x{}", hex::encode(original));
+        let original_path = cado_map_path(&original_name);
+        let original_keys =
+            CADOKeyGenerator::generate(original_path, &cado).expect("original name");
+        assert!(original_keys.latest_key.is_some());
+
+        let latest_name = format!("0x{}", hex::encode(latest));
+        let latest_path = cado_map_path(&latest_name);
+        let latest_keys = CADOKeyGenerator::generate(latest_path, &cado).expect("latest name");
+        assert_eq!(original_keys.original_key, latest_keys.original_key);
+
+        let other_name = format!("0x{}", hex::encode([0x22u8; 32]));
+        let other_path = cado_map_path(&other_name);
+        let err = CADOKeyGenerator::generate(other_path, &cado).expect_err("mismatch");
+        match err {
+            EldError::ValidationError { field, details, .. } => {
+                assert_eq!(field, "path_name");
+                assert_eq!(details, "Hash does not match path name");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn immutable_identifier_path_name_need_not_match_payload_hash() {
+        let name = format!("0x{}", hex::encode([0x33u8; 32]));
+        let path = cado_map_path(&name);
+        let cado = CadoBody::immutable(
+            b"snapshot-like".to_vec(),
+            CADOMetadata::new(CadoType::CadoMap, "system"),
+        );
+        CADOKeyGenerator::generate(path, &cado).expect("identifier name");
     }
 }
