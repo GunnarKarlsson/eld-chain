@@ -488,6 +488,14 @@ pub fn tm_tx_result_is_success(code: tendermint::abci::Code) -> bool {
     code.value() == 0
 }
 
+/// Gas consumed by a transaction, from Tendermint `ExecTxResult.gas_used`.
+///
+/// Zero is the protobuf default when the application did not report gas.
+/// Negative values are not a gas amount.
+pub fn tm_tx_gas_used(gas_used: i64) -> Option<u64> {
+    u64::try_from(gas_used).ok().filter(|gas| *gas > 0)
+}
+
 /// Convert Tendermint ABCI events from `/tx` into `abci-rs` event types for indexing.
 pub fn tm_events_to_abci_events(events: &[tendermint::abci::Event]) -> Vec<abci::types::Event> {
     use abci::types::{Event, EventAttribute};
@@ -542,7 +550,9 @@ impl fmt::Display for AbciInfoWrapper {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_eld_tx_from_block_tx_bytes, decode_eld_tx_from_wire, AbciInfoWrapper};
+    use super::{
+        decode_eld_tx_from_block_tx_bytes, decode_eld_tx_from_wire, tm_tx_gas_used, AbciInfoWrapper,
+    };
     use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
     use base64::Engine;
     use ed25519_dalek::SigningKey;
@@ -565,6 +575,13 @@ mod tests {
             ),
             public_key: TxPublicKey::from(signing_key.verifying_key()),
         }
+    }
+
+    #[test]
+    fn tm_tx_gas_used_drops_unset_and_negative() {
+        assert_eq!(tm_tx_gas_used(21_000), Some(21_000));
+        assert_eq!(tm_tx_gas_used(0), None);
+        assert_eq!(tm_tx_gas_used(-1), None);
     }
 
     #[test]

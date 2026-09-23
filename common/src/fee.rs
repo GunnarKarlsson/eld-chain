@@ -299,6 +299,11 @@ fn get_complexity_multiplier(payload: &PayloadInner, fee_config: &FeeConfig) -> 
     }
 }
 
+/// Gas charged for `tx`. Same table [`calculate_dynamic_fee`] uses.
+pub fn estimated_gas_usage(tx: &Tx) -> Result<u64, EldError> {
+    estimate_gas_usage(&tx.payload.inner)
+}
+
 /// Estimates gas usage for different transaction types with validation
 fn estimate_gas_usage(payload: &PayloadInner) -> Result<u64, EldError> {
     let gas_usage = match payload {

@@ -34,9 +34,10 @@ impl TransactionIndexer {
         block_height: u64,
         block_index: u32,
         status: TransactionStatus,
+        gas_used: Option<u64>,
     ) -> Result<(), EldError> {
         self.storage
-            .index_transaction(tx, block_height, block_index, status)
+            .index_transaction(tx, block_height, block_index, status, gas_used)
     }
 
     /// Get a transaction by ID

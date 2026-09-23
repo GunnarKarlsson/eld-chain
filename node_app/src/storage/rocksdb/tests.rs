@@ -1358,13 +1358,9 @@ fn test_block_pos_chron_desc_order_newest_first_and_continuation_tuple() {
     let storage = create_test_storage();
     let secret = SigningKey::from_bytes(&[11u8; 32]);
 
+    let first = transfer_tx_fixture(&secret, 1);
     storage
-        .index_transaction(
-            &transfer_tx_fixture(&secret, 1),
-            9,
-            0,
-            TransactionStatus::Success,
-        )
+        .index_transaction(&first, 9, 0, TransactionStatus::Success, Some(21_000))
         .unwrap();
     storage
         .index_transaction(
@@ -1372,8 +1368,15 @@ fn test_block_pos_chron_desc_order_newest_first_and_continuation_tuple() {
             10,
             0,
             TransactionStatus::Success,
+            None,
         )
         .unwrap();
+
+    let stored = storage
+        .get_indexed_transaction(&storage.calculate_tx_id(&first))
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.gas_used, Some(21_000));
 
     let all = storage
         .list_indexed_transactions_chron_desc(None, 50, false, None, None, None)
@@ -1505,6 +1508,7 @@ fn test_index_verified_proof_success_bumps_global_rollup() {
             100,
             0,
             TransactionStatus::Success,
+            None,
         )
         .unwrap();
     storage
@@ -1513,6 +1517,7 @@ fn test_index_verified_proof_success_bumps_global_rollup() {
             100,
             1,
             TransactionStatus::Success,
+            None,
         )
         .unwrap();
 
@@ -1574,6 +1579,7 @@ fn test_index_verified_proof_failed_does_not_bump_global_rollup() {
             200,
             0,
             TransactionStatus::Failed,
+            None,
         )
         .unwrap();
 

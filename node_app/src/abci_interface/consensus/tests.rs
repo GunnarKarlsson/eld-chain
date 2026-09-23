@@ -780,6 +780,7 @@ async fn begin_deliver_end_commit(
         .deliver_tx(RequestDeliverTx { tx: tx_bytes })
         .await;
     assert_eq!(deliver.code, 0, "deliver_tx: {}", deliver.log);
+    assert_eq!(deliver.gas_used, 21_000);
     consensus.end_block(RequestEndBlock { height }).await;
     consensus.commit(RequestCommit::default()).await;
 }

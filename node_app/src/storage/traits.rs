@@ -369,6 +369,7 @@ pub trait TransactionIndexerStorage: Send + Sync {
         block_height: u64,
         block_index: u32,
         status: TransactionStatus,
+        gas_used: Option<u64>,
     ) -> Result<(), EldError>;
 
     /// Get a transaction by ID

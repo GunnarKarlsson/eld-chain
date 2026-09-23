@@ -340,6 +340,7 @@ impl TransactionIndexerStorage for RocksDBStorage {
         block_height: u64,
         block_index: u32,
         status: TransactionStatus,
+        gas_used: Option<u64>,
     ) -> Result<(), EldError> {
         let tx_id = self.calculate_tx_id(tx);
         let timestamp = std::time::SystemTime::now()
@@ -357,7 +358,7 @@ impl TransactionIndexerStorage for RocksDBStorage {
             timestamp,
             tx: tx.clone(),
             status,
-            gas_used: None,
+            gas_used,
             events: Vec::new(),
         };
 

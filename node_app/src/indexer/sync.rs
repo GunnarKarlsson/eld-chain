@@ -2,8 +2,8 @@
 
 use crate::indexer::{TransactionIndexer, TransactionStatus};
 use eld_client::api::abci::{
-    decode_eld_tx_from_block_tx_bytes, tm_events_to_abci_events, tm_tx_result_is_success,
-    wire_bytes_to_tx_hash, AbciHttpApi,
+    decode_eld_tx_from_block_tx_bytes, tm_events_to_abci_events, tm_tx_gas_used,
+    tm_tx_result_is_success, wire_bytes_to_tx_hash, AbciHttpApi,
 };
 use eld_common::error::EldError;
 use std::sync::Arc;
@@ -226,7 +226,8 @@ async fn index_tx_from_block_and_tm_tx(
         TransactionStatus::Failed
     };
 
-    indexer.index_transaction(&eld_tx, expected_height, expected_index, status)?;
+    let gas_used = tm_tx_gas_used(tx_resp.tx_result.gas_used);
+    indexer.index_transaction(&eld_tx, expected_height, expected_index, status, gas_used)?;
 
     let tx_id = indexer.calculate_tx_id(&eld_tx);
     debug!(

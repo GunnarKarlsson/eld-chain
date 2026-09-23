@@ -340,6 +340,14 @@ where
                 .update_cado_cache(sender_path, sender_cado);
         }
 
-        tx.process(self).await
+        let mut response = tx.process(self).await;
+        if let Some(gas) = eld_common::fee::estimated_gas_usage(&tx)
+            .ok()
+            .and_then(|gas| i64::try_from(gas).ok())
+        {
+            response.gas_wanted = gas;
+            response.gas_used = gas;
+        }
+        response
     }
 }
