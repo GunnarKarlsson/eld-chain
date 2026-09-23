@@ -1,7 +1,9 @@
-# Shared by deploy scripts. Expects SCRIPT_DIR to be the scripts/ directory.
+# Shared by deploy scripts. Locates deploy/ from this file, so callers may live
+# under scripts/docker/local/{cluster,single} as well as scripts/.
 # shellcheck shell=bash
 
-DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$(cd "${ENV_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${DEPLOY_DIR}/.." && pwd)"
 DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-${DEPLOY_DIR}/.env}"
 

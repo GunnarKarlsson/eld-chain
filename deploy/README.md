@@ -1,20 +1,19 @@
 # deploy
 
-Local development infrastructure for [`eld-chain`](../README.md): CI scripts, Docker Compose for a four-node cluster, and per-node config mounts.
-
-This tree is for **local** multi-node testing on one machine.
+Local development infrastructure for [`eld-chain`](../README.md): CI scripts, Docker Compose layouts, and per-node config mounts.
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
 | [`scripts/ci.sh`](scripts/ci.sh) | Workspace CI gate (fmt, Clippy, build, test, gitleaks) — same as GitHub Actions |
-| [`compose.yaml`](compose.yaml) | Four `eld-app` + four Tendermint pairs |
-| [`nodes/`](nodes/) | Per-node app and Tendermint config mounted into containers |
-| [`docker/`](docker/) | Dockerfiles (`Dockerfile.app`, `Dockerfile.eld-base`, Tendermint wrapper) |
+| [`docker/Dockerfile.app`](docker/Dockerfile.app), [`Dockerfile.eld-base`](docker/Dockerfile.eld-base), [`Dockerfile.tendermint`](docker/Dockerfile.tendermint) | Local image build |
+| [`docker/local/cluster/`](docker/local/cluster/) | Four `eld-app` + four Tendermint pairs. Checked-in config is `nodes/N/{app,tendermint}` |
+| [`docker/local/single/`](docker/local/single/) | One app + one Tendermint. Mounts cluster node 1; no config of its own |
+| [`docker/remote/cluster/`](docker/remote/cluster/) | Same four pairs on one host, images pulled from ECR |
 | [`.env.example`](.env.example) | Template for image tags and external paths used by build scripts |
 
-Helper scripts: `start-with-history.sh`, `start-without-history.sh`, `stop.sh`, `sync-secrets-from-eld.sh`, image build scripts under `scripts/`.
+Image builds, CI, and secret sync stay in [`scripts/`](scripts/). Start and stop scripts live next to the stack they run: [`scripts/docker/local/cluster/`](scripts/docker/local/cluster/) and [`scripts/docker/local/single/`](scripts/docker/local/single/).
 
 ## CI
 
@@ -30,7 +29,7 @@ Rustc and Clippy warnings are errors. Install [gitleaks](https://github.com/gitl
 
 # Local 4-node Docker Compose
 
-Four `eld-app` + four Tendermint pairs on one machine. Images are built locally.
+Four `eld-app` + four Tendermint pairs on one machine (`docker/local/cluster/compose.yaml`). Images are built locally. That Compose file is the only checked-in copy of app and Tendermint config (`nodes/`).
 
 ABCI listen ports differ per app (`26658`, `26668`, `26678`, `26688`). Do not collapse those onto one port.
 
@@ -48,11 +47,11 @@ Set `TENDERMINT_DIR` (path to a Tendermint source tree), `TENDERMINT_VERSION_TAG
 
 ## Secrets (not committed)
 
-Before first run, each node needs local key material under `deploy/nodes/`:
+Before first run, each node needs local key material under `deploy/docker/local/cluster/`:
 
-- `deploy/wallets/wallets.json`
-- `deploy/nodes/N/app/p2p_keypair.json` (N = 1..4)
-- `deploy/nodes/N/tendermint/node_key.json` and `priv_validator_key.json`
+- `wallets/wallets.json`
+- `nodes/N/app/p2p_keypair.json` (N = 1..4)
+- `nodes/N/tendermint/node_key.json` and `priv_validator_key.json`
 
 If you already maintain these files elsewhere, `./deploy/scripts/sync-secrets-from-eld.sh` copies them when `ELD_ROOT` in `.env` points at that tree (see script for expected layout).
 
@@ -74,19 +73,19 @@ Start and stop scripts load `deploy/.env` (or `DEPLOY_ENV_FILE`) and pass it to 
 Keep chain and Tendermint volumes (restart containers only):
 
 ```sh
-./deploy/scripts/start-with-history.sh
+./deploy/scripts/docker/local/cluster/cluster-start-with-history.sh
 ```
 
 Wipe volumes and start from genesis (fresh state). After the wipe this runs `tendermint unsafe_reset_all` on each Tendermint service so `data/priv_validator_state.json` exists before `up`:
 
 ```sh
-./deploy/scripts/start-without-history.sh
+./deploy/scripts/docker/local/cluster/cluster-start-without-history.sh
 ```
 
 Stop containers and the compose network (keep volumes):
 
 ```sh
-./deploy/scripts/stop.sh
+./deploy/scripts/docker/local/cluster/cluster-stop.sh
 ```
 
 ## Ports (host)
@@ -99,3 +98,32 @@ Stop containers and the compose network (keep volumes):
 | 4 | 9004 | 26688 | 26686 | 26687 |
 
 Inside the Compose network, each Tendermint RPC still listens on `26657` (`TENDERMINT_RPC_URL=http://tendermint-N:26657`).
+
+The Compose project name is `deploy`, so existing named volumes (`deploy_eld-data-*`, `deploy_tendermint-data-*`) still attach.
+
+## Local single pair
+
+`docker/local/single/compose.yaml` starts `eld-app-1` and `tendermint-1` only, with the same host ports as cluster node 1. It mounts `../cluster/nodes/1` and `../cluster/wallets/wallets.json`. Service names stay `eld-app-1` and `tendermint-1` because node 1's Tendermint config points `proxy_app` at `eld-app-1`. Node 1's genesis lists four validators, so this pair does not produce blocks.
+
+Same three actions as the cluster, against the single Compose project (`eld-single`). `single-start-without-history.sh` resets only `tendermint-1` and does not touch the 4-node volumes.
+
+```sh
+./deploy/scripts/docker/local/single/single-start-with-history.sh
+./deploy/scripts/docker/local/single/single-start-without-history.sh
+./deploy/scripts/docker/local/single/single-stop.sh
+```
+
+## Remote cluster (ECR)
+
+`docker/remote/cluster/compose.yaml` is the same four pairs, with images pulled from ECR (`IMAGE_VERSION_APP`, `IMAGE_VERSION_TM`). It does not build. Copy `docker/local/cluster/nodes` and `wallets` onto the host first:
+
+- `/home/ec2-user/eld-deploy/nodes/N/app`
+- `/home/ec2-user/eld-deploy/nodes/N/tendermint`
+- `/home/ec2-user/eld-deploy/wallets/wallets.json`
+
+```sh
+IMAGE_VERSION_APP=0.0.2 IMAGE_VERSION_TM=0.0.2 \
+  docker compose -f deploy/docker/remote/cluster/compose.yaml pull
+IMAGE_VERSION_APP=0.0.2 IMAGE_VERSION_TM=0.0.2 \
+  docker compose -f deploy/docker/remote/cluster/compose.yaml up -d
+```

@@ -77,7 +77,7 @@ cargo run -p eld-node
 
 Query accounts and submit transfers with [`eld-client`](../client/README.md) or a binary built on `ChainClient`.
 
-**Four nodes (Compose):** images, secrets, and scripts live in [`deploy/README.md`](../deploy/README.md) (`compose.yaml`, `start-with-history.sh` / `start-without-history.sh`). That is the supported multi-node path, not four `cargo run` processes.
+**Four nodes (Compose):** images, secrets, and scripts live in [`deploy/README.md`](../deploy/README.md) (`deploy/docker/local/cluster/compose.yaml`, `deploy/scripts/docker/local/cluster/cluster-start-with-history.sh` / `cluster-start-without-history.sh`). That is the supported multi-node path, not four `cargo run` processes.
 
 ## Build and test
 
