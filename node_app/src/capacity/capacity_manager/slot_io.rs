@@ -1,4 +1,5 @@
 use super::CapacityManager;
+use eld_common::capacity::slot_allocator::CONTENT_ID_NOT_IN_SLOT_MAP;
 use eld_common::error::EldError;
 use sha2::{Digest, Sha256};
 use tracing::{error, info};
@@ -113,9 +114,14 @@ impl CapacityManager {
         Ok(slot_indices)
     }
 
-    /// Retrieve content from slots by content_id
-    /// Reads chunks from slots and reconstructs the original content
-    pub async fn get_content_from_slots(&self, content_id: &str) -> Result<Vec<u8>, EldError> {
+    /// Retrieve content from slots by content_id.
+    ///
+    /// Returns [`Ok(None)`] when `content_id` has no slot mapping.
+    /// Reads chunks from slots and reconstructs the original content when present.
+    pub async fn get_content_from_slots(
+        &self,
+        content_id: &str,
+    ) -> Result<Option<Vec<u8>>, EldError> {
         info!(
             provider_id = %self.config.provider_id,
             content_id = %content_id,
@@ -124,7 +130,20 @@ impl CapacityManager {
 
         // Find slot indices and sizes for this content
         let slot_allocator = self.slot_allocator.lock().await;
-        let slot_sizes = slot_allocator.find_slots_by_content_id(content_id)?;
+        let slot_sizes = match slot_allocator.find_slots_by_content_id(content_id) {
+            Ok(slot_sizes) => slot_sizes,
+            Err(EldError::NotFoundError { resource_type, .. })
+                if resource_type == CONTENT_ID_NOT_IN_SLOT_MAP =>
+            {
+                info!(
+                    provider_id = %self.config.provider_id,
+                    content_id = %content_id,
+                    "Content id not in slot map"
+                );
+                return Ok(None);
+            }
+            Err(e) => return Err(e),
+        };
 
         info!(
             provider_id = %self.config.provider_id,
@@ -163,7 +182,7 @@ impl CapacityManager {
             "Successfully retrieved content from slots"
         );
 
-        Ok(content)
+        Ok(Some(content))
     }
 
     /// Delete content from slots, release the occupied slots, and update merkle root on-chain.

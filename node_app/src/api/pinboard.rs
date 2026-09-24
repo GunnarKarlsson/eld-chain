@@ -22,10 +22,8 @@ use eld_client::api::rest::{PostMessageSubmitRequest, PostMessageSubmitResponse}
 use eld_client::facade::ChainClient;
 use eld_common::account::Account;
 use eld_common::cado::{CadoBody, CadoPath, CadoPathKey, CadoType};
-use eld_common::capacity::slot_allocator::CONTENT_ID_NOT_IN_SLOT_MAP;
 use eld_common::coin::Coin;
 use eld_common::constants::{abci_query, cado};
-use eld_common::error::EldError;
 use eld_common::fee::calculate_dynamic_fee;
 use eld_common::namespace::{resolve_optional_namespace, validate_namespace_upload_authorization};
 use eld_common::pinboard::{
@@ -489,18 +487,13 @@ async fn load_pinboard_blob_from_capacity_slots(
     capacity_manager: &CapacityManager,
     content_key: &str,
 ) -> Result<Option<Vec<u8>>, ApiError> {
-    match capacity_manager.get_content_from_slots(content_key).await {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(EldError::NotFoundError { resource_type, .. })
-            if resource_type == CONTENT_ID_NOT_IN_SLOT_MAP =>
-        {
-            Ok(None)
-        }
-        Err(e) => Err(ApiError::InternalServerError {
+    capacity_manager
+        .get_content_from_slots(content_key)
+        .await
+        .map_err(|e| ApiError::InternalServerError {
             message: e.to_string(),
             details: None,
-        }),
-    }
+        })
 }
 
 fn pinboard_blob_fields(

@@ -29,10 +29,10 @@ impl P2pSyncCoordinator {
             return;
         }
         match capacity_manager.get_content_from_slots(&content_key).await {
-            Ok(_) => {
+            Ok(Some(_)) => {
                 info!(%content_key, "Slot content exists locally, ignoring Announce");
             }
-            Err(_) => {
+            Ok(None) => {
                 info!(%content_key, "Content not found locally — sending ContentRequest");
                 if let Ok(mut tracker) = missing_content_tracker.lock() {
                     if let Err(e) = tracker.upsert_missing_content_by_content_id(&content_key) {
@@ -44,6 +44,13 @@ impl P2pSyncCoordinator {
                     }
                 }
                 self.broadcast_content_request(content_key);
+            }
+            Err(e) => {
+                error!(
+                    %content_key,
+                    error = %e,
+                    "Announce failed reading local slot content"
+                );
             }
         }
     }
@@ -73,7 +80,7 @@ impl P2pSyncCoordinator {
         }
 
         match capacity_manager.get_content_from_slots(&content_key).await {
-            Ok(content_bytes) => {
+            Ok(Some(content_bytes)) => {
                 info!(
                     %content_key,
                     content_size = content_bytes.len(),
@@ -83,8 +90,15 @@ impl P2pSyncCoordinator {
                 let content_base64 = BASE64_STANDARD.encode(&content_bytes);
                 self.broadcast_content_response(content_key, content_base64);
             }
-            Err(_) => {
+            Ok(None) => {
                 info!(%content_key, "ContentRequest received but content not found locally");
+            }
+            Err(e) => {
+                error!(
+                    %content_key,
+                    error = %e,
+                    "ContentRequest failed reading local slot content"
+                );
             }
         }
     }
@@ -104,13 +118,20 @@ impl P2pSyncCoordinator {
             "P2P ContentResponse received"
         );
 
-        if capacity_manager
-            .get_content_from_slots(&content_key)
-            .await
-            .is_ok()
-        {
-            info!(%content_key, "Slot content already exists locally, ignoring ContentResponse");
-            return;
+        match capacity_manager.get_content_from_slots(&content_key).await {
+            Ok(Some(_)) => {
+                info!(%content_key, "Slot content already exists locally, ignoring ContentResponse");
+                return;
+            }
+            Ok(None) => {}
+            Err(e) => {
+                error!(
+                    %content_key,
+                    error = %e,
+                    "ContentResponse failed reading local slot content"
+                );
+                return;
+            }
         }
 
         let content_bytes = match BASE64_STANDARD.decode(&content) {
@@ -142,13 +163,13 @@ impl P2pSyncCoordinator {
         );
 
         match capacity_manager.get_content_from_slots(&content_key).await {
-            Ok(_) => {
+            Ok(Some(_)) => {
                 info!(
                     content_key = %content_key,
                     "P2P pinboard capacity mirror: content already in slots, skipping store_content_chunks"
                 );
             }
-            Err(_) => {
+            Ok(None) => {
                 let chunks: Vec<Vec<u8>> = content_bytes
                     .chunks(MAX_CHUNK_SIZE)
                     .map(|c| c.to_vec())
@@ -172,6 +193,13 @@ impl P2pSyncCoordinator {
                         );
                     }
                 }
+            }
+            Err(e) => {
+                error!(
+                    content_key = %content_key,
+                    error = %e,
+                    "P2P pinboard capacity mirror: failed to read slots before write"
+                );
             }
         }
 

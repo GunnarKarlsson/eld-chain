@@ -555,13 +555,13 @@ where
         tokio::spawn(async move {
             for (content_key, bytes) in blobs {
                 match cm.get_content_from_slots(&content_key).await {
-                    Ok(_) => {
+                    Ok(Some(_)) => {
                         debug!(
                             content_key = %content_key,
                             "Pinboard capacity mirror: content already in slots, skipping store_content_chunks"
                         );
                     }
-                    Err(_) => {
+                    Ok(None) => {
                         let chunks: Vec<Vec<u8>> =
                             bytes.chunks(MAX_CHUNK_SIZE).map(|c| c.to_vec()).collect();
                         match cm.store_content_chunks(content_key.clone(), chunks).await {
@@ -580,6 +580,13 @@ where
                                 );
                             }
                         }
+                    }
+                    Err(e) => {
+                        error!(
+                            content_key = %content_key,
+                            error = %e,
+                            "Pinboard capacity mirror: failed to read slots before write"
+                        );
                     }
                 }
             }

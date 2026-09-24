@@ -94,7 +94,7 @@ impl PeriodicSyncService {
                 .get_content_from_slots(&record.content_id.hex_with_prefix())
                 .await
             {
-                Ok(_) => {
+                Ok(Some(_)) => {
                     // Content exists! Remove from missing list (cleanup)
                     info!(
                         manifest_id = %record.manifest_id,
@@ -103,7 +103,7 @@ impl PeriodicSyncService {
                     let mut tracker = self.missing_content_tracker.lock().unwrap();
                     tracker.mark_content_synced(&record.manifest_id.hex_with_prefix())?;
                 }
-                Err(_) => {
+                Ok(None) => {
                     // Still missing - request it
                     info!(
                         manifest_id = %record.manifest_id,
@@ -140,6 +140,14 @@ impl PeriodicSyncService {
                     // Store updated record
                     let mut tracker = self.missing_content_tracker.lock().unwrap();
                     tracker.update_missing_content_record(&updated_record)?;
+                }
+                Err(e) => {
+                    error!(
+                        manifest_id = %record.manifest_id,
+                        content_id = %record.content_id,
+                        error = %e,
+                        "Failed to read content from slots"
+                    );
                 }
             }
         }
