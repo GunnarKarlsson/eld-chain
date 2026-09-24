@@ -114,21 +114,6 @@ Same three actions as the cluster, against the single Compose project (`eld-sing
 ./deploy/scripts/docker/local/single/single-stop.sh
 ```
 
-## Remote cluster (ECR)
-
-`docker/remote/cluster/compose.yaml` is the same four pairs, with images pulled from ECR (`IMAGE_VERSION_APP`, `IMAGE_VERSION_TM`). It does not build. Copy `docker/local/cluster/nodes` and `wallets` onto the host first:
-
-- `/home/ec2-user/eld-deploy/nodes/N/app`
-- `/home/ec2-user/eld-deploy/nodes/N/tendermint`
-- `/home/ec2-user/eld-deploy/wallets/wallets.json`
-
-```sh
-IMAGE_VERSION_APP=0.0.2 IMAGE_VERSION_TM=0.0.2 \
-  docker compose -f deploy/docker/remote/cluster/compose.yaml pull
-IMAGE_VERSION_APP=0.0.2 IMAGE_VERSION_TM=0.0.2 \
-  docker compose -f deploy/docker/remote/cluster/compose.yaml up -d
-```
-
 ## Host binary
 
 `host/single/config/` is the localhost sample (`127.0.0.1`, `./data/capacity`). It is not mounted by Compose. These scripts start a local `tendermint` on PATH first (`--proxy_app=tcp://127.0.0.1:26658`), then `eld-node` from `host/single`. Tendermint logs go to `host/single/tendermint.log`. Ctrl-C stops both.
