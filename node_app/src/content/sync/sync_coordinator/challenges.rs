@@ -314,6 +314,7 @@ impl P2pSyncCoordinator {
                         generated_at,
                         provider_pubkey: provider_pubkey.clone(),
                         provider_signature: provider_signature.clone(),
+                        failed: false,
                     };
                 tokio::spawn(async move {
                     if let Err(e) = submitter
@@ -350,6 +351,41 @@ impl P2pSyncCoordinator {
                     errors = ?errors,
                     "Proof validation failed"
                 );
+
+                let submitter = self.verified_proof_submitter.clone();
+                let challenge_id_clone = challenge_id.clone();
+                let capacity_provider_clone = provider.to_string();
+                let block_height_clone = block_height;
+                let proof_fields =
+                    crate::wallet::verified_proof_chain_submitter::VerifiedProofSubmissionProofs {
+                        proofs: proofs.clone(),
+                        generated_at,
+                        provider_pubkey: provider_pubkey.clone(),
+                        provider_signature: provider_signature.clone(),
+                        failed: true,
+                    };
+                tokio::spawn(async move {
+                    if let Err(e) = submitter
+                        .submit_verified_proof(
+                            &capacity_provider_clone,
+                            &challenge_id_clone,
+                            block_height_clone,
+                            proof_fields,
+                        )
+                        .await
+                    {
+                        error!(
+                            challenge_id = %challenge_id_clone,
+                            error = %e,
+                            "Failed to submit failed-proof transaction"
+                        );
+                    } else {
+                        info!(
+                            challenge_id = %challenge_id_clone,
+                            "Successfully submitted failed-proof transaction"
+                        );
+                    }
+                });
             }
         }
     }

@@ -10,7 +10,7 @@ use eld_common::{
     coin::Coin,
     constants::{
         protocol::{
-            BLOCKS_PER_EPOCH, DEFAULT_REGISTRATION_DURATION_BLOCKS,
+            BLOCKS_PER_EPOCH, DEFAULT_REGISTRATION_DURATION_BLOCKS, FAILED_PROOFS_BEFORE_SLASH,
             VERIFIED_PROOF_REWARD_BASE_AMOUNT,
         },
         tx_type,
@@ -176,6 +176,28 @@ fn validate_verified_proof_binding(
     })
 }
 
+/// Increments the provider's failed-proof count. At [`FAILED_PROOFS_BEFORE_SLASH`], burns
+/// [`CapacityValidatorInfo::stake`](eld_common::validator::CapacityValidatorInfo::stake) and resets the count.
+pub(crate) fn record_failed_capacity_proof(
+    envelope: &mut crate::app_state::AppStateEnvelope,
+    provider: Address,
+) -> (u32, bool) {
+    let count = envelope.failed_proof_counts.entry(provider).or_insert(0);
+    *count = count.saturating_add(1);
+    if *count >= FAILED_PROOFS_BEFORE_SLASH {
+        for cv in envelope.capacity_validators.iter_mut() {
+            if cv.address == provider {
+                cv.stake = Coin::zero();
+                break;
+            }
+        }
+        envelope.failed_proof_counts.insert(provider, 0);
+        return (0, true);
+    }
+    let recorded = *count;
+    (recorded, false)
+}
+
 pub async fn process_verified_proof_tx<S>(
     connection: &ConsensusConnection<S>,
     verified_proof_tx: VerifiedProofTx,
@@ -202,7 +224,7 @@ where
         .as_mut()
         .expect("current_state lock is None");
 
-    // Gate 0: once-per-challenge_id (in-block cache + committed RocksDB).
+    // Gate 0: one outcome per challenge_id (reward or counted failure).
     match current_state
         .envelope
         .is_verified_proof_challenge_rewarded(&*connection.storage, &challenge_id)
@@ -214,6 +236,24 @@ where
             );
             return response_deliver_tx_error_validation_failed(format!(
                 "VerifiedProof challenge_id already rewarded: {challenge_id}"
+            ));
+        }
+        Ok(false) => {}
+        Err(e) => {
+            return response_deliver_tx_error_validation_failed(e.to_string());
+        }
+    }
+    match current_state
+        .envelope
+        .is_verified_proof_challenge_failed(&*connection.storage, &challenge_id)
+    {
+        Ok(true) => {
+            warn!(
+                challenge_id = %challenge_id,
+                "VerifiedProof rejected: challenge_id already counted as a failure"
+            );
+            return response_deliver_tx_error_validation_failed(format!(
+                "VerifiedProof challenge_id already counted as a failure: {challenge_id}"
             ));
         }
         Ok(false) => {}
@@ -277,13 +317,48 @@ where
         ));
     }
 
-    // Gate 6: merkle / chunk proofs vs registered root and recomputed challenge indices.
+    // Gate 6: merkle / chunk proofs must match the `failed` flag.
     use crate::capacity::challenge_validator::{validate_challenge_proof, ProofValidationResult};
     let proof_check = validate_challenge_proof(
         &verified_proof_tx.proofs,
         &binding.expected_merkle_root,
         &binding.expected_indices,
     );
+    let proof_valid = proof_check.is_valid;
+    if verified_proof_tx.failed {
+        if proof_valid {
+            warn!(
+                challenge_id = %challenge_id,
+                "VerifiedProof rejected: failed flag set but proof is valid"
+            );
+            return response_deliver_tx_error_validation_failed(
+                "VerifiedProof rejected: failed flag set but proof is valid".to_string(),
+            );
+        }
+        let (failure_count, slashed) =
+            record_failed_capacity_proof(&mut current_state.envelope, provider);
+        current_state
+            .envelope
+            .failed_proof_counted_cache
+            .insert(challenge_id.clone());
+        let events = vec![Event {
+            r#type: tx_type::TX_TYPE_VERIFIED_PROOF.into(),
+            attributes: vec![
+                create_event_attribute("sender".into(), verified_proof_tx.sender.to_string()),
+                create_event_attribute("capacity_provider".into(), provider.to_string()),
+                create_event_attribute("challenge_id".into(), challenge_id),
+                create_event_attribute("failed".into(), "true".into()),
+                create_event_attribute("failure_count".into(), failure_count.to_string()),
+                create_event_attribute("slashed".into(), slashed.to_string()),
+            ],
+        }];
+        return ResponseDeliverTx {
+            code: 0,
+            log: "VerifiedProof recorded a failed capacity proof".to_string(),
+            events,
+            ..Default::default()
+        };
+    }
     if let ProofValidationResult {
         is_valid: false,
         errors,
@@ -632,5 +707,30 @@ mod tests {
         assert_eq!(binding.expected_indices, indices);
         assert_eq!(binding.challenged_provider_id, provider);
         assert_eq!(binding.validator_address, validator);
+    }
+
+    #[test]
+    fn third_failed_proof_burns_capacity_stake_and_resets_count() {
+        use crate::app_state::AppStateEnvelope;
+
+        let provider = addr(PROVIDER);
+        let mut envelope = AppStateEnvelope::default();
+        let mut info = provider_info(PROVIDER);
+        info.stake = Coin::new(50).expect("stake");
+        envelope.capacity_validators.push(info);
+
+        let (count, slashed) = record_failed_capacity_proof(&mut envelope, provider);
+        assert_eq!((count, slashed), (1, false));
+        let (count, slashed) = record_failed_capacity_proof(&mut envelope, provider);
+        assert_eq!((count, slashed), (2, false));
+        assert_eq!(
+            envelope.capacity_validators[0].stake,
+            Coin::new(50).expect("stake")
+        );
+
+        let (count, slashed) = record_failed_capacity_proof(&mut envelope, provider);
+        assert_eq!((count, slashed), (0, true));
+        assert!(envelope.capacity_validators[0].stake.is_zero());
+        assert_eq!(envelope.failed_proof_counts.get(&provider), Some(&0));
     }
 }

@@ -340,6 +340,14 @@ pub trait VerifiedProofRewardDedupStorage: Send + Sync {
         challenge_id: &str,
         tx: &Transaction<'_, rocksdb::TransactionDB>,
     ) -> Result<(), EldError>;
+
+    fn is_verified_proof_challenge_failed(&self, challenge_id: &str) -> Result<bool, EldError>;
+
+    fn put_verified_proof_challenge_failed_with_tx(
+        &self,
+        challenge_id: &str,
+        tx: &Transaction<'_, rocksdb::TransactionDB>,
+    ) -> Result<(), EldError>;
 }
 
 pub trait ConsensusConnectionStorage:

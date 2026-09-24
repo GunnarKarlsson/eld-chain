@@ -300,6 +300,13 @@ where
         }
         current_state.envelope.verified_proof_rewarded_cache.clear();
 
+        for challenge_id in current_state.envelope.failed_proof_counted_cache.iter() {
+            if let Err(e) = storage.put_verified_proof_challenge_failed_with_tx(challenge_id, &tx) {
+                handle_fatal_eld_error(e);
+            }
+        }
+        current_state.envelope.failed_proof_counted_cache.clear();
+
         // --------------------------------------------------------------------
         // Namespace registry (AddNamespace) staged writes
         // --------------------------------------------------------------------

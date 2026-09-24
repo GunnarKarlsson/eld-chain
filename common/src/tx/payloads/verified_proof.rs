@@ -20,6 +20,10 @@ pub struct VerifiedProofTx {
     pub provider_pubkey: String,
     /// Hex Ed25519 signature over the capacity challenge response signing preimage.
     pub provider_signature: String,
+    /// `true` when the active capacity validator submits this challenge as a failed proof.
+    /// Absent on older payloads; those deserialize as `false` (reward path).
+    #[serde(default)]
+    pub failed: bool,
 }
 
 #[derive(Deserialize)]
@@ -34,13 +38,15 @@ struct VerifiedProofTxUnchecked {
     generated_at: u64,
     provider_pubkey: String,
     provider_signature: String,
+    #[serde(default)]
+    failed: bool,
 }
 
 impl TryFrom<VerifiedProofTxUnchecked> for VerifiedProofTx {
     type Error = EldError;
 
     fn try_from(unchecked: VerifiedProofTxUnchecked) -> Result<Self, Self::Error> {
-        VerifiedProofTx::new(
+        let mut tx = VerifiedProofTx::new(
             unchecked.sender,
             unchecked.capacity_provider,
             unchecked.challenge_id,
@@ -51,7 +57,9 @@ impl TryFrom<VerifiedProofTxUnchecked> for VerifiedProofTx {
             unchecked.generated_at,
             unchecked.provider_pubkey,
             unchecked.provider_signature,
-        )
+        )?;
+        tx.failed = unchecked.failed;
+        Ok(tx)
     }
 }
 
@@ -194,6 +202,7 @@ impl VerifiedProofTx {
             generated_at,
             provider_pubkey,
             provider_signature,
+            failed: false,
         })
     }
 }
@@ -202,7 +211,7 @@ impl std::fmt::Display for VerifiedProofTx {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "VerifiedProofTx {{\n sender: {}\n capacity_provider: {}\n challenge_id: {}\n block_height: {}\n verified_at_block: {}\n verified_at_timestamp: {}\n proofs: {}\n generated_at: {}\n }}",
+            "VerifiedProofTx {{\n sender: {}\n capacity_provider: {}\n challenge_id: {}\n block_height: {}\n verified_at_block: {}\n verified_at_timestamp: {}\n proofs: {}\n generated_at: {}\n failed: {}\n }}",
             self.sender,
             self.capacity_provider,
             self.challenge_id,
@@ -210,7 +219,53 @@ impl std::fmt::Display for VerifiedProofTx {
             self.verified_at_block,
             self.verified_at_timestamp,
             self.proofs.len(),
-            self.generated_at
+            self.generated_at,
+            self.failed
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capacity_proof::{ChunkProof, SlotState};
+
+    fn sample() -> VerifiedProofTx {
+        VerifiedProofTx::new(
+            Address::parse_hex_str("0x1111111111111111111111111111111111111111").unwrap(),
+            Address::parse_hex_str("0x2222222222222222222222222222222222222222").unwrap(),
+            "abc".to_string(),
+            1,
+            2,
+            1_600_000_000,
+            vec![ChunkProof {
+                chunk_index: 0,
+                chunk_data: vec![1],
+                chunk_hash: [2u8; 32],
+                merkle_proof: vec![],
+                slot_state: SlotState::Proof,
+            }],
+            1_600_000_000,
+            "03".repeat(32),
+            "04".repeat(64),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn missing_failed_field_deserializes_as_false() {
+        let mut value = serde_json::to_value(sample()).unwrap();
+        value.as_object_mut().unwrap().remove("failed");
+        let tx: VerifiedProofTx = serde_json::from_value(value).unwrap();
+        assert!(!tx.failed);
+    }
+
+    #[test]
+    fn failed_true_round_trips() {
+        let mut tx = sample();
+        tx.failed = true;
+        let json = serde_json::to_string(&tx).unwrap();
+        let again: VerifiedProofTx = serde_json::from_str(&json).unwrap();
+        assert!(again.failed);
     }
 }

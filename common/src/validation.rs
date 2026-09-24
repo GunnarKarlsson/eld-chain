@@ -1299,6 +1299,16 @@ fn validate_verified_proof_payload(
     }
     validate_hex_string(provider_signature, 64)?;
 
+    if let Some(failed) = payload_obj.get("failed") {
+        if !failed.is_boolean() {
+            return Err(EldError::ValidationError {
+                field: "verified proof payload failed".to_string(),
+                value: failed.to_string(),
+                details: "VerifiedProof payload 'failed' field must be a boolean".to_string(),
+            });
+        }
+    }
+
     Ok(())
 }
 

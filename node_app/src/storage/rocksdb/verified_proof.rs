@@ -99,6 +99,37 @@ impl RocksDBStorage {
                 details: e.to_string(),
             })
     }
+
+    /// Key for on-chain failed-proof dedup (`vp_failed:` prefix).
+    pub(crate) fn verified_proof_challenge_failed_key(challenge_id: &str) -> Vec<u8> {
+        format!("vp_failed:{challenge_id}").into_bytes()
+    }
+
+    pub fn is_verified_proof_challenge_failed(&self, challenge_id: &str) -> Result<bool, EldError> {
+        let cf = self.verified_proof_submissions_cf()?;
+        let key = Self::verified_proof_challenge_failed_key(challenge_id);
+        self.db
+            .get_cf(cf, &key)
+            .map_err(|e| EldError::StorageError {
+                operation: "verified_proof_challenge_failed_get".to_string(),
+                details: e.to_string(),
+            })
+            .map(|v| v.is_some())
+    }
+
+    pub fn put_verified_proof_challenge_failed_with_tx(
+        &self,
+        challenge_id: &str,
+        tx: &Transaction<'_, rocksdb::TransactionDB>,
+    ) -> Result<(), EldError> {
+        let cf = self.verified_proof_submissions_cf()?;
+        let key = Self::verified_proof_challenge_failed_key(challenge_id);
+        tx.put_cf(cf, &key, DUMMY_ROCKSDB_PAYLOAD)
+            .map_err(|e| EldError::StorageError {
+                operation: "verified_proof_challenge_failed_put".to_string(),
+                details: e.to_string(),
+            })
+    }
 }
 
 impl crate::storage::traits::VerifiedProofRewardDedupStorage for RocksDBStorage {
@@ -112,5 +143,17 @@ impl crate::storage::traits::VerifiedProofRewardDedupStorage for RocksDBStorage 
         tx: &Transaction<'_, rocksdb::TransactionDB>,
     ) -> Result<(), EldError> {
         RocksDBStorage::put_verified_proof_challenge_rewarded_with_tx(self, challenge_id, tx)
+    }
+
+    fn is_verified_proof_challenge_failed(&self, challenge_id: &str) -> Result<bool, EldError> {
+        RocksDBStorage::is_verified_proof_challenge_failed(self, challenge_id)
+    }
+
+    fn put_verified_proof_challenge_failed_with_tx(
+        &self,
+        challenge_id: &str,
+        tx: &Transaction<'_, rocksdb::TransactionDB>,
+    ) -> Result<(), EldError> {
+        RocksDBStorage::put_verified_proof_challenge_failed_with_tx(self, challenge_id, tx)
     }
 }

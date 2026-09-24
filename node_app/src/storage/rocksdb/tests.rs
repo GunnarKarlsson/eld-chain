@@ -165,6 +165,22 @@ fn verified_proof_challenge_rewarded_dedup_persists() {
         .unwrap());
 }
 
+#[test]
+fn verified_proof_challenge_failed_dedup_persists() {
+    let s = create_test_storage();
+    assert!(!s.is_verified_proof_challenge_failed("challenge-y").unwrap());
+
+    let tx = s.begin_transaction();
+    s.put_verified_proof_challenge_failed_with_tx("challenge-y", &tx)
+        .unwrap();
+    tx.commit().unwrap();
+
+    assert!(s.is_verified_proof_challenge_failed("challenge-y").unwrap());
+    assert!(!s
+        .is_verified_proof_challenge_rewarded("challenge-y")
+        .unwrap());
+}
+
 const TEST_ADDR_20: &str = "0x1234567890123456789012345678901234567890";
 const TEST_HASH_32A: &str = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 const TEST_HASH_32B: &str = "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
@@ -1626,7 +1642,7 @@ fn test_index_verified_proof_failed_does_not_bump_global_rollup() {
     use crate::storage::traits::TransactionIndexerStorage;
     use ed25519_dalek::SigningKey;
     use eld_common::constants::test::MOCK_CHAIN_ID;
-    use eld_common::tx::{Payload, Tx, TxPublicKey, TxSig, VerifiedProofTx};
+    use eld_common::tx::{Payload, PayloadInner, Tx, TxPublicKey, TxSig, VerifiedProofTx};
 
     fn verified_proof_tx_fixture(signing_key: &SigningKey, nonce: u32) -> Tx {
         use eld_common::capacity_proof::{ChunkProof, SlotState};
@@ -1673,6 +1689,24 @@ fn test_index_verified_proof_failed_does_not_bump_global_rollup() {
             200,
             0,
             TransactionStatus::Failed,
+            None,
+            &[],
+        )
+        .unwrap();
+
+    let mut counted_failure = verified_proof_tx_fixture(&secret, 2);
+    if let PayloadInner::VerifiedProof(vp) = &mut counted_failure.payload.inner {
+        vp.failed = true;
+    }
+    counted_failure
+        .sign(&secret, MOCK_CHAIN_ID)
+        .expect("re-sign after failed flag");
+    storage
+        .index_transaction(
+            &counted_failure,
+            200,
+            1,
+            TransactionStatus::Success,
             None,
             &[],
         )

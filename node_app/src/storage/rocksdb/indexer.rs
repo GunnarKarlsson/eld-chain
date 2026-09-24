@@ -471,16 +471,21 @@ impl TransactionIndexerStorage for RocksDBStorage {
 
         if status == TransactionStatus::Success {
             if let PayloadInner::VerifiedProof(vp_tx) = &tx.payload.inner {
-                let provider_key = vp_tx.capacity_provider.to_string().to_lowercase();
-                let vp_key =
-                    Self::verified_proof_reward_index_key(&provider_key, block_height, block_index);
-                self.db
-                    .put_cf(cf, &vp_key, [])
-                    .map_err(|e| EldError::StorageError {
-                        operation: "put_verified_proof_reward_index".to_string(),
-                        details: format!("Failed to store verified proof reward index: {e}"),
-                    })?;
-                self.bump_verified_proof_global_rewards_count(cf)?;
+                if !vp_tx.failed {
+                    let provider_key = vp_tx.capacity_provider.to_string().to_lowercase();
+                    let vp_key = Self::verified_proof_reward_index_key(
+                        &provider_key,
+                        block_height,
+                        block_index,
+                    );
+                    self.db
+                        .put_cf(cf, &vp_key, [])
+                        .map_err(|e| EldError::StorageError {
+                            operation: "put_verified_proof_reward_index".to_string(),
+                            details: format!("Failed to store verified proof reward index: {e}"),
+                        })?;
+                    self.bump_verified_proof_global_rewards_count(cf)?;
+                }
             }
         }
 

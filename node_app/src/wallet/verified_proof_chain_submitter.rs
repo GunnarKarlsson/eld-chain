@@ -35,6 +35,8 @@ pub struct VerifiedProofSubmissionProofs {
     pub generated_at: u64,
     pub provider_pubkey: String,
     pub provider_signature: String,
+    /// `true` records a failed proof. `false` is the reward path.
+    pub failed: bool,
 }
 
 /// Capacity-validator path uses the wallet from `ELD_CAPACITY_VALIDATOR_WALLET_NAME`; the type stays generic via
@@ -219,7 +221,7 @@ impl VerifiedProofChainSubmitter {
         let provider_addr = Address::parse_hex_str(capacity_provider)
             .map_err(|e| format!("Invalid capacity_provider address: {e}"))?;
 
-        let verified_proof_tx = VerifiedProofTx::new(
+        let mut verified_proof_tx = VerifiedProofTx::new(
             wallet.address,
             provider_addr,
             challenge_id.to_string(),
@@ -232,6 +234,7 @@ impl VerifiedProofChainSubmitter {
             proof_fields.provider_signature,
         )
         .map_err(|e| format!("Invalid VerifiedProofTx: {e}"))?;
+        verified_proof_tx.failed = proof_fields.failed;
 
         let mut tx = Tx::new(
             assigned_nonce,

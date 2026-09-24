@@ -30,6 +30,10 @@ pub mod protocol {
     /// Native units minted to `capacity_provider` on each successful `VerifiedProof`.
     /// Must stay in sync with consensus minting in `process_verified_proof_tx`.
     pub const VERIFIED_PROOF_REWARD_BASE_AMOUNT: u128 = 1000;
+
+    /// Distinct failed `VerifiedProof` challenges before the provider's capacity stake is burned.
+    /// One challenge per provider per epoch.
+    pub const FAILED_PROOFS_BEFORE_SLASH: u32 = 3;
 }
 
 /// Pinboard parameters (post TTL, upload chunking).

@@ -52,6 +52,20 @@ impl VerifiedProofRewardDedupStorage for HybridStorage {
         self.rocks_db
             .put_verified_proof_challenge_rewarded_with_tx(challenge_id, tx)
     }
+
+    fn is_verified_proof_challenge_failed(&self, challenge_id: &str) -> Result<bool, EldError> {
+        self.rocks_db
+            .is_verified_proof_challenge_failed(challenge_id)
+    }
+
+    fn put_verified_proof_challenge_failed_with_tx(
+        &self,
+        challenge_id: &str,
+        tx: &Transaction<'_, rocksdb::TransactionDB>,
+    ) -> Result<(), EldError> {
+        self.rocks_db
+            .put_verified_proof_challenge_failed_with_tx(challenge_id, tx)
+    }
 }
 
 impl VerifiedProofSubmissionClaimStorage for HybridStorage {

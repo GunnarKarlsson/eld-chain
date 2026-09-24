@@ -6,6 +6,7 @@ use crate::app_state::state_trie::StateTrie;
 use crate::errors::handle_recoverable_eld_error;
 use crate::storage::traits::{CADOStorage, VerifiedProofRewardDedupStorage};
 use eld_common::account::Account;
+use eld_common::address::Address;
 use eld_common::cado::{
     epoch_from_record_path_name, epoch_record_path_name, CADOMarkedForDeletion, CadoBody, CadoPath,
     CadoPathKey, CadoType,
@@ -51,6 +52,9 @@ pub struct AppStateEnvelope {
     /// VerifiedProof challenge IDs rewarded during the current block (flushed at commit).
     #[serde(default)]
     pub verified_proof_rewarded_cache: HashSet<String>,
+    /// VerifiedProof challenge IDs counted as failures during the current block (flushed at commit).
+    #[serde(default)]
+    pub failed_proof_counted_cache: HashSet<String>,
     /// Namespace registrations staged during the block (flushed at commit).
     pub namespace_registry_cache: BTreeMap<String, NamespaceRecord>,
     /// Committed namespace registry records keyed by canonical slug.
@@ -82,6 +86,10 @@ pub struct AppStateEnvelope {
     /// Active capacity validator for the current epoch (challenges capacity validators).
     #[serde(alias = "active_storage_validator")]
     pub active_capacity_validator: Option<ActiveCapacityValidator>,
+
+    /// Failed `VerifiedProof` challenges per capacity provider. Hashed. Reset to zero on slash.
+    #[serde(default)]
+    pub failed_proof_counts: BTreeMap<Address, u32>,
 }
 
 impl Hash for AppStateEnvelope {
@@ -102,6 +110,7 @@ impl Hash for AppStateEnvelope {
         if let Some(ref storage_validator) = self.active_capacity_validator {
             storage_validator.hash(state);
         }
+        self.failed_proof_counts.hash(state);
     }
 }
 
@@ -136,6 +145,18 @@ impl AppStateEnvelope {
             return Ok(true);
         }
         storage.is_verified_proof_challenge_rewarded(challenge_id)
+    }
+
+    /// True when this `challenge_id` was already counted as a failed proof in-block or in committed storage.
+    pub fn is_verified_proof_challenge_failed<S: VerifiedProofRewardDedupStorage>(
+        &self,
+        storage: &S,
+        challenge_id: &str,
+    ) -> Result<bool, EldError> {
+        if self.failed_proof_counted_cache.contains(challenge_id) {
+            return Ok(true);
+        }
+        storage.is_verified_proof_challenge_failed(challenge_id)
     }
 
     /// SHA-256 over the same fields as [`Hash`] for this envelope.
