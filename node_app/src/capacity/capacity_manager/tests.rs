@@ -270,6 +270,84 @@ async fn test_build_merkle_tree() {
 }
 
 #[tokio::test]
+async fn test_build_merkle_tree_hashes_content_slots_from_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let provider_id = test_addr(TEST_PROVIDER);
+    let config = CapacityConfig {
+        capacity_dir: temp_dir.path().to_path_buf(),
+        max_capacity_gb: 10,
+        provider_id,
+        auto_register: true,
+        registration_retry_interval_secs: 60,
+        tendermint_rpc_url: "http://127.0.0.1:26657".to_string(),
+    };
+
+    let deps = create_test_dependencies();
+    let manager = CapacityManager::new(
+        config,
+        "wallet1".to_string(),
+        deps.cli,
+        deps.consensus_config,
+    );
+
+    let content = {
+        let mut bytes = vec![0u8; MAX_CHUNK_SIZE];
+        bytes[..4].copy_from_slice(b"eld!");
+        bytes
+    };
+    let slot_map = SlotMap {
+        slots: vec![
+            Slot {
+                offset: 0,
+                size: MAX_CHUNK_SIZE,
+                state: SlotState::Open,
+            },
+            Slot {
+                offset: MAX_CHUNK_SIZE as u64,
+                size: MAX_CHUNK_SIZE,
+                state: SlotState::Content {
+                    deal_id: "content-1".to_string(),
+                    committed_hash: [0x11; 32],
+                },
+            },
+        ],
+        capacity_bytes: 2 * MAX_CHUNK_SIZE as u64,
+        seed: [0x42; 32],
+        provider_id,
+    };
+
+    let capacity_file_path = {
+        let allocator = manager.slot_allocator.lock().await;
+        allocator.capacity_file_path().to_path_buf()
+    };
+    let mut file = std::fs::File::create(&capacity_file_path).unwrap();
+    use std::io::Write;
+    file.write_all(&vec![0u8; MAX_CHUNK_SIZE]).unwrap();
+    file.write_all(&content).unwrap();
+    file.flush().unwrap();
+    drop(file);
+
+    let merkle_tree = manager.build_merkle_tree(&slot_map).await.unwrap();
+    let content_hash = CapacityManager::hash_chunk(&content);
+    let zero_hash = CapacityManager::hash_chunk(&vec![0u8; MAX_CHUNK_SIZE]);
+    assert_ne!(content_hash, zero_hash);
+
+    let proof = merkle_tree.generate_proof(1);
+    assert!(CapacityProofMerkleTree::verify_proof(
+        &content_hash,
+        &proof,
+        &merkle_tree.root(),
+        1
+    ));
+    assert!(!CapacityProofMerkleTree::verify_proof(
+        &zero_hash,
+        &proof,
+        &merkle_tree.root(),
+        1
+    ));
+}
+
+#[tokio::test]
 async fn test_update_merkle_tree_for_content() {
     let temp_dir = TempDir::new().unwrap();
     let config = CapacityConfig {

@@ -91,9 +91,13 @@ impl CapacityManager {
             slot_allocator.load_slot_map()?;
             info!("Loaded existing slot map");
 
-            // Build merkle tree from loaded slot map
-            if let Some(slot_map) = slot_allocator.get_slot_map() {
-                let merkle_tree = self.build_merkle_tree(slot_map).await?;
+            // Drop the allocator lock before the build. Content leaves read the
+            // capacity file through the same allocator.
+            let loaded_slot_map = slot_allocator.get_slot_map().cloned();
+            drop(slot_allocator);
+
+            if let Some(slot_map) = loaded_slot_map {
+                let merkle_tree = self.build_merkle_tree(&slot_map).await?;
                 self.set_merkle_tree(merkle_tree).await;
                 info!("Built merkle tree from loaded slot map");
             }

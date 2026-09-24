@@ -1,8 +1,10 @@
 use super::CapacityManager;
-use eld_common::capacity::{CapacityProofMerkleTree, SlotMap};
+use eld_common::capacity::{CapacityProofMerkleTree, Slot, SlotMap};
 use eld_common::capacity_proof::SlotState;
 use eld_common::error::EldError;
 use eld_common::{CapacityMerkleRoot, CapacitySeed};
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use tracing::info;
 
 impl CapacityManager {
@@ -17,6 +19,16 @@ impl CapacityManager {
             slot_count = slot_map.slots.len(),
             "Building merkle tree from slot map"
         );
+
+        let mut content_file = if slot_map
+            .slots
+            .iter()
+            .any(|slot| matches!(slot.state, SlotState::Content { .. }))
+        {
+            Some(self.open_capacity_file_for_merkle_build().await?)
+        } else {
+            None
+        };
 
         let mut leaf_hashes = Vec::with_capacity(slot_map.slots.len());
 
@@ -38,12 +50,13 @@ impl CapacityManager {
                     Self::hash_chunk(&zero_chunk)
                 }
                 SlotState::Content { .. } => {
-                    // For content slots, we need to read from file
-                    // This will be handled when content is actually stored
-                    // For now, we'll need to read from file if it exists
-                    // For now, treat as zero (will be updated when content is stored)
-                    let zero_chunk = vec![0u8; slot.size];
-                    Self::hash_chunk(&zero_chunk)
+                    let file = content_file
+                        .as_mut()
+                        .ok_or_else(|| EldError::StorageError {
+                            operation: "build_merkle_tree".to_string(),
+                            details: "Capacity file not open for content slot".to_string(),
+                        })?;
+                    Self::hash_content_slot(file, slot)?
                 }
             };
             leaf_hashes.push(chunk_hash);
@@ -59,6 +72,37 @@ impl CapacityManager {
         );
 
         Ok(merkle_tree)
+    }
+
+    async fn open_capacity_file_for_merkle_build(&self) -> Result<File, EldError> {
+        let slot_allocator = self.slot_allocator.lock().await;
+        let capacity_file = slot_allocator.capacity_file_path().to_path_buf();
+        drop(slot_allocator);
+
+        File::open(&capacity_file).map_err(|e| EldError::StorageError {
+            operation: "build_merkle_tree".to_string(),
+            details: format!(
+                "Failed to open capacity file {}: {e}",
+                capacity_file.display()
+            ),
+        })
+    }
+
+    fn hash_content_slot(file: &mut File, slot: &Slot) -> Result<[u8; 32], EldError> {
+        file.seek(SeekFrom::Start(slot.offset))
+            .map_err(|e| EldError::StorageError {
+                operation: "build_merkle_tree".to_string(),
+                details: format!("Failed to seek to content slot offset {}: {e}", slot.offset),
+            })?;
+
+        let mut chunk_data = vec![0u8; slot.size];
+        file.read_exact(&mut chunk_data)
+            .map_err(|e| EldError::StorageError {
+                operation: "build_merkle_tree".to_string(),
+                details: format!("Failed to read content slot at offset {}: {e}", slot.offset),
+            })?;
+
+        Ok(Self::hash_chunk(&chunk_data))
     }
 
     /// Update merkle tree when content is stored in slots
