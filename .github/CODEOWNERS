@@ -1,0 +1,18 @@
+# Last matching pattern wins.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
+
+/common/src/tx/ @GunnarKarlsson
+
+# Wallet modules live as a directory in the node and as files in common and client.
+/common/src/wallet.rs @GunnarKarlsson
+/node_app/src/wallet/ @GunnarKarlsson
+/client/src/wallet_store_config.rs @GunnarKarlsson
+/client/src/facade/wallets.rs @GunnarKarlsson
+
+# Capacity modules live as directories plus sibling type files in common.
+/common/src/capacity/ @GunnarKarlsson
+/common/src/capacity_*.rs @GunnarKarlsson
+/node_app/src/capacity/ @GunnarKarlsson
+/node_app/src/runtime/capacity.rs @GunnarKarlsson
+
+/deploy/ @GunnarKarlsson
