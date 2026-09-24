@@ -9,13 +9,13 @@
 
 Eld is an L1 for ephemeral, content-addressed storage: data is addressed, kept only for a TTL, then expires by protocol.
 
-This repository is the chain implementation — protocol types (eld-common), off-chain client (eld-client), and the Tendermint ABCI node (eld-node). It is not the website, docs site, explorer, or CosmWasm contracts.
+This repository is the chain implementation — protocol types (eld-common), off-chain client (eld-client), and the Tendermint ABCI node (eld-node). It is not the website, docs site, or explorer.
 
 | Want | Go here |
 | --- | --- |
-| Protocol narrative, CLI, capacity providers | docs.eld.network |
-| Marketing / product overview | www.eld.network |
-| Live chain UI | explorer.eld.network |
+| Protocol narrative, CLI, capacity providers | [docs.eld.network](https://docs.eld.network) |
+| Marketing / product overview | [www.eld.network](https://www.eld.network) |
+| Live chain UI | [explorer.eld.network](https://explorer.eld.network) |
 | This codebase (node, client, types) | this repo |
 
 Testnet is live; crate versions here are unpublished (publish = false) and protocol constants are local-dev values, not mainnet economics.
@@ -120,4 +120,4 @@ let address = Address::parse_hex_str("0x1234567890abcdef1234567890abcdef12345678
 
 MIT. Copyright Eld network.
 
-`common/src/coin.rs` is adapted from IOHK rust-cardano (MIT) and Crypto.com (Apache-2.0). See [NOTICE](NOTICE) and the file header. This crate does not ship CosmWasm / CW20 bytecode.
+`common/src/coin.rs` is adapted from IOHK rust-cardano (MIT) and Crypto.com (Apache-2.0). See [NOTICE](NOTICE) and the file header.
