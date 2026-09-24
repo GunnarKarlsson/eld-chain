@@ -36,6 +36,13 @@ pub struct DiskUsage {
     pub used_bytes: u64,
 }
 
+/// `fsblkcnt_t` is `u32` on macOS and `u64` on Linux. `Into<u64>` covers both
+/// without a same-type `u64::from` that Clippy rejects on Linux.
+#[cfg(unix)]
+fn block_count_to_u64(count: impl Into<u64>) -> u64 {
+    count.into()
+}
+
 /// Returns total and available bytes on the mount containing `path`.
 #[cfg(unix)]
 pub fn statvfs_for_path(path: &Path) -> Result<DiskUsage, EldError> {
@@ -63,10 +70,10 @@ pub fn statvfs_for_path(path: &Path) -> Result<DiskUsage, EldError> {
     let stat = unsafe { stat.assume_init() };
 
     let frsize = stat.f_frsize;
-    let total_bytes = u64::from(stat.f_blocks).saturating_mul(frsize);
-    let available_bytes = u64::from(stat.f_bavail).saturating_mul(frsize);
-    let used_bytes = u64::from(stat.f_blocks)
-        .saturating_sub(u64::from(stat.f_bfree))
+    let total_bytes = block_count_to_u64(stat.f_blocks).saturating_mul(frsize);
+    let available_bytes = block_count_to_u64(stat.f_bavail).saturating_mul(frsize);
+    let used_bytes = block_count_to_u64(stat.f_blocks)
+        .saturating_sub(block_count_to_u64(stat.f_bfree))
         .saturating_mul(frsize);
 
     Ok(DiskUsage {

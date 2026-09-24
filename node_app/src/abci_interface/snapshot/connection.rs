@@ -148,7 +148,7 @@ fn get_available_space(path: &Path) -> Result<u64, EldError> {
 
         // Use df command as a more reliable way to get disk space
         let output = Command::new("df")
-            .args(&[
+            .args([
                 "--output=avail",
                 path.to_str().expect("Failed to convert path to str"),
             ])
@@ -156,7 +156,7 @@ fn get_available_space(path: &Path) -> Result<u64, EldError> {
             .map_err(|e| EldError::FileSystemError {
                 operation: "execute_df_command".to_string(),
                 path: path.to_string_lossy().to_string(),
-                details: format!("Failed to execute df command: {}", e),
+                details: format!("Failed to execute df command: {e}"),
             })?;
 
         if !output.status.success() {
