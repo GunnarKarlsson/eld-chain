@@ -23,6 +23,7 @@ include = [
     "TYPE_DESIGN.md",
     "CHANGELOG.md",
 ]
+publish = false
 
 [[example]]
 name = "query_account"
