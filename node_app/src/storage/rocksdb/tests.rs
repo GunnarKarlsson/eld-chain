@@ -178,6 +178,44 @@ const PREFIX_MALICIOUS_ACCOUNT: &str = "/@malicious/account/";
 const SCOPE_REJECTED_SYSTEM: &str = "@system";
 
 #[test]
+fn test_pinboard_temp_blob_extend_ttl_keeps_bytes() {
+    let storage = create_test_storage();
+    let content_key = "deadbeef";
+    let original = b"pinboard-bytes";
+
+    assert!(!storage
+        .extend_pinboard_temp_blob_ttl(content_key, 2_000)
+        .unwrap());
+
+    storage
+        .put_pinboard_temp_blob(content_key, original, 1_000)
+        .unwrap();
+
+    assert!(storage
+        .extend_pinboard_temp_blob_ttl(content_key, 1_500)
+        .unwrap());
+    assert_eq!(
+        storage
+            .get_pinboard_temp_blob(content_key)
+            .unwrap()
+            .as_deref(),
+        Some(original.as_slice())
+    );
+    assert_eq!(
+        storage.pinboard_temp_blob_expires_at(content_key).unwrap(),
+        Some(1_500)
+    );
+
+    assert!(storage
+        .extend_pinboard_temp_blob_ttl(content_key, 1_200)
+        .unwrap());
+    assert_eq!(
+        storage.pinboard_temp_blob_expires_at(content_key).unwrap(),
+        Some(1_500)
+    );
+}
+
+#[test]
 fn test_pinboard_metadata_roundtrip_and_indexes() {
     let storage = create_test_storage();
 

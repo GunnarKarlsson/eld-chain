@@ -9,6 +9,12 @@ use tracing::warn;
 
 use super::RocksDBStorage;
 
+#[derive(Serialize, Deserialize)]
+struct TempBlobRecord {
+    blob: Vec<u8>,
+    expires_at_unix: u64,
+}
+
 impl RocksDBStorage {
     pub fn get_pinboard_metadata(
         &self,
@@ -73,23 +79,37 @@ impl RocksDBStorage {
         Ok(refs)
     }
 
-    pub fn put_pinboard_temp_blob(
+    fn read_pinboard_temp_blob_record(
         &self,
         content_key: &str,
-        bytes: &[u8],
-        expires_at_unix: u64,
-    ) -> Result<(), EldError> {
-        #[derive(Serialize, Deserialize)]
-        struct TempBlobRecord {
-            blob: Vec<u8>,
-            expires_at_unix: u64,
-        }
+    ) -> Result<Option<TempBlobRecord>, EldError> {
+        let raw = self
+            .db
+            .get_cf(self.pinboard_temp_blobs_cf()?, content_key.as_bytes())
+            .map_err(|e| EldError::StorageError {
+                operation: "get_pinboard_temp_blob".to_string(),
+                details: format!("Failed to fetch pinboard temp blob: {e}"),
+            })?;
 
-        let record = TempBlobRecord {
-            blob: bytes.to_vec(),
-            expires_at_unix,
-        };
-        let encoded = bincode::serialize(&record).map_err(|e| EldError::StorageError {
+        match raw {
+            Some(v) => {
+                let record: TempBlobRecord =
+                    bincode::deserialize(&v).map_err(|e| EldError::StorageError {
+                        operation: "deserialize_pinboard_temp_blob".to_string(),
+                        details: format!("Failed to deserialize temp blob record: {e}"),
+                    })?;
+                Ok(Some(record))
+            }
+            None => Ok(None),
+        }
+    }
+
+    fn write_pinboard_temp_blob_record(
+        &self,
+        content_key: &str,
+        record: &TempBlobRecord,
+    ) -> Result<(), EldError> {
+        let encoded = bincode::serialize(record).map_err(|e| EldError::StorageError {
             operation: "serialize_pinboard_temp_blob".to_string(),
             details: format!("Failed to serialize temp blob record: {e}"),
         })?;
@@ -107,32 +127,55 @@ impl RocksDBStorage {
         Ok(())
     }
 
+    pub fn put_pinboard_temp_blob(
+        &self,
+        content_key: &str,
+        bytes: &[u8],
+        expires_at_unix: u64,
+    ) -> Result<(), EldError> {
+        self.write_pinboard_temp_blob_record(
+            content_key,
+            &TempBlobRecord {
+                blob: bytes.to_vec(),
+                expires_at_unix,
+            },
+        )
+    }
+
+    /// Bump `expires_at_unix` when a temp blob is already stored.
+    ///
+    /// Returns `false` when `content_key` is absent. An existing later expiry is left in place.
+    pub fn extend_pinboard_temp_blob_ttl(
+        &self,
+        content_key: &str,
+        expires_at_unix: u64,
+    ) -> Result<bool, EldError> {
+        let Some(mut record) = self.read_pinboard_temp_blob_record(content_key)? else {
+            return Ok(false);
+        };
+        let extended = expires_at_unix.max(record.expires_at_unix);
+        if extended == record.expires_at_unix {
+            return Ok(true);
+        }
+        record.expires_at_unix = extended;
+        self.write_pinboard_temp_blob_record(content_key, &record)?;
+        Ok(true)
+    }
+
     pub fn get_pinboard_temp_blob(&self, content_key: &str) -> Result<Option<Vec<u8>>, EldError> {
-        #[derive(Serialize, Deserialize)]
-        struct TempBlobRecord {
-            blob: Vec<u8>,
-            expires_at_unix: u64,
-        }
+        Ok(self
+            .read_pinboard_temp_blob_record(content_key)?
+            .map(|record| record.blob))
+    }
 
-        let raw = self
-            .db
-            .get_cf(self.pinboard_temp_blobs_cf()?, content_key.as_bytes())
-            .map_err(|e| EldError::StorageError {
-                operation: "get_pinboard_temp_blob".to_string(),
-                details: format!("Failed to fetch pinboard temp blob: {e}"),
-            })?;
-
-        match raw {
-            Some(v) => {
-                let record: TempBlobRecord =
-                    bincode::deserialize(&v).map_err(|e| EldError::StorageError {
-                        operation: "deserialize_pinboard_temp_blob".to_string(),
-                        details: format!("Failed to deserialize temp blob record: {e}"),
-                    })?;
-                Ok(Some(record.blob))
-            }
-            None => Ok(None),
-        }
+    #[cfg(test)]
+    pub(super) fn pinboard_temp_blob_expires_at(
+        &self,
+        content_key: &str,
+    ) -> Result<Option<u64>, EldError> {
+        Ok(self
+            .read_pinboard_temp_blob_record(content_key)?
+            .map(|record| record.expires_at_unix))
     }
 
     /// Secure/paginated listing of message_ids for a given tag.

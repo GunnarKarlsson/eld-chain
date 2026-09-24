@@ -242,21 +242,30 @@ pub(crate) async fn handle_pinboard_submit(
         .as_secs();
 
     const PINBOARD_TEMP_BLOB_TTL_SECS: u64 = 15 * 60;
+    let temp_blob_expires_at = received_timestamp.saturating_add(PINBOARD_TEMP_BLOB_TTL_SECS);
     let confirmed_blob_exists =
         load_pinboard_blob_from_capacity_slots(capacity_manager.as_ref(), &body.user.content_key)
             .await?
             .is_some();
     if !confirmed_blob_exists {
-        storage
-            .put_pinboard_temp_blob(
-                &body.user.content_key,
-                &message_bytes,
-                received_timestamp.saturating_add(PINBOARD_TEMP_BLOB_TTL_SECS),
-            )
+        let already_in_temp = storage
+            .extend_pinboard_temp_blob_ttl(&body.user.content_key, temp_blob_expires_at)
             .map_err(|e| ApiError::InternalServerError {
-                message: "pinboard_temp_blob_store_failed".to_string(),
+                message: "pinboard_temp_blob_ttl_extend_failed".to_string(),
                 details: Some(e.to_string()),
             })?;
+        if !already_in_temp {
+            storage
+                .put_pinboard_temp_blob(
+                    &body.user.content_key,
+                    &message_bytes,
+                    temp_blob_expires_at,
+                )
+                .map_err(|e| ApiError::InternalServerError {
+                    message: "pinboard_temp_blob_store_failed".to_string(),
+                    details: Some(e.to_string()),
+                })?;
+        }
     }
 
     let validator_address = validator_wallet.address;
