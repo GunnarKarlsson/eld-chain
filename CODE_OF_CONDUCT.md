@@ -55,10 +55,9 @@ an individual is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-[gunnar.h.karlsson@gmail.com](mailto:gunnar.h.karlsson@gmail.com) or via
-[GitHub Security Advisories](https://github.com/eldnetwork/eld-chain/security/advisories/new)
-when the report involves a security issue.
+reported to the community leaders responsible for enforcement through
+[GitHub Security Advisories](https://github.com/eldnetwork/eld-chain/security/advisories/new).
+Use **Report a vulnerability** on that page.
 
 All complaints will be reviewed and investigated promptly and fairly.
 
