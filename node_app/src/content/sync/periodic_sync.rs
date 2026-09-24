@@ -2,10 +2,24 @@ use crate::capacity::capacity_manager::CapacityManager;
 use crate::capacity::missing_content_tracker::MissingContentTracker;
 use crate::content::sync::sync_coordinator::P2pCoordinatorTrait;
 use eld_common::error::EldError;
+use eld_common::missing_content::MissingContentRecord;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::time::Duration;
 use tracing::{error, info};
+
+/// Maximum missing-content records requested in one periodic sync pass.
+const MAX_MISSING_CONTENT_PER_PASS: usize = 32;
+
+/// Oldest attempts first, so a backlog larger than `limit` rotates across passes.
+fn select_missing_for_pass(
+    mut records: Vec<MissingContentRecord>,
+    limit: usize,
+) -> Vec<MissingContentRecord> {
+    records.sort_by_key(|record| (record.last_attempt.unwrap_or(0), record.discovered_at));
+    records.truncate(limit);
+    records
+}
 
 /// Configuration for periodic sync service
 #[derive(Debug, Clone)]
@@ -85,9 +99,15 @@ impl PeriodicSyncService {
             return Ok(());
         }
 
-        info!(count = missing.len(), "Found missing content entries");
+        let total = missing.len();
+        let batch = select_missing_for_pass(missing, MAX_MISSING_CONTENT_PER_PASS);
+        info!(
+            count = total,
+            requesting = batch.len(),
+            "Found missing content entries"
+        );
 
-        for record in missing {
+        for record in batch {
             // Double-check: is content still missing? (check in slots)
             match self
                 .capacity_manager
@@ -153,5 +173,71 @@ impl PeriodicSyncService {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{select_missing_for_pass, MAX_MISSING_CONTENT_PER_PASS};
+    use eld_common::content_id::ContentId;
+    use eld_common::manifest_id::ManifestId;
+    use eld_common::missing_content::MissingContentRecord;
+
+    fn record(n: u8, last_attempt: Option<u64>, discovered_at: u64) -> MissingContentRecord {
+        let mut bytes = [0u8; 32];
+        bytes[0] = n;
+        MissingContentRecord {
+            manifest_id: ManifestId::new(bytes),
+            content_id: ContentId::new(bytes),
+            block_height: 0,
+            discovered_at,
+            attempt_count: 0,
+            last_attempt,
+        }
+    }
+
+    #[test]
+    fn selects_oldest_up_to_limit() {
+        let mut records: Vec<_> = (0u8..40)
+            .map(|i| record(i, Some(u64::from(i) + 1), u64::from(i)))
+            .collect();
+        records.reverse();
+
+        let selected = select_missing_for_pass(records, MAX_MISSING_CONTENT_PER_PASS);
+        let attempts: Vec<_> = selected.iter().map(|r| r.last_attempt).collect();
+        let expected: Vec<_> = (0u8..32).map(|i| Some(u64::from(i) + 1)).collect();
+        assert_eq!(attempts, expected);
+    }
+
+    #[test]
+    fn next_pass_continues_with_records_not_yet_selected() {
+        let mut records: Vec<_> = (0u8..40)
+            .map(|i| record(i, Some(u64::from(i) + 1), u64::from(i)))
+            .collect();
+        let first = select_missing_for_pass(records.clone(), MAX_MISSING_CONTENT_PER_PASS);
+        let selected_ids: Vec<_> = first.iter().map(|r| r.manifest_id).collect::<Vec<_>>();
+
+        for record in &mut records {
+            if selected_ids.contains(&record.manifest_id) {
+                record.last_attempt = Some(1_000 + record.last_attempt.unwrap_or(0));
+            }
+        }
+
+        let second = select_missing_for_pass(records, MAX_MISSING_CONTENT_PER_PASS);
+        let leading: Vec<_> = second.iter().take(8).map(|r| r.last_attempt).collect();
+        let expected: Vec<_> = (32u8..40).map(|i| Some(u64::from(i) + 1)).collect();
+        assert_eq!(leading, expected);
+        assert_eq!(second.len(), MAX_MISSING_CONTENT_PER_PASS);
+    }
+
+    #[test]
+    fn empty_and_short_inputs_return_everything() {
+        assert!(select_missing_for_pass(Vec::new(), MAX_MISSING_CONTENT_PER_PASS).is_empty());
+
+        let records = vec![record(1, Some(5), 2), record(2, None, 9)];
+        let selected = select_missing_for_pass(records, MAX_MISSING_CONTENT_PER_PASS);
+        assert_eq!(selected.len(), 2);
+        assert_eq!(selected[0].last_attempt, None);
+        assert_eq!(selected[1].last_attempt, Some(5));
     }
 }
