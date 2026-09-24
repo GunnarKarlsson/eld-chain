@@ -7,6 +7,21 @@
 [![CI](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/eldnetwork/eld-chain)](https://github.com/eldnetwork/eld-chain/stargazers)
 
+Eld is an L1 for ephemeral, content-addressed storage: data is addressed, kept only for a TTL, then expires by protocol.
+
+This repository is the chain implementation — protocol types (eld-common), off-chain client (eld-client), and the Tendermint ABCI node (eld-node). It is not the website, docs site, explorer, or CosmWasm contracts.
+
+| Want | Go here |
+| --- | --- |
+| Protocol narrative, CLI, capacity providers | docs.eld.network |
+| Marketing / product overview | www.eld.network |
+| Live chain UI | explorer.eld.network |
+| This codebase (node, client, types) | this repo |
+
+Testnet is live; crate versions here are unpublished (publish = false) and protocol constants are local-dev values, not mainnet economics.
+
+## This repository
+
 Protocol types (`eld-common`), off-chain client helpers (`eld-client`), and the ABCI node application (`eld-node`) for the Eld blockchain.
 
 Library crates ship `LICENSE`, `README.md`, `NOTICE`, and (where relevant) `CHANGELOG.md` and `TYPE_DESIGN.md` so a future crates.io/docs.rs package is self-contained. Crates here are not published yet (`publish = false`).
@@ -21,7 +36,6 @@ Library crates ship `LICENSE`, `README.md`, `NOTICE`, and (where relevant) `CHAN
 
 Library crate imports use underscores (`eld_common`, `eld_client`) because Cargo package names may contain hyphens. `eld-node` is a binary crate (`eld-node`), not a library.
 
-CosmWasm / on-chain WASM contracts are not part of this repo.
 
 ## Architecture
 
