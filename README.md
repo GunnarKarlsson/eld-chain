@@ -4,7 +4,6 @@
 ![Linux](https://img.shields.io/badge/platform-Linux-black?logo=linux)
 ![macOS](https://img.shields.io/badge/platform-macOS-black?logo=apple)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/eldnetwork/eld-chain)](https://github.com/eldnetwork/eld-chain/releases/latest)
 [![CI](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/eldnetwork/eld-chain)](https://github.com/eldnetwork/eld-chain/stargazers)
 
