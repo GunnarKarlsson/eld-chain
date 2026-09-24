@@ -1,5 +1,13 @@
 # Eld chain
 
+![Rust](https://img.shields.io/badge/rust-1.88.0-orange?logo=rust)
+![Linux](https://img.shields.io/badge/platform-Linux-black?logo=linux)
+![macOS](https://img.shields.io/badge/platform-macOS-black?logo=apple)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/eldnetwork/eld-chain)](https://github.com/eldnetwork/eld-chain/releases/latest)
+[![CI](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml)
+[![Stars](https://img.shields.io/github/stars/eldnetwork/eld-chain)](https://github.com/eldnetwork/eld-chain/stargazers)
+
 Protocol types (`eld-common`), off-chain client helpers (`eld-client`), and the ABCI node application (`eld-node`) for the Eld blockchain.
 
 Library crates ship `LICENSE`, `README.md`, `NOTICE`, and (where relevant) `CHANGELOG.md` and `TYPE_DESIGN.md` so a future crates.io/docs.rs package is self-contained. Crates here are not published yet (`publish = false`).
