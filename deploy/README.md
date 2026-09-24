@@ -6,7 +6,7 @@ Local development infrastructure for [`eld-chain`](../README.md): CI scripts, Do
 
 | Path | Purpose |
 |---|---|
-| [`scripts/ci.sh`](scripts/ci.sh) | Workspace CI gate (fmt, Clippy, build, test, gitleaks) — same as GitHub Actions |
+| [`scripts/ci.sh`](scripts/ci.sh) | Workspace CI gate (fmt, Clippy, build, test, cargo audit, cargo deny, gitleaks) — same as GitHub Actions |
 | [`docker/Dockerfile.app`](docker/Dockerfile.app), [`Dockerfile.eld-base`](docker/Dockerfile.eld-base), [`Dockerfile.tendermint`](docker/Dockerfile.tendermint) | Local image build |
 | [`docker/local/cluster/`](docker/local/cluster/) | Four `eld-app` + four Tendermint pairs. Checked-in config is `nodes/N/{app,tendermint}` |
 | [`docker/local/single/`](docker/local/single/) | One app + one Tendermint. Own one-validator Tendermint config; app files and keys from cluster node 1 |
@@ -24,7 +24,7 @@ From the repo root:
 ./deploy/scripts/ci.sh
 ```
 
-Rustc and Clippy warnings are errors. Install [gitleaks](https://github.com/gitleaks/gitleaks) for the secret scan step.
+Rustc and Clippy warnings are errors. Install [cargo-audit](https://github.com/rustsec/rustsec) 0.22.2+, [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) 0.20.2+, and [gitleaks](https://github.com/gitleaks/gitleaks). Policy lives in `deny.toml` and `.cargo/audit.toml`.
 
 ---
 

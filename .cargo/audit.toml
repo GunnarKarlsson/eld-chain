@@ -1,0 +1,14 @@
+# Ignored advisories pinned by tendermint 0.40 or libp2p 0.53.
+# RUSTSEC-2026-0002 and RUSTSEC-2026-0253 are lru 0.12 unsoundness via libp2p-swarm.
+# cargo-deny does not flag those, so they are listed only here.
+[advisories]
+ignore = [
+    "RUSTSEC-2025-0009",
+    "RUSTSEC-2026-0002",
+    "RUSTSEC-2026-0098",
+    "RUSTSEC-2026-0099",
+    "RUSTSEC-2026-0104",
+    "RUSTSEC-2026-0119",
+    "RUSTSEC-2026-0253",
+    "RUSTSEC-2026-0258",
+]

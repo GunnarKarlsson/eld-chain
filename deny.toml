@@ -1,0 +1,120 @@
+# Supply-chain policy. CI runs `cargo deny check advisories bans licenses sources`.
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+all-features = true
+
+[advisories]
+# "none" keeps unmaintained notices (bincode 1.3, instant, paste, ring 0.16) from failing CI.
+# Vulnerabilities and yanked crates still fail.
+unmaintained = "none"
+yanked = "deny"
+ignore = [
+    { id = "RUSTSEC-2025-0009", reason = "ring 0.16 AES panic is pulled by libp2p 0.53 via rcgen; fix is ring >= 0.17" },
+    { id = "RUSTSEC-2026-0098", reason = "rustls-webpki 0.101 is pinned by libp2p 0.53 and tendermint-rpc 0.40 (reqwest 0.11); fix is rustls-webpki >= 0.103.12" },
+    { id = "RUSTSEC-2026-0099", reason = "rustls-webpki 0.101 is pinned by libp2p 0.53 and tendermint-rpc 0.40 (reqwest 0.11); fix is rustls-webpki >= 0.103.12" },
+    { id = "RUSTSEC-2026-0104", reason = "rustls-webpki 0.101 CRL panic is pinned by libp2p 0.53 and tendermint-rpc 0.40; fix is rustls-webpki >= 0.103.13" },
+    { id = "RUSTSEC-2026-0119", reason = "hickory-proto 0.24 is pinned by libp2p-mdns 0.45; fix is hickory-proto >= 0.26.1" },
+    { id = "RUSTSEC-2026-0258", reason = "h2 0.3 is pinned by tendermint-rpc 0.40 via reqwest 0.11; fix is h2 >= 0.4.16" },
+]
+
+[licenses]
+confidence-threshold = 0.8
+unused-allowed-license = "deny"
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "OpenSSL",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+
+[[licenses.clarify]]
+crate = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+highlight = "all"
+deny = []
+# Older copies kept by tendermint 0.40, libp2p 0.53, or parity-scale-codec 1.3.
+# Skipping the stale version leaves one copy, so a new duplicate still fails CI.
+skip = [
+    { crate = "arrayvec@0.5.2", reason = "parity-scale-codec 1.3" },
+    { crate = "base64@0.21.7", reason = "tendermint 0.40 / libp2p 0.53" },
+    { crate = "bitflags@1.3.2", reason = "tendermint 0.40 / libp2p 0.53" },
+    { crate = "block-buffer@0.9.0", reason = "sha2 0.9 pulled by older crypto crates" },
+    { crate = "byte-slice-cast@0.3.5", reason = "libp2p 0.53" },
+    { crate = "chacha20@0.9.1", reason = "older rand/crypto stack" },
+    { crate = "core-foundation@0.9.4", reason = "tendermint-rpc 0.40 reqwest 0.11" },
+    { crate = "cpufeatures@0.2.17", reason = "sha2 0.9 / digest 0.9" },
+    { crate = "digest@0.9.0", reason = "sha2 0.9" },
+    { crate = "getrandom@0.2.17", reason = "rand 0.8" },
+    { crate = "getrandom@0.3.4", reason = "rand 0.9" },
+    { crate = "h2@0.3.27", reason = "tendermint-rpc 0.40 reqwest 0.11" },
+    { crate = "hashbrown@0.14.5", reason = "tendermint 0.40 / libp2p 0.53" },
+    { crate = "hashbrown@0.15.5", reason = "indexmap / rustc-hash split" },
+    { crate = "http@0.2.12", reason = "tendermint-rpc 0.40 hyper 0.14" },
+    { crate = "http-body@0.4.6", reason = "tendermint-rpc 0.40 hyper 0.14" },
+    { crate = "hyper@0.14.32", reason = "tendermint-rpc 0.40 reqwest 0.11" },
+    { crate = "itertools@0.10.5", reason = "tendermint 0.40 / libp2p 0.53" },
+    { crate = "openssl-probe@0.1.6", reason = "tendermint-rpc 0.40 reqwest 0.11" },
+    { crate = "parity-scale-codec@1.3.7", reason = "eld-common still encodes coins with SCALE 1.3" },
+    { crate = "parity-scale-codec-derive@1.2.3", reason = "matches parity-scale-codec 1.3" },
+    { crate = "proc-macro-crate@0.1.5", reason = "parity-scale-codec-derive 1.2" },
+    { crate = "prost@0.10.4", reason = "tendermint-proto 0.23" },
+    { crate = "prost@0.13.5", reason = "libp2p 0.53" },
+    { crate = "prost-derive@0.10.1", reason = "prost 0.10" },
+    { crate = "prost-derive@0.13.5", reason = "prost 0.13" },
+    { crate = "r-efi@5.3.0", reason = "getrandom 0.2" },
+    { crate = "rand@0.8.8", reason = "tendermint 0.40 / libp2p 0.53" },
+    { crate = "rand@0.9.5", reason = "workspace pins rand 0.9 beside a newer transitive copy" },
+    { crate = "rand_chacha@0.3.1", reason = "rand 0.8" },
+    { crate = "rand_core@0.6.4", reason = "rand 0.8" },
+    { crate = "rand_core@0.9.5", reason = "rand 0.9" },
+    { crate = "reqwest@0.11.27", reason = "tendermint-rpc 0.40" },
+    { crate = "ring@0.16.20", reason = "libp2p-tls 0.4 via rcgen 0.11" },
+    { crate = "rustc-hash@1.1.0", reason = "tendermint 0.40 / libp2p 0.53" },
+    { crate = "rustls@0.21.12", reason = "tendermint-rpc 0.40 reqwest 0.11 and libp2p-tls 0.4" },
+    { crate = "rustls-webpki@0.101.7", reason = "rustls 0.21" },
+    { crate = "security-framework@2.11.1", reason = "tendermint-rpc 0.40 reqwest 0.11" },
+    { crate = "sha2@0.9.9", reason = "older crypto crates beside workspace sha2 0.10" },
+    { crate = "shlex@1.3.0", reason = "build scripts of older crates" },
+    { crate = "socket2@0.5.10", reason = "tendermint-rpc 0.40 hyper 0.14" },
+    { crate = "syn@1.0.109", reason = "old proc-macro crates" },
+    { crate = "syn@2.0.119", reason = "kept beside syn 3 by proc-macro crates" },
+    { crate = "sync_wrapper@0.1.2", reason = "hyper 0.14" },
+    { crate = "synstructure@0.13.2", reason = "zerocopy / older derive crates" },
+    { crate = "system-configuration@0.5.1", reason = "tendermint-rpc 0.40 reqwest 0.11" },
+    { crate = "system-configuration-sys@0.5.0", reason = "system-configuration 0.5" },
+    { crate = "tendermint-proto@0.23.7", reason = "older tendermint proto beside 0.40" },
+    { crate = "thiserror@1.0.69", reason = "tendermint 0.40 / libp2p 0.53" },
+    { crate = "thiserror-impl@1.0.69", reason = "thiserror 1" },
+    { crate = "toml@0.5.11", reason = "tendermint 0.40" },
+    { crate = "toml_datetime@0.6.11", reason = "toml_edit 0.22" },
+    { crate = "toml_edit@0.22.27", reason = "tendermint 0.40" },
+    { crate = "tower@0.4.13", reason = "workspace tower 0.4 beside tower 0.5" },
+    { crate = "tower-http@0.5.2", reason = "workspace tower-http 0.5 beside 0.6" },
+    { crate = "unsigned-varint@0.7.2", reason = "libp2p 0.53" },
+    { crate = "untrusted@0.7.1", reason = "ring 0.16" },
+    { crate = "winnow@0.7.15", reason = "toml_edit 0.22" },
+    { crate = "yamux@0.12.1", reason = "libp2p 0.53" },
+]
+skip-tree = [
+    { crate = "windows-sys", reason = "windows-sys and its targets bump independently across crates" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

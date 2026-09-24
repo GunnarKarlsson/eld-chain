@@ -20,8 +20,8 @@ path = "src/main.rs"
 abci-rs = { version = "0.11.3", features = ["use-tokio"] }
 async-trait = "0.1.77"
 axum = { version = "0.8.1", features = ["ws"] }
-eld_common = { path = "../common", package = "eld-common" }
-eld_client = { path = "../client", package = "eld-client" }
+eld_common = { path = "../common", version = "0.1.0", package = "eld-common" }
+eld_client = { path = "../client", version = "0.1.0", package = "eld-client" }
 base64 = "0.22.1"
 bincode = "1.3.3"
 bytes = "1.5.0"

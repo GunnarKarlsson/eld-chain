@@ -4,7 +4,7 @@ This repo is the Eld workspace: `eld-common` (`common/`), `eld-client` (`client/
 
 ## Pull requests
 
-PRs must pass `./deploy/scripts/ci.sh` (fmt, Clippy with warnings denied, build, test including rustdoc, gitleaks).
+PRs must pass `./deploy/scripts/ci.sh` (fmt, Clippy with warnings denied, build, test including rustdoc, cargo audit, cargo deny, gitleaks).
 
 Treat changes to public types and functions as API changes: update crate READMEs, rustdoc, and examples when behavior or wire format shifts.
 
