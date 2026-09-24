@@ -73,15 +73,5 @@
             "balance": "100000000000",
             "nonce": 0
         }
-    },
-    "fee_config": {
-        "base_fee": 1000,
-        "size_fee_per_kb": 100,
-        "gas_price": 1,
-        "transfer_multiplier": 1.0,
-        "stake_multiplier": 1.5,
-        "content_manifest_multiplier": 2.5,
-        "chunk_proof_multiplier": 2.0,
-        "device_operation_multiplier": 1.8
     }
 }

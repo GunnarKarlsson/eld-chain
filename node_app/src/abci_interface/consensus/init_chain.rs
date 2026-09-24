@@ -7,9 +7,9 @@ use eld_common::account::Account;
 use eld_common::address::Address;
 use eld_common::cado::{CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType};
 use eld_common::coin::Coin;
-use eld_common::constants::protocol::VALIDATORS_PER_EPOCH;
 use eld_common::error::{EldError, ErrorBuilder};
 use eld_common::nonce::Nonce;
+use eld_common::protocol_constants::ProtocolConstants;
 use eld_common::validator::ValidatorInfo;
 use tracing::{error, info, warn};
 
@@ -46,6 +46,8 @@ where
                 details: "chain ids don't match".into(),
             });
         }
+
+        install_protocol_constants(self, &init_chain_request.app_state_bytes);
 
         // Lock committed state to update validators and create accounts
         let mut committed_state = match self.committed_state.lock() {
@@ -192,12 +194,12 @@ where
             committed_state.envelope.validators.len()
         );
 
-        // Set active validators (deterministic priority order, take top VALIDATORS_PER_EPOCH)
+        let validators_per_epoch = self.protocol_constants().validators_per_epoch;
         let mut sorted_validators = validators;
         sorted_validators.sort_by(Self::compare_validator_priority);
         committed_state.envelope.active_validators = sorted_validators
             .into_iter()
-            .take(VALIDATORS_PER_EPOCH)
+            .take(validators_per_epoch)
             .collect();
 
         info!(
@@ -214,5 +216,44 @@ where
         );
 
         Default::default()
+    }
+}
+
+fn install_protocol_constants<S>(connection: &ConsensusConnection<S>, app_state_bytes: &[u8])
+where
+    S: ConsensusConnectionStorage,
+{
+    if app_state_bytes.is_empty() {
+        if connection.protocol.get().is_some() {
+            return;
+        }
+        handle_fatal_eld_error(EldError::InitializationError {
+            component: "protocol_constants".into(),
+            details: "genesis app_state is empty".into(),
+        });
+    }
+
+    let parsed = match ProtocolConstants::from_app_state_bytes(app_state_bytes) {
+        Ok(constants) => constants,
+        Err(e) => handle_fatal_eld_error(e),
+    };
+
+    match connection.protocol.get() {
+        Some(existing) if existing == &parsed => return,
+        Some(_) => handle_fatal_eld_error(EldError::InitializationError {
+            component: "protocol_constants".into(),
+            details: "genesis protocol_constants do not match the loaded value".into(),
+        }),
+        None => {}
+    }
+
+    if let Err(e) = connection.storage.put_protocol_constants(app_state_bytes) {
+        handle_fatal_eld_error(e);
+    }
+    if connection.protocol.set(parsed).is_err() {
+        handle_fatal_eld_error(EldError::InitializationError {
+            component: "protocol_constants".into(),
+            details: "protocol constants were set concurrently".into(),
+        });
     }
 }

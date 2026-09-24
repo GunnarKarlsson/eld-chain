@@ -13,7 +13,7 @@ use eld_common::{
     account::Account,
     cado::{CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType},
     coin::Coin,
-    constants::{protocol::MIN_STAKE_AMOUNT, tx_type},
+    constants::tx_type,
     staking_account::StakingAccount,
     tx::{create_event_attribute, StakeTx},
     validator::ValidatorInfo,
@@ -81,8 +81,9 @@ where
         .unwrap_or_else(Coin::zero);
 
     if existing_stake.is_zero() {
-        debug!("stake: {}, min: {}", amount_coin, MIN_STAKE_AMOUNT);
-        let min_stake_coin = match Coin::new(MIN_STAKE_AMOUNT) {
+        let min_stake_amount = connection.protocol_constants().min_stake_amount.amount();
+        debug!("stake: {}, min: {}", amount_coin, min_stake_amount);
+        let min_stake_coin = match Coin::new(min_stake_amount) {
             Ok(amount) => amount,
             Err(e) => {
                 error!("Failed to create minimum stake amount coin: {}", e);

@@ -12,7 +12,8 @@ use axum::{
     Json,
 };
 use eld_common::cado::{epoch_record_path_name, CadoPath, CadoPathKey, CadoType};
-use eld_common::constants::{cado, protocol::BLOCKS_PER_EPOCH};
+use eld_common::constants::cado;
+use eld_common::protocol_constants::ProtocolHandle;
 use eld_common::validator::EpochRecord;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -282,6 +283,7 @@ pub(crate) struct EpochHeightQueryParams {
 /// Handler for GET /epoch/height?height={h}
 pub(crate) async fn handle_get_epoch_by_height(
     State(storage): State<Arc<RocksDBStorage>>,
+    State(protocol): State<ProtocolHandle>,
     State(committed_state): State<Arc<Mutex<AppState>>>,
     State(current_state): State<Arc<Mutex<Option<AppState>>>>,
     State(rate_limit_state): State<Arc<RwLock<RateLimitState>>>,
@@ -299,7 +301,14 @@ pub(crate) async fn handle_get_epoch_by_height(
             details: Some(format!("{}: {}", params.height, e)),
         })?;
 
-    let epoch = height / BLOCKS_PER_EPOCH;
+    let blocks_per_epoch = protocol
+        .get()
+        .ok_or_else(|| ApiError::ServiceUnavailable {
+            message: "protocol_constants_unavailable".to_string(),
+            details: Some("InitChain has not loaded protocol constants".to_string()),
+        })?
+        .blocks_per_epoch;
+    let epoch = height / blocks_per_epoch;
     let record = get_epoch_record(&current_state, &committed_state, storage.as_ref(), epoch)?;
     Ok(Json(record))
 }

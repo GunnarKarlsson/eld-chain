@@ -2,7 +2,6 @@
 
 use crate::api::lookup_cado_by_path_excluding_current_cache;
 use crate::app_state::AppState;
-use crate::config::FeeConfig;
 use crate::errors::{
     response_check_tx_error_fee_calculation_failed, response_check_tx_error_insufficient_fee,
     response_check_tx_error_invalid_hex_encoding, response_check_tx_error_invalid_utf8_encoding,
@@ -14,6 +13,7 @@ use crate::storage::traits::ConsensusConnectionStorage;
 use abci::{async_api::Mempool, async_trait, types::*};
 use eld_common::account::Account;
 use eld_common::cado::{CadoBody, CadoPath, CadoPathKey, CadoType};
+use eld_common::protocol_constants::ProtocolHandle;
 use eld_common::tx::HasSender;
 use eld_common::tx::Tx;
 use eld_common::validation::safe_deserialize_account_data;
@@ -26,8 +26,7 @@ where
     S: ConsensusConnectionStorage,
 {
     chain_id: String,
-    max_tx_bytes: usize,
-    fee_config: FeeConfig,
+    protocol: ProtocolHandle,
     committed_state: Arc<Mutex<AppState>>,
     storage: Arc<S>,
 }
@@ -38,15 +37,13 @@ where
 {
     pub fn new(
         chain_id: String,
-        max_tx_bytes: usize,
-        fee_config: FeeConfig,
+        protocol: ProtocolHandle,
         committed_state: Arc<Mutex<AppState>>,
         storage: Arc<S>,
     ) -> Self {
         Self {
             chain_id,
-            max_tx_bytes,
-            fee_config,
+            protocol,
             committed_state,
             storage,
         }
@@ -63,14 +60,19 @@ where
     async fn check_tx(&self, check_tx_request: RequestCheckTx) -> ResponseCheckTx {
         let tx_bytes = check_tx_request.tx;
 
-        // Check transaction size first (before expensive JSON parsing)
-        if tx_bytes.len() > self.max_tx_bytes {
+        let Some(protocol) = self.protocol.get() else {
+            warn!("mempool check_tx rejected: protocol constants are not loaded");
+            return response_check_tx_error_fee_calculation_failed(
+                "protocol constants are not loaded".to_string(),
+            );
+        };
+        let max_tx_bytes = protocol.max_tx_bytes;
+        if tx_bytes.len() > max_tx_bytes {
             warn!(
                 tx_bytes = tx_bytes.len(),
-                max_tx_bytes = self.max_tx_bytes,
-                "mempool check_tx rejected: tx too large"
+                max_tx_bytes, "mempool check_tx rejected: tx too large"
             );
-            return response_check_tx_error_tx_too_large(self.max_tx_bytes, tx_bytes.len());
+            return response_check_tx_error_tx_too_large(max_tx_bytes, tx_bytes.len());
         }
 
         let hex_str = match String::from_utf8(tx_bytes) {
@@ -230,7 +232,8 @@ where
         }
 
         // Validate dynamic fee
-        let required_fee = match eld_common::fee::calculate_dynamic_fee(&tx, &self.fee_config) {
+        let fee_config = protocol.fee_config();
+        let required_fee = match eld_common::fee::calculate_dynamic_fee(&tx, &fee_config) {
             Ok(fee) => fee,
             Err(e) => {
                 warn!(
@@ -382,8 +385,7 @@ mod tests {
 
         let mempool = MempoolConnection::new(
             "test-chain".to_string(),
-            1024 * 1024,
-            FeeConfig::default(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             committed_state,
             storage,
         );
@@ -424,8 +426,7 @@ mod tests {
 
         let mempool = MempoolConnection::new(
             "test-chain".to_string(),
-            1024 * 1024,
-            FeeConfig::default(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             committed_state,
             storage,
         );
@@ -468,8 +469,7 @@ mod tests {
 
         let mempool = MempoolConnection::new(
             "test-chain".to_string(),
-            1024 * 1024,
-            FeeConfig::default(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             committed_state,
             storage,
         );
@@ -492,8 +492,7 @@ mod tests {
 
         let mempool = MempoolConnection::new(
             "test-chain".to_string(),
-            1024 * 1024,
-            FeeConfig::default(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             committed_state,
             storage,
         );

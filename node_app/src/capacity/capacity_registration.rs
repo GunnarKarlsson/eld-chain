@@ -1,6 +1,6 @@
 use eld_client::facade::ChainClient;
 use eld_common::error::EldError;
-use eld_common::fee::calculate_dynamic_fee;
+use eld_common::fee::{calculate_dynamic_fee, FeeConfig};
 use eld_common::tx::{Payload, RegisterCapacityTx, Tx};
 use eld_common::wallet::Wallet;
 use eld_common::{Address, CapacityMerkleRoot, CapacitySeed};
@@ -34,6 +34,7 @@ pub struct CapacityRegistrationTxParams<'a> {
     pub wallet: &'a Wallet,
     pub cli: &'a ChainClient,
     pub chain_id: &'a str,
+    pub fee_config: FeeConfig,
 }
 
 impl Default for CapacityRegistrationService {
@@ -69,6 +70,7 @@ impl CapacityRegistrationService {
             wallet,
             cli,
             chain_id,
+            fee_config,
         } = params;
 
         info!(
@@ -112,9 +114,8 @@ impl CapacityRegistrationService {
         );
 
         // Calculate dynamic fee
-        let fee_config = cli.get_fee_config();
         let dynamic_fee =
-            calculate_dynamic_fee(&tx, fee_config).map_err(|e| EldError::StorageError {
+            calculate_dynamic_fee(&tx, &fee_config).map_err(|e| EldError::StorageError {
                 operation: "submit_capacity_registration_tx".to_string(),
                 details: format!("Failed to calculate dynamic fee: {e}"),
             })?;
@@ -232,6 +233,7 @@ mod tests {
                     wallet: &wallet,
                     cli: &cli,
                     chain_id: "test-chain",
+                    fee_config: eld_common::fee::FeeConfig::default(),
                 })
                 .await
         });

@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use eld_client::facade::ChainClient;
 use eld_common::capacity::CapacityConfig;
 use eld_common::error::EldError;
+use eld_common::protocol_constants::ProtocolHandle;
 use tracing::{error, info};
 
 use crate::capacity::capacity_manager::CapacityManager;
@@ -25,6 +26,7 @@ pub async fn init_capacity(
     client_config: &eld_client::config::ClientConfig,
     cli: Arc<ChainClient>,
     consensus_config: Arc<Mutex<ConsensusConfig>>,
+    protocol: ProtocolHandle,
 ) -> CapacityRuntime {
     let (capacity_size_mb, capacity_storage_path) = match (
         node_config.capacity_size_mb,
@@ -81,6 +83,7 @@ pub async fn init_capacity(
         capacity_validator_wallet_name.clone(),
         cli,
         consensus_config,
+        protocol,
     );
     manager.initialize().await.unwrap_or_else(|e| {
         error!(error = %e, "Failed to initialize capacity manager");

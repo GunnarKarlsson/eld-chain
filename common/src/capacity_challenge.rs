@@ -6,7 +6,6 @@
 
 use crate::address::Address;
 use crate::challenge_id::ChallengeId;
-use crate::constants::protocol::CHUNKS_PER_CHALLENGE;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
@@ -15,7 +14,7 @@ use sha2::{Digest, Sha256};
 /// Domain separator for the RNG seed used to pick which chunks to challenge.
 const CHALLENGE_CHUNK_SELECTION_DOMAIN: &[u8] = b"CHALLENGE_CHUNK_SELECTION";
 
-/// Deterministically selects up to [`CHUNKS_PER_CHALLENGE`] chunk indices for a capacity challenge.
+/// Deterministically selects up to `chunks_per_challenge` chunk indices for a capacity challenge.
 ///
 /// Seed preimage (SHA-256 → 32-byte StdRng seed):
 /// `CHALLENGE_CHUNK_SELECTION || epoch_be || provider_id || block_height_be || validator_address`
@@ -27,6 +26,7 @@ pub fn select_challenge_chunk_indices(
     block_height: i64,
     validator_address: &Address,
     chunk_count: u32,
+    chunks_per_challenge: usize,
 ) -> Vec<usize> {
     let chunk_count_usize = chunk_count as usize;
     if chunk_count_usize == 0 {
@@ -45,7 +45,7 @@ pub fn select_challenge_chunk_indices(
     let mut rng = StdRng::from_seed(challenge_seed_bytes);
     let mut chunk_indices: Vec<usize> = (0..chunk_count_usize).collect();
     chunk_indices.shuffle(&mut rng);
-    chunk_indices.truncate(CHUNKS_PER_CHALLENGE.min(chunk_count_usize));
+    chunk_indices.truncate(chunks_per_challenge.min(chunk_count_usize));
     chunk_indices
 }
 
@@ -91,24 +91,25 @@ mod tests {
     fn select_challenge_chunk_indices_is_deterministic() {
         let provider = addr(PROVIDER);
         let validator = addr(VALIDATOR);
-        let a = select_challenge_chunk_indices(3, &provider, 100, &validator, 50);
-        let b = select_challenge_chunk_indices(3, &provider, 100, &validator, 50);
+        let a = select_challenge_chunk_indices(3, &provider, 100, &validator, 50, 10);
+        let b = select_challenge_chunk_indices(3, &provider, 100, &validator, 50, 10);
         assert_eq!(a, b);
-        assert_eq!(a.len(), CHUNKS_PER_CHALLENGE);
+        assert_eq!(a.len(), 10);
         assert!(a.iter().all(|&i| i < 50));
     }
 
     #[test]
     fn select_challenge_chunk_indices_differs_by_provider() {
         let validator = addr(VALIDATOR);
-        let a = select_challenge_chunk_indices(3, &addr(PROVIDER), 100, &validator, 50);
-        let b = select_challenge_chunk_indices(3, &addr(OTHER_PROVIDER), 100, &validator, 50);
+        let a = select_challenge_chunk_indices(3, &addr(PROVIDER), 100, &validator, 50, 10);
+        let b = select_challenge_chunk_indices(3, &addr(OTHER_PROVIDER), 100, &validator, 50, 10);
         assert_ne!(a, b);
     }
 
     #[test]
     fn select_challenge_chunk_indices_empty_when_no_chunks() {
-        let indices = select_challenge_chunk_indices(1, &addr(PROVIDER), 1, &addr(VALIDATOR), 0);
+        let indices =
+            select_challenge_chunk_indices(1, &addr(PROVIDER), 1, &addr(VALIDATOR), 0, 10);
         assert!(indices.is_empty());
     }
 
@@ -136,13 +137,13 @@ mod tests {
     fn end_to_end_challenge_id_stable_for_same_inputs() {
         let provider = addr(PROVIDER);
         let validator = addr(VALIDATOR);
-        let indices = select_challenge_chunk_indices(2, &provider, 55, &validator, 20);
+        let indices = select_challenge_chunk_indices(2, &provider, 55, &validator, 20, 10);
         let id1 = compute_challenge_id(&validator, &provider, 55, &indices);
         let id2 = compute_challenge_id(
             &validator,
             &provider,
             55,
-            &select_challenge_chunk_indices(2, &provider, 55, &validator, 20),
+            &select_challenge_chunk_indices(2, &provider, 55, &validator, 20, 10),
         );
         assert_eq!(id1, id2);
     }

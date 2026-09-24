@@ -5,42 +5,18 @@ pub mod token {
     pub const MAX_COIN: u128 = MAX_COIN_DECIMALS * MAX_COIN_UNITS;
 }
 
-/// Consensus / staking / capacity protocol parameters (epoch geometry and limits).
+/// Values that stay compile-time. Epoch geometry, stake floor, fees, and pinboard TTL
+/// come from genesis [`crate::protocol_constants::ProtocolConstants`].
 pub mod protocol {
-    /// Local-dev stake floor; not mainnet economics.
-    pub const MIN_STAKE_AMOUNT: u128 = 5;
-    pub const VALIDATORS_PER_EPOCH: usize = 4; // N = 4 validators per epoch
-    pub const BLOCKS_PER_EPOCH: i64 = 20; // M = 20 blocks per epoch
-    pub const ACTIVE_STORAGE_VALIDATOR_PER_EPOCH: usize = 1; // Only one storage validator per epoch
-    pub const CHALLENGES_PER_EPOCH: usize = 5; // N randomly selected providers to challenge per epoch
-    pub const CHUNKS_PER_CHALLENGE: usize = 10; // Number of chunks to challenge per provider
-
-    /// Capacity registration lease in blocks.
-    ///
-    /// Temporary stand-in. Open issue: how a capacity validator re-registers after this
-    /// lease ends. `end_block` drops the expired entry; there is no re-register path yet.
-    pub const DEFAULT_REGISTRATION_DURATION_BLOCKS: u64 = 1_000_000;
-
     pub const DEFAULT_TX_FEE: u128 = 5000;
 
     /// Legacy per-block subsidy. This node does not mint it.
-    /// Account credits come from a delivered `VerifiedProof` (`VERIFIED_PROOF_REWARD_BASE_AMOUNT`).
+    /// Account credits come from a delivered `VerifiedProof`.
     pub const BLOCK_REWARD: u128 = 10;
-
-    /// Native units minted to `capacity_provider` on each successful `VerifiedProof`.
-    /// Must stay in sync with consensus minting in `process_verified_proof_tx`.
-    pub const VERIFIED_PROOF_REWARD_BASE_AMOUNT: u128 = 1000;
-
-    /// Distinct failed `VerifiedProof` challenges before the provider's capacity stake is burned.
-    /// One challenge per provider per epoch.
-    pub const FAILED_PROOFS_BEFORE_SLASH: u32 = 3;
 }
 
-/// Pinboard parameters (post TTL, upload chunking).
+/// Pinboard upload chunking. Post TTL comes from genesis protocol constants.
 pub mod pinboard {
-    /// Default pinboard post TTL in blocks (relative to the block height where the post is committed).
-    pub const DEFAULT_PINBOARD_POST_TTL_BLOCKS: u64 = 1000;
-
     /// Maximum chunk size for content uploads (1KB)
     pub const MAX_CHUNK_SIZE: usize = 1024;
 }

@@ -54,8 +54,6 @@ fn create_test_dependencies() -> TestDependencies {
         app_host: "127.0.0.1".to_string(),
         app_port: "26658".to_string(),
         accounts: std::collections::HashMap::new(),
-        max_tx_bytes: 10 * 1024 * 1024,
-        fee_config: eld_common::fee::FeeConfig::default(),
         storage_limits: crate::config::StorageLimits::default(),
     }));
 
@@ -85,6 +83,7 @@ async fn register_capacity_onchain_requires_capacity_validator_wallet() {
         "wallet-capacity-validator-missing".to_string(),
         cli,
         consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
     );
     assert_eq!(
         manager.capacity_validator_wallet_name(),
@@ -132,6 +131,7 @@ fn capacity_manager_uses_single_wallet_name_for_local_and_register() {
         "wallet-capacity-validator-1".to_string(),
         cli,
         consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
     );
     assert_eq!(manager.config().provider_id, provider);
     assert_eq!(
@@ -219,7 +219,13 @@ async fn test_build_merkle_tree() {
     let deps = create_test_dependencies();
     let cli = deps.cli;
     let consensus_config = deps.consensus_config;
-    let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
+    let manager = CapacityManager::new(
+        config,
+        "wallet1".to_string(),
+        cli,
+        consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
+    );
 
     // Create a slot map with Proof and Open slots
     let slot_map = SlotMap {
@@ -288,6 +294,7 @@ async fn test_build_merkle_tree_hashes_content_slots_from_file() {
         "wallet1".to_string(),
         deps.cli,
         deps.consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
     );
 
     let content = {
@@ -362,7 +369,13 @@ async fn test_update_merkle_tree_for_content() {
     let deps = create_test_dependencies();
     let cli = deps.cli;
     let consensus_config = deps.consensus_config;
-    let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
+    let manager = CapacityManager::new(
+        config,
+        "wallet1".to_string(),
+        cli,
+        consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
+    );
 
     // Create slot map
     let slot_map = SlotMap {
@@ -418,7 +431,13 @@ async fn test_update_merkle_tree_multiple_slots() {
     let deps = create_test_dependencies();
     let cli = deps.cli;
     let consensus_config = deps.consensus_config;
-    let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
+    let manager = CapacityManager::new(
+        config,
+        "wallet1".to_string(),
+        cli,
+        consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
+    );
 
     // Create slot map with multiple open slots
     let slot_map = SlotMap {
@@ -475,7 +494,13 @@ async fn test_get_merkle_root_no_tree() {
     let deps = create_test_dependencies();
     let cli = deps.cli;
     let consensus_config = deps.consensus_config;
-    let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
+    let manager = CapacityManager::new(
+        config,
+        "wallet1".to_string(),
+        cli,
+        consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
+    );
 
     // Try to get root without building tree
     let result = manager.get_merkle_root().await;
@@ -497,7 +522,13 @@ async fn test_update_merkle_tree_mismatch() {
     let deps = create_test_dependencies();
     let cli = deps.cli;
     let consensus_config = deps.consensus_config;
-    let manager = CapacityManager::new(config, "wallet1".to_string(), cli, consensus_config);
+    let manager = CapacityManager::new(
+        config,
+        "wallet1".to_string(),
+        cli,
+        consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
+    );
 
     // Create slot map
     let slot_map = SlotMap {
@@ -549,8 +580,13 @@ async fn create_test_capacity_with_slots(
     let deps = create_test_dependencies();
     let cli = deps.cli;
     let consensus_config = deps.consensus_config;
-    let manager =
-        CapacityManager::new(config.clone(), "wallet1".to_string(), cli, consensus_config);
+    let manager = CapacityManager::new(
+        config.clone(),
+        "wallet1".to_string(),
+        cli,
+        consensus_config,
+        eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
+    );
 
     // Create slot map with mix of Proof and Open slots
     let mut slots = Vec::new();

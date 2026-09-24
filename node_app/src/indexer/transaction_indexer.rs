@@ -125,14 +125,22 @@ impl TransactionIndexer {
         provider: &str,
         from_height: u64,
         to_height: u64,
+        reward_per_proof: u128,
     ) -> Result<(u64, u128), EldError> {
-        self.storage
-            .aggregate_verified_proof_rewards(provider, from_height, to_height)
+        self.storage.aggregate_verified_proof_rewards(
+            provider,
+            from_height,
+            to_height,
+            reward_per_proof,
+        )
     }
 
     /// Lifetime network-wide verified proof rewards (rollup meta key).
-    pub fn global_verified_proof_rewards(&self) -> Result<(u64, u128), EldError> {
-        self.storage.global_verified_proof_rewards()
+    pub fn global_verified_proof_rewards(
+        &self,
+        reward_per_proof: u128,
+    ) -> Result<(u64, u128), EldError> {
+        self.storage.global_verified_proof_rewards(reward_per_proof)
     }
 
     /// Last block height processed by the TM sync loop (`None` if never synced).

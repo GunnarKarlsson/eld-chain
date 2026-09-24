@@ -3,7 +3,6 @@ use crate::errors::handle_fatal_eld_error;
 use crate::storage::traits::ConsensusConnectionStorage;
 use abci::types::*;
 use eld_common::address::Address;
-use eld_common::constants::protocol::BLOCKS_PER_EPOCH;
 use eld_common::error::EldError;
 use eld_common::validator::CapacityValidatorInfo;
 use tracing::{info, warn};
@@ -48,7 +47,7 @@ where
     ) -> ResponseEndBlock {
         // calculate new epoch
         let new_block_height = end_block_request.height;
-        let new_epoch = new_block_height / BLOCKS_PER_EPOCH;
+        let new_epoch = new_block_height / self.protocol_constants().blocks_per_epoch;
         let validator_updates;
         let mut epoch_challenge_plan: Option<(Address, Vec<Address>, i64)> = None;
         let current_epoch: i64;
@@ -116,7 +115,9 @@ where
                 // Select active capacity validator for new epoch
                 self.select_active_capacity_validator_for_epoch(current_state, new_epoch);
 
-                let epoch_record = Self::build_epoch_record(current_state, new_epoch);
+                let blocks_per_epoch = self.protocol_constants().blocks_per_epoch;
+                let epoch_record =
+                    Self::build_epoch_record(current_state, new_epoch, blocks_per_epoch);
                 if let Err(e) = Self::store_epoch_record(current_state, &epoch_record) {
                     handle_fatal_eld_error(e);
                 }
@@ -209,6 +210,7 @@ where
                         block_height,
                         selected_capacity_validator,
                         self.p2p_sync_coordinator.clone(),
+                        self.protocol_constants().chunks_per_challenge,
                     ) {
                         warn!(
                             epoch = new_epoch,

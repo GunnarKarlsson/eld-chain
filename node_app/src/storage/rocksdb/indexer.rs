@@ -771,9 +771,8 @@ impl TransactionIndexerStorage for RocksDBStorage {
         provider: &str,
         from_height: u64,
         to_height: u64,
+        reward_per_proof: u128,
     ) -> Result<(u64, u128), EldError> {
-        use eld_common::constants::protocol::VERIFIED_PROOF_REWARD_BASE_AMOUNT;
-
         let addr = Address::parse_hex_str(provider)?;
         let normalized = addr.hex_with_prefix().to_lowercase();
         let lower = Self::verified_proof_reward_index_key(&normalized, from_height, 0);
@@ -804,16 +803,17 @@ impl TransactionIndexerStorage for RocksDBStorage {
             }
             count += 1;
         }
-        let total = (count as u128).saturating_mul(VERIFIED_PROOF_REWARD_BASE_AMOUNT);
+        let total = (count as u128).saturating_mul(reward_per_proof);
         Ok((count, total))
     }
 
-    fn global_verified_proof_rewards(&self) -> Result<(u64, u128), EldError> {
-        use eld_common::constants::protocol::VERIFIED_PROOF_REWARD_BASE_AMOUNT;
-
+    fn global_verified_proof_rewards(
+        &self,
+        reward_per_proof: u128,
+    ) -> Result<(u64, u128), EldError> {
         let cf = self.indexed_transactions_cf()?;
         let count = self.read_verified_proof_global_rewards_count(cf)?;
-        let total = (count as u128).saturating_mul(VERIFIED_PROOF_REWARD_BASE_AMOUNT);
+        let total = (count as u128).saturating_mul(reward_per_proof);
         Ok((count, total))
     }
 

@@ -350,6 +350,12 @@ pub trait VerifiedProofRewardDedupStorage: Send + Sync {
     ) -> Result<(), EldError>;
 }
 
+/// Genesis protocol constants persisted outside app state (default column family).
+pub trait ProtocolConstantsStorage: Send + Sync {
+    fn put_protocol_constants(&self, bytes: &[u8]) -> Result<(), EldError>;
+    fn get_protocol_constants(&self) -> Result<Option<Vec<u8>>, EldError>;
+}
+
 pub trait ConsensusConnectionStorage:
     AccountStorage
     + SnapshotStorage
@@ -357,6 +363,7 @@ pub trait ConsensusConnectionStorage:
     + PinboardStorage
     + PinboardQueryStorage
     + VerifiedProofRewardDedupStorage
+    + ProtocolConstantsStorage
     + Clone
     + Send
     + Sync
@@ -427,18 +434,22 @@ pub trait TransactionIndexerStorage: Send + Sync {
     fn get_all_events(&self, page: u32, limit: u32) -> Result<(Vec<IndexedEvent>, u64), EldError>;
 
     /// Count successful verified proof reward index entries for `capacity_provider` in
-    /// `from_height..=to_height`. Returns `(successful_proofs, total_rewards)` using
-    /// [`eld_common::constants::protocol::VERIFIED_PROOF_REWARD_BASE_AMOUNT`].
+    /// `from_height..=to_height`. Returns `(successful_proofs, total_rewards)`.
+    /// `reward_per_proof` is the genesis verified-proof reward.
     fn aggregate_verified_proof_rewards(
         &self,
         provider: &str,
         from_height: u64,
         to_height: u64,
+        reward_per_proof: u128,
     ) -> Result<(u64, u128), EldError>;
 
     /// Lifetime network-wide successful verified-proof count from a single meta key (O(1) read).
     /// Returns `(successful_proofs, total_native_rewards)`.
-    fn global_verified_proof_rewards(&self) -> Result<(u64, u128), EldError>;
+    fn global_verified_proof_rewards(
+        &self,
+        reward_per_proof: u128,
+    ) -> Result<(u64, u128), EldError>;
 
     /// Last block height fully processed by the TM-backed indexer (`None` if never synced).
     fn get_indexer_cursor(&self) -> Result<Option<u64>, EldError>;

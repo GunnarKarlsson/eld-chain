@@ -14,6 +14,18 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error};
 
+fn protocol_reward_per_proof(
+    protocol: &eld_common::protocol_constants::ProtocolHandle,
+) -> Result<u128, ApiError> {
+    protocol
+        .get()
+        .map(|constants| constants.verified_proof_reward_base_amount.amount())
+        .ok_or_else(|| ApiError::ServiceUnavailable {
+            message: "protocol_constants_unavailable".to_string(),
+            details: Some("InitChain has not loaded protocol constants".to_string()),
+        })
+}
+
 /// Query parameters for transaction listing
 #[derive(Debug, Deserialize)]
 pub struct TransactionListParams {
@@ -282,6 +294,7 @@ pub(crate) async fn handle_get_transaction(
 /// Handler for `GET /v1/capacity/verified-proof-rewards/sum` — O(1) lifetime network-wide rollup.
 pub(crate) async fn handle_get_verified_proof_rewards_sum(
     State(indexer): State<Option<Arc<TransactionIndexer>>>,
+    State(protocol): State<eld_common::protocol_constants::ProtocolHandle>,
     State(rate_limit_state): State<Arc<RwLock<RateLimitState>>>,
     headers: HeaderMap,
 ) -> Result<Json<VerifiedProofRewardsSumResponse>, ApiError> {
@@ -292,8 +305,10 @@ pub(crate) async fn handle_get_verified_proof_rewards_sum(
         details: Some("Enable the indexer in config.json by setting 'indexer': true".to_string()),
     })?;
 
-    let (successful_proofs, total_rewards) =
-        indexer.global_verified_proof_rewards().map_err(|e| {
+    let reward_per_proof = protocol_reward_per_proof(&protocol)?;
+    let (successful_proofs, total_rewards) = indexer
+        .global_verified_proof_rewards(reward_per_proof)
+        .map_err(|e| {
             error!("global_verified_proof_rewards: {}", e);
             ApiError::InternalServerError {
                 message: "Failed to read verified proof rewards sum".to_string(),
@@ -310,6 +325,7 @@ pub(crate) async fn handle_get_verified_proof_rewards_sum(
 /// Handler for `GET /v1/capacity/verified-proof-rewards/{address}`.
 pub(crate) async fn handle_get_verified_proof_rewards(
     State(indexer): State<Option<Arc<TransactionIndexer>>>,
+    State(protocol): State<eld_common::protocol_constants::ProtocolHandle>,
     State(rate_limit_state): State<Arc<RwLock<RateLimitState>>>,
     headers: HeaderMap,
     extract::Path(address): extract::Path<String>,
@@ -345,8 +361,14 @@ pub(crate) async fn handle_get_verified_proof_rewards(
     })?;
     let capacity_provider = addr.hex_with_prefix();
 
+    let reward_per_proof = protocol_reward_per_proof(&protocol)?;
     let (successful_proofs, total_rewards) = indexer
-        .aggregate_verified_proof_rewards(&capacity_provider, query.from_height, query.to_height)
+        .aggregate_verified_proof_rewards(
+            &capacity_provider,
+            query.from_height,
+            query.to_height,
+            reward_per_proof,
+        )
         .map_err(|e| {
             error!("aggregate_verified_proof_rewards: {}", e);
             ApiError::InternalServerError {

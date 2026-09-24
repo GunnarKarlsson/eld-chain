@@ -1,7 +1,6 @@
 use super::storage_limits::StorageLimits;
 use eld_common::account::Account;
 use eld_common::error::EldError;
-use eld_common::fee::FeeConfig;
 use eld_common::validation::{
     validate_address, validate_chain_id, validate_ip_or_hostname, validate_port,
     validate_positive_integer,
@@ -18,19 +17,9 @@ pub struct ConsensusConfig {
     pub app_host: String,
     pub app_port: String,
     pub accounts: HashMap<String, Account>,
-    /// Maximum transaction size in bytes (default: 10MB)
-    #[serde(default = "default_max_tx_bytes")]
-    pub max_tx_bytes: usize,
-    /// Fee configuration for dynamic fee calculation
-    #[serde(default)]
-    pub fee_config: FeeConfig,
     /// Storage limits for preventing resource exhaustion
     #[serde(default)]
     pub storage_limits: StorageLimits,
-}
-
-fn default_max_tx_bytes() -> usize {
-    10 * 1024 * 1024 // 10MB
 }
 
 impl ConsensusConfig {
@@ -273,17 +262,6 @@ impl ConsensusConfig {
         // Validate app_port
         validate_port(&self.app_port)?;
 
-        // Validate max_tx_bytes
-        validate_positive_integer(
-            self.max_tx_bytes,
-            Some(1024),              // Minimum 1KB
-            Some(100 * 1024 * 1024), // Maximum 100MB
-            "max_tx_bytes",
-        )?;
-
-        // Validate fee_config
-        self.fee_config.validate()?;
-
         // Validate storage_limits
         self.storage_limits.validate()?;
 
@@ -388,7 +366,6 @@ mod tests {
         )
         .expect("valid consensus config should load");
         assert_eq!(config.chain_id, MOCK_CHAIN_ID);
-        assert_eq!(config.max_tx_bytes, 10 * 1024 * 1024);
     }
 
     #[test]

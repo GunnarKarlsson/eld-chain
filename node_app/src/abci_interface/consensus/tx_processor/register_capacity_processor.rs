@@ -8,7 +8,6 @@ use abci::types::{Event, ResponseDeliverTx};
 use eld_common::{
     cado::{CadoPath, CadoPathKey, CadoType},
     coin::Coin,
-    constants::protocol::DEFAULT_REGISTRATION_DURATION_BLOCKS,
     public_key::PublicKey,
     tx::{create_event_attribute, RegisterCapacityTx, TxPublicKey},
     validator::CapacityValidatorInfo,
@@ -106,7 +105,7 @@ where
                 registered_at: Some(current_block_height as u64),
                 last_merkle_root_update: Some(current_block_height as u64),
                 registered_block,
-                registration_duration: DEFAULT_REGISTRATION_DURATION_BLOCKS,
+                registration_duration: connection.protocol_constants().registration_duration_blocks,
             });
     } else {
         info!(
@@ -138,7 +137,8 @@ where
 
                 provider.last_merkle_root_update = Some(current_block_height as u64);
                 provider.registered_block = registered_block;
-                provider.registration_duration = DEFAULT_REGISTRATION_DURATION_BLOCKS;
+                provider.registration_duration =
+                    connection.protocol_constants().registration_duration_blocks;
 
                 found = true;
                 break;

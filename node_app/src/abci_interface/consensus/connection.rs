@@ -7,6 +7,7 @@ use crate::config::ConsensusConfig;
 use crate::content::sync::P2pCoordinatorTrait;
 use crate::node_identity::LocalNodeIdentity;
 use crate::storage::traits::ConsensusConnectionStorage;
+use eld_common::protocol_constants::ProtocolHandle;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
@@ -17,6 +18,7 @@ where
     S: ConsensusConnectionStorage,
 {
     pub consensus_config: Arc<Mutex<ConsensusConfig>>,
+    pub protocol: ProtocolHandle,
     pub committed_state: Arc<Mutex<AppState>>,
     pub chain_tip: Arc<ChainTip>,
     pub current_state: Arc<Mutex<Option<AppState>>>,
@@ -39,6 +41,7 @@ where
     S: ConsensusConnectionStorage,
 {
     pub consensus_config: Arc<Mutex<ConsensusConfig>>,
+    pub protocol: ProtocolHandle,
     pub committed_state: Arc<Mutex<AppState>>,
     pub chain_tip: Arc<ChainTip>,
     pub current_state: Arc<Mutex<Option<AppState>>>,
@@ -57,6 +60,7 @@ where
     pub fn new(ctx: ConsensusConnectionNewContext<S>) -> Self {
         Self {
             consensus_config: ctx.consensus_config,
+            protocol: ctx.protocol,
             committed_state: ctx.committed_state,
             chain_tip: ctx.chain_tip,
             current_state: ctx.current_state,
@@ -69,6 +73,18 @@ where
             ready_tx: Arc::new(Mutex::new(ctx.ready_tx)),
             capacity_manager: ctx.capacity_manager,
             local_identity: ctx.local_identity,
+        }
+    }
+
+    pub(crate) fn protocol_constants(&self) -> &eld_common::protocol_constants::ProtocolConstants {
+        match self.protocol.get() {
+            Some(constants) => constants,
+            None => crate::errors::handle_fatal_eld_error(
+                eld_common::error::EldError::InitializationError {
+                    component: "protocol_constants".into(),
+                    details: "protocol constants are not loaded".into(),
+                },
+            ),
         }
     }
 }

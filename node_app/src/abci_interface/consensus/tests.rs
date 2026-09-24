@@ -25,7 +25,8 @@ use eld_common::address::Address;
 use eld_common::cado::{CadoPath, CadoPathKey, CadoType};
 use eld_common::capacity::CapacityConfig;
 use eld_common::coin::Coin;
-use eld_common::constants::protocol::BLOCKS_PER_EPOCH;
+use eld_common::protocol_constants::ProtocolHandle;
+const BLOCKS_PER_EPOCH: i64 = 20;
 use eld_common::fee::calculate_dynamic_fee;
 use eld_common::nonce::Nonce;
 use eld_common::tx::{Payload, TransferTx, Tx, TxPublicKey, TxSig};
@@ -40,8 +41,6 @@ fn mock_consensus_connection() -> ConsensusConnection<HybridStorage> {
         app_host: "127.0.0.1".to_string(),
         app_port: "8080".to_string(),
         accounts: Default::default(),
-        max_tx_bytes: 1024 * 1024,
-        fee_config: FeeConfig::default(),
         storage_limits: crate::config::StorageLimits::default(),
     };
     let consensus_config = Arc::new(Mutex::new(config));
@@ -87,6 +86,7 @@ fn mock_consensus_connection() -> ConsensusConnection<HybridStorage> {
         "wallet1".into(),
         cli.clone(),
         consensus_config.clone(),
+        ProtocolHandle::installed_local_dev(),
         storage.clone(),
     ));
     let local_identity = Arc::new(RwLock::new(LocalNodeIdentity::default()));
@@ -126,10 +126,12 @@ fn mock_consensus_connection() -> ConsensusConnection<HybridStorage> {
         "wallet1".to_string(),
         cli,
         consensus_config.clone(),
+        ProtocolHandle::installed_local_dev(),
     ));
 
     ConsensusConnection::new(ConsensusConnectionNewContext {
         consensus_config,
+        protocol: ProtocolHandle::installed_local_dev(),
         committed_state,
         chain_tip,
         current_state,
@@ -642,8 +644,6 @@ fn in_process_harness() -> InProcessHarness {
         app_host: "127.0.0.1".to_string(),
         app_port: "8080".to_string(),
         accounts: Default::default(),
-        max_tx_bytes: 1024 * 1024,
-        fee_config: FeeConfig::default(),
         storage_limits: crate::config::StorageLimits::default(),
     };
     let consensus_config = Arc::new(Mutex::new(config));
@@ -675,11 +675,13 @@ fn in_process_harness() -> InProcessHarness {
         "wallet1".to_string(),
         cli,
         consensus_config.clone(),
+        ProtocolHandle::installed_local_dev(),
     ));
     let local_identity = Arc::new(RwLock::new(configured_local_identity()));
 
     let consensus = ConsensusConnection::new(ConsensusConnectionNewContext {
         consensus_config,
+        protocol: ProtocolHandle::installed_local_dev(),
         committed_state,
         chain_tip: Arc::new(ChainTip::default()),
         current_state,
@@ -796,8 +798,7 @@ async fn check_tx_then_deliver_tx_transfer_commits_account() {
 
     let mempool = MempoolConnection::new(
         TRANSFER_CHAIN_ID.to_string(),
-        1024 * 1024,
-        FeeConfig::default(),
+        ProtocolHandle::installed_local_dev(),
         harness.consensus.committed_state.clone(),
         harness.storage.clone(),
     );

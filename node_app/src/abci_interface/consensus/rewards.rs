@@ -72,7 +72,7 @@ where
 mod tests {
     use super::*;
     use crate::storage::rocksdb::RocksDBStorage;
-    use eld_common::constants::protocol::VERIFIED_PROOF_REWARD_BASE_AMOUNT;
+    const VERIFIED_PROOF_REWARD_BASE_AMOUNT: u128 = 1000;
 
     #[test]
     fn verified_proof_reward_credits_provider_account_cado() {

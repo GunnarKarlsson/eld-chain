@@ -1491,7 +1491,7 @@ pub fn safe_deserialize_account_data<T: for<'de> serde::Deserialize<'de>>(
 mod tests {
     use super::*;
     use crate::address::Address;
-    use crate::constants::protocol::MIN_STAKE_AMOUNT;
+    const MIN_STAKE_AMOUNT: u128 = 5;
     use crate::tx::StakeTx;
     use crate::tx::TransferTx;
 

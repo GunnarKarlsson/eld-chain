@@ -25,7 +25,9 @@ use crate::errors::handle_fatal_eld_error;
 use crate::storage::hybrid_storage::HybridStorage;
 use crate::storage::pinboard_blob_gc::start_pinboard_blob_gc_worker;
 use crate::storage::rocksdb::RocksDBStorage;
+use crate::storage::traits::ProtocolConstantsStorage;
 use crate::Args;
+use eld_common::protocol_constants::{ProtocolConstants, ProtocolHandle};
 
 pub(crate) async fn run(args: Args) -> Result<(), EldError> {
     let config_path = ConsensusConfig::resolve_path(args.config_path.clone());
@@ -59,6 +61,8 @@ pub(crate) async fn run(args: Args) -> Result<(), EldError> {
     };
     let rocks_db_storage = Arc::new(rocks_db_storage);
     let node_storage = Arc::new(HybridStorage::new(rocks_db_storage.clone()));
+    let protocol = ProtocolHandle::new();
+    load_protocol_constants_on_restart(node_storage.as_ref(), &protocol);
 
     let app_config = AppConfig::from_file(DEFAULT_CONFIG_PATH)?;
     let mut client_config = app_config.client;
@@ -68,7 +72,10 @@ pub(crate) async fn run(args: Args) -> Result<(), EldError> {
             .lock()
             .unwrap_or_else(|e| handle_fatal_eld_error(e.into()));
         client_config.chain_id = consensus.chain_id.clone();
-        consensus.fee_config.clone()
+        protocol
+            .get()
+            .map(|constants| constants.fee_config())
+            .unwrap_or_default()
     };
     let cli = Arc::new(
         ChainClient::with_wallets(client_config.clone(), fee_config, WALLETS_PATH)
@@ -80,6 +87,7 @@ pub(crate) async fn run(args: Args) -> Result<(), EldError> {
         &client_config,
         cli.clone(),
         consensus_config.clone(),
+        protocol.clone(),
     )
     .await;
 
@@ -121,6 +129,7 @@ pub(crate) async fn run(args: Args) -> Result<(), EldError> {
         content_server::bind_content_server(content_server::ContentServerBindContext {
             rocks_db_storage: rocks_db_storage.clone(),
             consensus_config: consensus_config.clone(),
+            protocol: protocol.clone(),
             transaction_indexer,
             cli: cli.clone(),
             capacity_manager: capacity.manager.clone(),
@@ -146,6 +155,7 @@ pub(crate) async fn run(args: Args) -> Result<(), EldError> {
 
     let (consensus_server, chain_tip) = init_abci_server(AbciServerInitContext {
         consensus_config,
+        protocol,
         storage: node_storage,
         snapshot_manager,
         p2p_sync_coordinator: p2p.coordinator.clone(),
@@ -209,4 +219,33 @@ pub(crate) async fn run(args: Args) -> Result<(), EldError> {
 
     info!("Eld node shutdown complete");
     Ok(())
+}
+
+fn load_protocol_constants_on_restart(storage: &HybridStorage, protocol: &ProtocolHandle) {
+    let has_persisted_state = match AppState::has_persisted_app_state_tip(storage) {
+        Ok(value) => value,
+        Err(e) => handle_fatal_eld_error(e),
+    };
+    if !has_persisted_state {
+        return;
+    }
+    let bytes = match storage.get_protocol_constants() {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) => handle_fatal_eld_error(EldError::InitializationError {
+            component: "protocol_constants".into(),
+            details: "persisted chain is missing protocol constants".into(),
+        }),
+        Err(e) => handle_fatal_eld_error(e),
+    };
+    let constants = match ProtocolConstants::from_app_state_bytes(&bytes) {
+        Ok(constants) => constants,
+        Err(e) => handle_fatal_eld_error(e),
+    };
+    if protocol.set(constants).is_err() {
+        handle_fatal_eld_error(EldError::InitializationError {
+            component: "protocol_constants".into(),
+            details: "protocol constants were set concurrently".into(),
+        });
+    }
+    info!("Loaded protocol constants from RocksDB");
 }

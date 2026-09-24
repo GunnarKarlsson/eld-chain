@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use eld_client::facade::ChainClient;
 use eld_common::error::EldError;
+use eld_common::protocol_constants::ProtocolHandle;
 use tokio::net::TcpListener;
 use tracing::{error, info};
 
@@ -17,6 +18,7 @@ use crate::storage::rocksdb::RocksDBStorage;
 pub struct ContentServerBindContext {
     pub rocks_db_storage: Arc<RocksDBStorage>,
     pub consensus_config: Arc<std::sync::Mutex<ConsensusConfig>>,
+    pub protocol: ProtocolHandle,
     pub transaction_indexer: Option<Arc<TransactionIndexer>>,
     pub cli: Arc<ChainClient>,
     pub capacity_manager: Arc<CapacityManager>,
@@ -38,6 +40,7 @@ pub async fn bind_content_server(
     let ContentServerBindContext {
         rocks_db_storage,
         consensus_config,
+        protocol,
         transaction_indexer,
         cli,
         capacity_manager,
@@ -61,6 +64,7 @@ pub async fn bind_content_server(
     let router = init_router_with_storage(ApiRouterInitContext {
         storage: rocks_db_storage,
         consensus_config,
+        protocol,
         rate_limit_state,
         indexer: transaction_indexer,
         cli,

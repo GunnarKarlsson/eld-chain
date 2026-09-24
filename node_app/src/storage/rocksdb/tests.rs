@@ -1525,7 +1525,7 @@ fn test_verified_proof_reward_index_key_parse() {
 #[test]
 fn test_aggregate_verified_proof_rewards_by_height_range() {
     use crate::storage::traits::TransactionIndexerStorage;
-    use eld_common::constants::protocol::VERIFIED_PROOF_REWARD_BASE_AMOUNT;
+    const VERIFIED_PROOF_REWARD_BASE_AMOUNT: u128 = 1000;
 
     let temp_dir = TempDir::new().unwrap();
     let storage = RocksDBStorage::new(temp_dir.path()).unwrap();
@@ -1547,7 +1547,7 @@ fn test_aggregate_verified_proof_rewards_by_height_range() {
         .unwrap();
 
     let (c, t) = storage
-        .aggregate_verified_proof_rewards(addr, 5, 7)
+        .aggregate_verified_proof_rewards(addr, 5, 7, VERIFIED_PROOF_REWARD_BASE_AMOUNT)
         .unwrap();
     assert_eq!(c, 3);
     assert_eq!(t, 3 * VERIFIED_PROOF_REWARD_BASE_AMOUNT);
@@ -1558,7 +1558,7 @@ fn test_global_verified_proof_rewards_zero_when_unset() {
     use crate::storage::traits::TransactionIndexerStorage;
 
     let storage = create_test_storage();
-    let (c, t) = storage.global_verified_proof_rewards().unwrap();
+    let (c, t) = storage.global_verified_proof_rewards(1000).unwrap();
     assert_eq!(c, 0);
     assert_eq!(t, 0);
 }
@@ -1568,7 +1568,8 @@ fn test_index_verified_proof_success_bumps_global_rollup() {
     use crate::indexer::TransactionStatus;
     use crate::storage::traits::TransactionIndexerStorage;
     use ed25519_dalek::SigningKey;
-    use eld_common::constants::{protocol::VERIFIED_PROOF_REWARD_BASE_AMOUNT, test::MOCK_CHAIN_ID};
+    use eld_common::constants::test::MOCK_CHAIN_ID;
+    const VERIFIED_PROOF_REWARD_BASE_AMOUNT: u128 = 1000;
     use eld_common::tx::{Payload, Tx, TxPublicKey, TxSig, VerifiedProofTx};
 
     fn verified_proof_tx_fixture(signing_key: &SigningKey, nonce: u32) -> Tx {
@@ -1631,7 +1632,7 @@ fn test_index_verified_proof_success_bumps_global_rollup() {
         )
         .unwrap();
 
-    let (c, t) = storage.global_verified_proof_rewards().unwrap();
+    let (c, t) = storage.global_verified_proof_rewards(1000).unwrap();
     assert_eq!(c, 2);
     assert_eq!(t, 2 * VERIFIED_PROOF_REWARD_BASE_AMOUNT);
 }
@@ -1712,7 +1713,7 @@ fn test_index_verified_proof_failed_does_not_bump_global_rollup() {
         )
         .unwrap();
 
-    let (c, t) = storage.global_verified_proof_rewards().unwrap();
+    let (c, t) = storage.global_verified_proof_rewards(1000).unwrap();
     assert_eq!(c, 0);
     assert_eq!(t, 0);
 }

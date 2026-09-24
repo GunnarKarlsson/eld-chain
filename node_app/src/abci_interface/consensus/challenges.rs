@@ -78,6 +78,7 @@ where
         block_height: i64,
         validator_address: Address,
         p2p_coordinator: Arc<dyn P2pCoordinatorTrait>,
+        chunks_per_challenge: usize,
     ) -> Result<(), EldError> {
         if providers_data.is_empty() {
             warn!(
@@ -125,6 +126,7 @@ where
                 block_height,
                 &validator_address,
                 chunk_count,
+                chunks_per_challenge,
             );
 
             // challenge_id omits wall-clock timestamp so every node can recompute it.

@@ -32,6 +32,7 @@ use axum::{
 };
 use eld_client::facade::ChainClient;
 use eld_common::error::EldError;
+use eld_common::protocol_constants::ProtocolHandle;
 use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
 
@@ -41,6 +42,7 @@ use cors::cors_layer;
 pub struct ApiRouterInitContext {
     pub storage: Arc<RocksDBStorage>,
     pub consensus_config: Arc<Mutex<ConsensusConfig>>,
+    pub protocol: ProtocolHandle,
     pub rate_limit_state: Arc<RwLock<RateLimitState>>,
     pub indexer: Option<Arc<TransactionIndexer>>,
     pub cli: Arc<ChainClient>,
@@ -60,6 +62,7 @@ pub fn init_router_with_storage(ctx: ApiRouterInitContext) -> Result<Router, Eld
     let ApiRouterInitContext {
         storage,
         consensus_config,
+        protocol,
         rate_limit_state,
         indexer,
         cli,
@@ -76,6 +79,7 @@ pub fn init_router_with_storage(ctx: ApiRouterInitContext) -> Result<Router, Eld
     let app_state = ApiState {
         storage: storage.clone(),
         consensus_config,
+        protocol,
         rate_limit_state: rate_limit_state.clone(),
         cli,
         capacity_manager,

@@ -10,15 +10,12 @@ use super::{
 };
 use crate::abci_interface::chain_tip::ChainTip;
 use crate::app_state::AppState;
-use crate::config::ConsensusConfig;
 use crate::storage::traits::ConsensusConnectionStorage;
 use abci::{async_api::Info, async_trait, types::*};
 use eld_common::address::Address;
-use eld_common::constants::{
-    abci_query,
-    protocol::{BLOCKS_PER_EPOCH, VALIDATORS_PER_EPOCH},
-};
+use eld_common::constants::abci_query;
 use eld_common::error::EldError;
+use eld_common::protocol_constants::ProtocolHandle;
 use serde::{Deserialize, Serialize};
 use std::str;
 use std::sync::{Arc, Mutex};
@@ -245,11 +242,7 @@ impl EldAbciQuery {
     {
         match self {
             Self::EstimateFee { path, data } => {
-                estimate_fee_query_processor::process_estimate_fee_query(
-                    &conn.consensus_config,
-                    path,
-                    data,
-                )
+                estimate_fee_query_processor::process_estimate_fee_query(&conn.protocol, path, data)
             }
             Self::StakingAccount { path, data } => {
                 staking_account_query_processor::process_staking_account_query::<S>(
@@ -279,13 +272,21 @@ impl EldAbciQuery {
                     data,
                 )
             }
-            Self::EpochInfo { path, data } => epoch_info_query_processor::process_epoch_info_query(
-                &conn.state,
-                path,
-                data,
-                BLOCKS_PER_EPOCH,
-                VALIDATORS_PER_EPOCH,
-            ),
+            Self::EpochInfo { path, data } => {
+                let Some(protocol) = conn.protocol.get() else {
+                    return Err(eld_common::error::EldError::InitializationError {
+                        component: "protocol_constants".into(),
+                        details: "protocol constants are not loaded".into(),
+                    });
+                };
+                epoch_info_query_processor::process_epoch_info_query(
+                    &conn.state,
+                    path,
+                    data,
+                    protocol.blocks_per_epoch,
+                    protocol.validators_per_epoch,
+                )
+            }
             Self::AccountCount { path, data } => {
                 account_count_query_processor::process_account_count_query::<S>(
                     conn.storage.as_ref(),
@@ -356,7 +357,7 @@ where
     state: Arc<Mutex<AppState>>,
     chain_tip: Arc<ChainTip>,
     storage: Arc<S>,
-    consensus_config: Arc<Mutex<ConsensusConfig>>,
+    protocol: ProtocolHandle,
     /// Process-lifetime cache of [`resolve_eld_app_version`] (read once at construction).
     eld_app_version: String,
     global_rate_limiter: Arc<GlobalAbciRateLimiter>,
@@ -372,7 +373,7 @@ where
         state: Arc<Mutex<AppState>>,
         chain_tip: Arc<ChainTip>,
         storage: Arc<S>,
-        consensus_config: Arc<Mutex<ConsensusConfig>>,
+        protocol: ProtocolHandle,
     ) -> Self {
         let eld_app_version = resolve_eld_app_version();
         info!(eld_app_version = %eld_app_version, "Cached ELD_APP_VERSION for abci_info");
@@ -380,7 +381,7 @@ where
             state,
             chain_tip,
             storage,
-            consensus_config,
+            protocol,
             eld_app_version,
             global_rate_limiter: Arc::new(GlobalAbciRateLimiter::new()),
             result_limiter: Arc::new(ResultLimiter::new()),

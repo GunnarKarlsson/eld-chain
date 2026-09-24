@@ -8,6 +8,7 @@ use crate::node_identity::LocalNodeIdentity;
 use crate::storage::rocksdb::RocksDBStorage;
 use axum::extract::FromRef;
 use eld_client::facade::ChainClient;
+use eld_common::protocol_constants::ProtocolHandle;
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::RwLock as TokioRwLock;
 
@@ -18,6 +19,7 @@ use super::RateLimitState;
 pub struct ApiState {
     pub storage: Arc<RocksDBStorage>,
     pub consensus_config: Arc<Mutex<ConsensusConfig>>,
+    pub protocol: ProtocolHandle,
     pub rate_limit_state: Arc<TokioRwLock<RateLimitState>>,
     pub cli: Arc<ChainClient>,
     pub capacity_manager: Arc<CapacityManager>,
@@ -39,6 +41,12 @@ impl FromRef<ApiState> for Arc<RocksDBStorage> {
 impl FromRef<ApiState> for Arc<Mutex<ConsensusConfig>> {
     fn from_ref(state: &ApiState) -> Self {
         state.consensus_config.clone()
+    }
+}
+
+impl FromRef<ApiState> for ProtocolHandle {
+    fn from_ref(state: &ApiState) -> Self {
+        state.protocol.clone()
     }
 }
 

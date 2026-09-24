@@ -5,11 +5,7 @@ use eld_common::address::Address;
 use eld_common::cado::{
     epoch_record_path_name, CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType,
 };
-use eld_common::constants::{
-    cado::LATEST,
-    p2p::ELD_STORAGE_PROOF_TOPIC_PREFIX,
-    protocol::{BLOCKS_PER_EPOCH, CHALLENGES_PER_EPOCH, VALIDATORS_PER_EPOCH},
-};
+use eld_common::constants::{cado::LATEST, p2p::ELD_STORAGE_PROOF_TOPIC_PREFIX};
 use eld_common::error::EldError;
 use eld_common::validator::{ActiveCapacityValidator, EpochRecord, ValidatorInfo};
 use rand::rngs::StdRng;
@@ -38,9 +34,10 @@ where
         // Sort deterministically so equal-stake validators resolve identically on all nodes.
         validators.sort_by(Self::compare_validator_priority);
 
-        // Take top VALIDATORS_PER_EPOCH validators
-        let active_validators: Vec<ValidatorInfo> =
-            validators.into_iter().take(VALIDATORS_PER_EPOCH).collect();
+        let active_validators: Vec<ValidatorInfo> = validators
+            .into_iter()
+            .take(self.protocol_constants().validators_per_epoch)
+            .collect();
 
         // Update active validators list
         current_state.envelope.active_validators = active_validators;
@@ -113,7 +110,10 @@ where
             Vec::new()
         } else {
             challenge_pool.shuffle(&mut rng);
-            let num_to_challenge = CHALLENGES_PER_EPOCH.min(challenge_pool.len());
+            let num_to_challenge = self
+                .protocol_constants()
+                .challenges_per_epoch
+                .min(challenge_pool.len());
             challenge_pool.into_iter().take(num_to_challenge).collect()
         };
 
@@ -130,7 +130,11 @@ where
         });
     }
 
-    pub(crate) fn build_epoch_record(current_state: &AppState, new_epoch: i64) -> EpochRecord {
+    pub(crate) fn build_epoch_record(
+        current_state: &AppState,
+        new_epoch: i64,
+        blocks_per_epoch: i64,
+    ) -> EpochRecord {
         let challenged_capacity_validators = current_state
             .envelope
             .active_capacity_validator
@@ -152,7 +156,7 @@ where
 
         EpochRecord {
             epoch: new_epoch,
-            start_block: new_epoch * BLOCKS_PER_EPOCH,
+            start_block: new_epoch * blocks_per_epoch,
             active_validators: current_state.envelope.active_validators.clone(),
             active_capacity_validator: current_state.envelope.active_capacity_validator.clone(),
             challenged_capacity_validators,

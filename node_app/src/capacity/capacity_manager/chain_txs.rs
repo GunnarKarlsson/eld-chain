@@ -81,6 +81,7 @@ impl CapacityManager {
                 wallet: &wallet,
                 cli: cli.as_ref(),
                 chain_id: &chain_id,
+                fee_config: self.protocol_fee_config()?,
             })
             .await?;
 
@@ -187,13 +188,14 @@ impl CapacityManager {
         let mut tx = Tx::new(next_nonce, Payload::new(update_tx), wallet.verifying_key());
 
         // Calculate dynamic fee
-        let fee_config = self.cli.get_fee_config();
-        let dynamic_fee = eld_common::fee::calculate_dynamic_fee(&tx, fee_config).map_err(|e| {
-            EldError::StorageError {
-                operation: "submit_merkle_root_update".to_string(),
-                details: format!("Failed to calculate dynamic fee: {e}"),
-            }
-        })?;
+        let fee_config = self.protocol_fee_config()?;
+        let dynamic_fee =
+            eld_common::fee::calculate_dynamic_fee(&tx, &fee_config).map_err(|e| {
+                EldError::StorageError {
+                    operation: "submit_merkle_root_update".to_string(),
+                    details: format!("Failed to calculate dynamic fee: {e}"),
+                }
+            })?;
         tx.fee = dynamic_fee.into();
 
         // Sign transaction

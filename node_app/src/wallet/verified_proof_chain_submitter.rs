@@ -45,6 +45,7 @@ pub struct VerifiedProofChainSubmitter {
     wallet_name: String,
     cli: Arc<eld_client::facade::ChainClient>,
     consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
+    protocol: eld_common::protocol_constants::ProtocolHandle,
     claim_store: Arc<dyn VerifiedProofSubmissionClaimStorage>,
     nonce_sender: SequentialOptimisticNonceSender,
     /// Serializes claim + nonce + broadcast (required for non-transactional claim store).
@@ -56,12 +57,14 @@ impl VerifiedProofChainSubmitter {
         wallet_name: String,
         cli: Arc<eld_client::facade::ChainClient>,
         consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
+        protocol: eld_common::protocol_constants::ProtocolHandle,
         claim_store: Arc<dyn VerifiedProofSubmissionClaimStorage>,
     ) -> Self {
         Self {
             wallet_name,
             cli,
             consensus_config,
+            protocol,
             claim_store,
             nonce_sender: SequentialOptimisticNonceSender::new(),
             send_serial: Mutex::new(()),
@@ -243,11 +246,10 @@ impl VerifiedProofChainSubmitter {
         );
 
         let fee_config = self
-            .consensus_config
-            .lock()
-            .map_err(|e| format!("Failed to acquire consensus config lock: {e}"))?
-            .fee_config
-            .clone();
+            .protocol
+            .get()
+            .ok_or_else(|| "protocol constants are not loaded".to_string())?
+            .fee_config();
 
         // Estimate fee on a size-stable sig so check_tx (signed tx) matches; empty sig underpays by
         // one size-KB when signing crosses a 1024-byte boundary.

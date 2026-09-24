@@ -1,8 +1,9 @@
 use crate::storage::rocksdb::RocksDBStorage;
 use crate::storage::traits::{
     CADOStorage, ConsensusConnectionStorage, PinboardGcMetrics, PinboardGlobalFeedOrder,
-    PinboardQueryStorage, PinboardStorage, SnapshotChunk, SnapshotMetadata, SnapshotStorage,
-    VerifiedProofRewardDedupStorage, VerifiedProofSubmissionClaimStorage,
+    PinboardQueryStorage, PinboardStorage, ProtocolConstantsStorage, SnapshotChunk,
+    SnapshotMetadata, SnapshotStorage, VerifiedProofRewardDedupStorage,
+    VerifiedProofSubmissionClaimStorage,
 };
 use eld_common::account::Account;
 use eld_common::cado::{CADOMap, CADOMetadata, CadoBody, CadoPath};
@@ -37,6 +38,16 @@ impl std::fmt::Debug for HybridStorage {
 
 // CONSENSUS TRAITS
 impl ConsensusConnectionStorage for HybridStorage {}
+
+impl ProtocolConstantsStorage for HybridStorage {
+    fn put_protocol_constants(&self, bytes: &[u8]) -> Result<(), EldError> {
+        self.rocks_db.put_protocol_constants(bytes)
+    }
+
+    fn get_protocol_constants(&self) -> Result<Option<Vec<u8>>, EldError> {
+        self.rocks_db.get_protocol_constants()
+    }
+}
 
 impl VerifiedProofRewardDedupStorage for HybridStorage {
     fn is_verified_proof_challenge_rewarded(&self, challenge_id: &str) -> Result<bool, EldError> {

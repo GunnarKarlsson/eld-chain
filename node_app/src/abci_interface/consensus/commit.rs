@@ -7,7 +7,6 @@ use abci::types::*;
 use eld_common::cado::{CADOMetadata, CadoBody, CadoPath, CadoPathKey, CadoType};
 use eld_common::constants::cado::LATEST;
 use eld_common::constants::pinboard::MAX_CHUNK_SIZE;
-use eld_common::constants::protocol::BLOCKS_PER_EPOCH;
 use eld_common::error::EldError;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
@@ -86,7 +85,8 @@ where
 
         // Check if we need to select new validators for the next epoch
         let new_block_height = current_state.envelope.block_height + 1;
-        let new_epoch = new_block_height / BLOCKS_PER_EPOCH;
+        let blocks_per_epoch = self.protocol_constants().blocks_per_epoch;
+        let new_epoch = new_block_height / blocks_per_epoch;
         let current_epoch = current_state.envelope.current_epoch;
 
         if new_epoch > current_epoch {
@@ -483,7 +483,7 @@ where
 
         // Persist trie snapshot once per epoch (at epoch-start block heights).
         let should_create_epoch_snapshot =
-            current_state.envelope.block_height % BLOCKS_PER_EPOCH == 0;
+            current_state.envelope.block_height % self.protocol_constants().blocks_per_epoch == 0;
         if should_create_epoch_snapshot {
             let snapshot_start = std::time::Instant::now();
 

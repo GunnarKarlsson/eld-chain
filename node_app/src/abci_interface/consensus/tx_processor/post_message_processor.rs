@@ -2,7 +2,6 @@ use crate::abci_interface::ConsensusConnection;
 use crate::errors::response_deliver_tx_error_validation_failed;
 use crate::storage::traits::ConsensusConnectionStorage;
 use abci::types::ResponseDeliverTx;
-use eld_common::constants::pinboard::DEFAULT_PINBOARD_POST_TTL_BLOCKS;
 use eld_common::namespace::validate_namespace_upload_authorization;
 use eld_common::pinboard::PinboardMessageMetadata;
 use eld_common::tx::PostMessageTx;
@@ -63,7 +62,9 @@ where
     // `post_message_tx.expires_height` is interpreted as a TTL duration (in blocks).
     // The node converts it to an absolute metadata expiry height: `committed_height + ttl`.
     let ttl_blocks = if post_message_tx.expires_height == 0 {
-        DEFAULT_PINBOARD_POST_TTL_BLOCKS
+        connection
+            .protocol_constants()
+            .default_pinboard_post_ttl_blocks
     } else {
         post_message_tx.expires_height
     };

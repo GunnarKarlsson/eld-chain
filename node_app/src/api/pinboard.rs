@@ -161,7 +161,14 @@ pub(crate) async fn handle_pinboard_submit(
 ) -> Result<Json<PostMessageSubmitResponse>, ApiError> {
     check_rate_limit(&rate_limit_state, ApiEndpointType::Upload, &headers).await?;
 
-    const MAX_PINBOARD_MESSAGE_BYTES: usize = 1024 * 1024;
+    let protocol = capacity_manager.protocol_handle();
+    let max_pinboard_message_bytes = protocol
+        .get()
+        .ok_or_else(|| ApiError::ServiceUnavailable {
+            message: "protocol_constants_unavailable".to_string(),
+            details: Some("InitChain has not loaded protocol constants".to_string()),
+        })?
+        .max_pinboard_message_bytes;
     let message_bytes = BASE64_STANDARD
         .decode(body.message_b64.as_bytes())
         .map_err(|e| ApiError::BadRequest {
@@ -174,9 +181,9 @@ pub(crate) async fn handle_pinboard_submit(
             details: Some("message_b64 decodes to empty bytes".to_string()),
         });
     }
-    if message_bytes.len() > MAX_PINBOARD_MESSAGE_BYTES {
+    if message_bytes.len() > max_pinboard_message_bytes {
         return Err(ApiError::PayloadTooLarge {
-            max_size: MAX_PINBOARD_MESSAGE_BYTES,
+            max_size: max_pinboard_message_bytes,
             actual_size: message_bytes.len(),
             details: Some("Pinboard message exceeds maximum size".to_string()),
         });
@@ -221,15 +228,22 @@ pub(crate) async fn handle_pinboard_submit(
             )),
         })?;
 
-    let (chain_id, fee_config) = {
+    let chain_id = {
         let cfg = consensus_config
             .lock()
             .map_err(|e| ApiError::InternalServerError {
                 message: "consensus_config_lock".to_string(),
                 details: Some(e.to_string()),
             })?;
-        (cfg.chain_id.clone(), cfg.fee_config.clone())
+        cfg.chain_id.clone()
     };
+    let fee_config = protocol
+        .get()
+        .ok_or_else(|| ApiError::ServiceUnavailable {
+            message: "protocol_constants_unavailable".to_string(),
+            details: Some("InitChain has not loaded protocol constants".to_string()),
+        })?
+        .fee_config();
 
     let received_timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -804,8 +818,6 @@ mod tests {
             app_host: "127.0.0.1".to_string(),
             app_port: "26658".to_string(),
             accounts: std::collections::HashMap::new(),
-            max_tx_bytes: 10 * 1024 * 1024,
-            fee_config: eld_common::fee::FeeConfig::default(),
             storage_limits: crate::config::StorageLimits::default(),
         }));
         let provider =
@@ -822,6 +834,7 @@ mod tests {
             "capacity".to_string(),
             cli,
             consensus_config,
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
         ));
 
         let wallet =

@@ -8,13 +8,7 @@ use eld_common::{
     capacity_merkle_root::CapacityMerkleRoot,
     challenge_id::ChallengeId,
     coin::Coin,
-    constants::{
-        protocol::{
-            BLOCKS_PER_EPOCH, DEFAULT_REGISTRATION_DURATION_BLOCKS, FAILED_PROOFS_BEFORE_SLASH,
-            VERIFIED_PROOF_REWARD_BASE_AMOUNT,
-        },
-        tx_type,
-    },
+    constants::tx_type,
     tx::{create_event_attribute, VerifiedProofTx},
     validator::EpochRecord,
 };
@@ -34,14 +28,18 @@ pub(crate) struct VerifiedProofBinding {
 /// Proof epoch is `block_height / BLOCKS_PER_EPOCH`, matching challenge issuance in `end_block`.
 ///
 /// Accept the current epoch or the immediately previous one. Older and future epochs are rejected.
-pub(crate) fn proof_epoch_in_window(block_height: i64, current_epoch: i64) -> Result<i64, String> {
+pub(crate) fn proof_epoch_in_window(
+    block_height: i64,
+    current_epoch: i64,
+    blocks_per_epoch: i64,
+) -> Result<i64, String> {
     if block_height <= 0 {
         return Err("VerifiedProof rejected: block_height must be positive".to_string());
     }
     if current_epoch < 0 {
         return Err("VerifiedProof rejected: current epoch is invalid".to_string());
     }
-    let proof_epoch = block_height / BLOCKS_PER_EPOCH;
+    let proof_epoch = block_height / blocks_per_epoch;
     let in_window =
         proof_epoch == current_epoch || (current_epoch > 0 && proof_epoch == current_epoch - 1);
     if in_window {
@@ -68,12 +66,22 @@ pub(crate) fn bind_verified_proof(
     provider: Address,
     challenge_id: &str,
     block_height: i64,
+    protocol: &eld_common::protocol_constants::ProtocolConstants,
 ) -> Result<VerifiedProofBinding, String> {
-    let proof_epoch = proof_epoch_in_window(block_height, current_epoch)?;
+    let proof_epoch =
+        proof_epoch_in_window(block_height, current_epoch, protocol.blocks_per_epoch)?;
     let epoch_record = epoch_record.ok_or_else(|| {
         format!("VerifiedProof rejected: no epoch record for epoch {proof_epoch}")
     })?;
-    validate_verified_proof_binding(epoch_record, sender, provider, challenge_id, block_height)
+    validate_verified_proof_binding(
+        epoch_record,
+        sender,
+        provider,
+        challenge_id,
+        block_height,
+        protocol.blocks_per_epoch,
+        protocol.chunks_per_challenge,
+    )
 }
 
 /// Gates 1–4 against one epoch snapshot: sender, challenged set, merkle root, chunk count.
@@ -83,8 +91,10 @@ fn validate_verified_proof_binding(
     provider: Address,
     challenge_id: &str,
     block_height: i64,
+    blocks_per_epoch: i64,
+    chunks_per_challenge: usize,
 ) -> Result<VerifiedProofBinding, String> {
-    let proof_epoch = block_height / BLOCKS_PER_EPOCH;
+    let proof_epoch = block_height / blocks_per_epoch;
     if epoch_record.epoch != proof_epoch {
         return Err(format!(
             "VerifiedProof rejected: epoch record {} does not match proof epoch {proof_epoch}",
@@ -151,6 +161,7 @@ fn validate_verified_proof_binding(
         block_height,
         &validator_address,
         chunk_count,
+        chunks_per_challenge,
     );
     let parsed_challenge_id = ChallengeId::parse_hex(challenge_id)
         .map_err(|e| format!("VerifiedProof rejected: invalid challenge_id hex: {e}"))?;
@@ -181,10 +192,11 @@ fn validate_verified_proof_binding(
 pub(crate) fn record_failed_capacity_proof(
     envelope: &mut crate::app_state::AppStateEnvelope,
     provider: Address,
+    failed_proofs_before_slash: u32,
 ) -> (u32, bool) {
     let count = envelope.failed_proof_counts.entry(provider).or_insert(0);
     *count = count.saturating_add(1);
-    if *count >= FAILED_PROOFS_BEFORE_SLASH {
+    if *count >= failed_proofs_before_slash {
         for cv in envelope.capacity_validators.iter_mut() {
             if cv.address == provider {
                 cv.stake = Coin::zero();
@@ -205,7 +217,12 @@ pub async fn process_verified_proof_tx<S>(
 where
     S: ConsensusConnectionStorage,
 {
-    let reward_coin = match Coin::new(VERIFIED_PROOF_REWARD_BASE_AMOUNT) {
+    let protocol = connection.protocol_constants().clone();
+    let blocks_per_epoch = protocol.blocks_per_epoch;
+    let failed_proofs_before_slash = protocol.failed_proofs_before_slash;
+    let registration_duration_blocks = protocol.registration_duration_blocks;
+    let reward_amount = protocol.verified_proof_reward_base_amount.amount();
+    let reward_coin = match Coin::new(reward_amount) {
         Ok(coin) => coin,
         Err(e) => {
             return response_deliver_tx_error_validation_failed(e.to_string());
@@ -263,7 +280,11 @@ where
     }
 
     let current_epoch = current_state.envelope.current_epoch;
-    let epoch_record = match proof_epoch_in_window(verified_proof_tx.block_height, current_epoch) {
+    let epoch_record = match proof_epoch_in_window(
+        verified_proof_tx.block_height,
+        current_epoch,
+        blocks_per_epoch,
+    ) {
         Ok(proof_epoch) => {
             match current_state
                 .envelope
@@ -288,6 +309,7 @@ where
         provider,
         &challenge_id,
         verified_proof_tx.block_height,
+        &protocol,
     ) {
         Ok(b) => b,
         Err(e) => {
@@ -335,8 +357,11 @@ where
                 "VerifiedProof rejected: failed flag set but proof is valid".to_string(),
             );
         }
-        let (failure_count, slashed) =
-            record_failed_capacity_proof(&mut current_state.envelope, provider);
+        let (failure_count, slashed) = record_failed_capacity_proof(
+            &mut current_state.envelope,
+            provider,
+            failed_proofs_before_slash,
+        );
         current_state
             .envelope
             .failed_proof_counted_cache
@@ -389,8 +414,8 @@ where
     let current_block = (current_state.envelope.block_height + 1) as u64;
     for cv in current_state.envelope.capacity_validators.iter_mut() {
         if cv.address == provider && cv.registered_block != 0 {
-            let new_duration = current_block.saturating_sub(cv.registered_block)
-                + DEFAULT_REGISTRATION_DURATION_BLOCKS;
+            let new_duration =
+                current_block.saturating_sub(cv.registered_block) + registration_duration_blocks;
             cv.registration_duration = new_duration;
             break;
         }
@@ -419,10 +444,7 @@ where
                     "verified_at_timestamp".into(),
                     verified_proof_tx.verified_at_timestamp.to_string(),
                 ),
-                create_event_attribute(
-                    "reward".into(),
-                    VERIFIED_PROOF_REWARD_BASE_AMOUNT.to_string(),
-                ),
+                create_event_attribute("reward".into(), reward_amount.to_string()),
             ],
         },
         Event {
@@ -430,10 +452,7 @@ where
             attributes: vec![
                 create_event_attribute("from".into(), "rewards_pool".into()),
                 create_event_attribute("to".into(), provider.to_string()),
-                create_event_attribute(
-                    "amount".into(),
-                    VERIFIED_PROOF_REWARD_BASE_AMOUNT.to_string(),
-                ),
+                create_event_attribute("amount".into(), reward_amount.to_string()),
             ],
         },
     ];
@@ -472,6 +491,9 @@ mod tests {
     const PROVIDER: &str = "0x2222222222222222222222222222222222222222";
     const OTHER: &str = "0x3333333333333333333333333333333333333333";
     const EPOCH: i64 = 3;
+    const BLOCKS_PER_EPOCH: i64 = 20;
+    const CHUNKS_PER_CHALLENGE: usize = 10;
+    const FAILED_PROOFS_BEFORE_SLASH: u32 = 3;
     /// Epoch-start height. Challenges are issued at `epoch * BLOCKS_PER_EPOCH`.
     const BLOCK_HEIGHT: i64 = EPOCH * BLOCKS_PER_EPOCH;
     const CHUNK_COUNT: u32 = 50;
@@ -519,6 +541,7 @@ mod tests {
             BLOCK_HEIGHT,
             &addr(VALIDATOR),
             CHUNK_COUNT,
+            CHUNKS_PER_CHALLENGE,
         );
         compute_challenge_id(&addr(VALIDATOR), &addr(provider), BLOCK_HEIGHT, &indices)
     }
@@ -536,21 +559,25 @@ mod tests {
             addr(provider),
             challenge_id,
             BLOCK_HEIGHT,
+            &eld_common::protocol_constants::ProtocolConstants::local_dev(),
         )
     }
 
     #[test]
     fn proof_epoch_window_accepts_current_and_previous_only() {
-        assert_eq!(proof_epoch_in_window(BLOCK_HEIGHT, EPOCH).unwrap(), EPOCH);
         assert_eq!(
-            proof_epoch_in_window(BLOCK_HEIGHT, EPOCH + 1).unwrap(),
+            proof_epoch_in_window(BLOCK_HEIGHT, EPOCH, BLOCKS_PER_EPOCH).unwrap(),
+            EPOCH
+        );
+        assert_eq!(
+            proof_epoch_in_window(BLOCK_HEIGHT, EPOCH + 1, BLOCKS_PER_EPOCH).unwrap(),
             EPOCH
         );
 
-        let older = proof_epoch_in_window(BLOCK_HEIGHT, EPOCH + 2).unwrap_err();
+        let older = proof_epoch_in_window(BLOCK_HEIGHT, EPOCH + 2, BLOCKS_PER_EPOCH).unwrap_err();
         assert!(older.contains("older than the previous epoch"), "{older}");
 
-        let future = proof_epoch_in_window(BLOCK_HEIGHT, EPOCH - 1).unwrap_err();
+        let future = proof_epoch_in_window(BLOCK_HEIGHT, EPOCH - 1, BLOCKS_PER_EPOCH).unwrap_err();
         assert!(future.contains("after current epoch"), "{future}");
     }
 
@@ -583,6 +610,7 @@ mod tests {
             addr(PROVIDER),
             &challenge_id.to_hex(),
             BLOCK_HEIGHT,
+            &eld_common::protocol_constants::ProtocolConstants::local_dev(),
         )
         .expect("previous epoch proof should bind to that epoch's record");
         assert_eq!(binding.validator_address, addr(VALIDATOR));
@@ -594,6 +622,7 @@ mod tests {
             addr(PROVIDER),
             &challenge_id.to_hex(),
             BLOCK_HEIGHT,
+            &eld_common::protocol_constants::ProtocolConstants::local_dev(),
         )
         .expect_err("a different epoch's validator must not pass");
         assert!(err.contains("not active_capacity_validator"), "{err}");
@@ -611,9 +640,16 @@ mod tests {
             BLOCK_HEIGHT,
             &validator,
             SNAPSHOT_CHUNKS,
+            CHUNKS_PER_CHALLENGE,
         );
-        let live_indices =
-            select_challenge_chunk_indices(EPOCH, &provider, BLOCK_HEIGHT, &validator, CHUNK_COUNT);
+        let live_indices = select_challenge_chunk_indices(
+            EPOCH,
+            &provider,
+            BLOCK_HEIGHT,
+            &validator,
+            CHUNK_COUNT,
+            CHUNKS_PER_CHALLENGE,
+        );
         assert_ne!(snapshot_indices, live_indices);
         let challenge_id =
             compute_challenge_id(&validator, &provider, BLOCK_HEIGHT, &snapshot_indices);
@@ -689,8 +725,14 @@ mod tests {
     fn binding_challenge_id_matches_consensus_issuance_inputs() {
         let provider = addr(PROVIDER);
         let validator = addr(VALIDATOR);
-        let indices =
-            select_challenge_chunk_indices(EPOCH, &provider, BLOCK_HEIGHT, &validator, CHUNK_COUNT);
+        let indices = select_challenge_chunk_indices(
+            EPOCH,
+            &provider,
+            BLOCK_HEIGHT,
+            &validator,
+            CHUNK_COUNT,
+            CHUNKS_PER_CHALLENGE,
+        );
         let issuance_challenge_id =
             compute_challenge_id(&validator, &provider, BLOCK_HEIGHT, &indices);
 
@@ -719,16 +761,19 @@ mod tests {
         info.stake = Coin::new(50).expect("stake");
         envelope.capacity_validators.push(info);
 
-        let (count, slashed) = record_failed_capacity_proof(&mut envelope, provider);
+        let (count, slashed) =
+            record_failed_capacity_proof(&mut envelope, provider, FAILED_PROOFS_BEFORE_SLASH);
         assert_eq!((count, slashed), (1, false));
-        let (count, slashed) = record_failed_capacity_proof(&mut envelope, provider);
+        let (count, slashed) =
+            record_failed_capacity_proof(&mut envelope, provider, FAILED_PROOFS_BEFORE_SLASH);
         assert_eq!((count, slashed), (2, false));
         assert_eq!(
             envelope.capacity_validators[0].stake,
             Coin::new(50).expect("stake")
         );
 
-        let (count, slashed) = record_failed_capacity_proof(&mut envelope, provider);
+        let (count, slashed) =
+            record_failed_capacity_proof(&mut envelope, provider, FAILED_PROOFS_BEFORE_SLASH);
         assert_eq!((count, slashed), (0, true));
         assert!(envelope.capacity_validators[0].stake.is_zero());
         assert_eq!(envelope.failed_proof_counts.get(&provider), Some(&0));

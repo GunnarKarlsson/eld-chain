@@ -37,15 +37,7 @@ where
     ) -> ResponseDeliverTx {
         let tx_bytes = deliver_tx_request.tx;
 
-        let max_tx_bytes = match self.consensus_config.lock() {
-            Ok(config) => config.max_tx_bytes,
-            Err(e) => {
-                handle_recoverable_eld_error(e.into());
-                return response_deliver_tx_error_internal_lock_failed(
-                    "consensus config lock error for reading max_tx_bytes".to_string(),
-                );
-            }
-        };
+        let max_tx_bytes = self.protocol_constants().max_tx_bytes;
         if tx_bytes.len() > max_tx_bytes {
             warn!(
                 tx_size = tx_bytes.len(),
@@ -161,16 +153,7 @@ where
         }
 
         // Validate dynamic fee
-        let fee_config = match self.consensus_config.lock() {
-            Ok(config) => config.fee_config.clone(),
-            Err(e) => {
-                handle_recoverable_eld_error(e.into());
-                return response_deliver_tx_error_internal_lock_failed(
-                    "consensus config lock for fee validation".to_string(),
-                );
-            }
-        };
-
+        let fee_config = self.protocol_constants().fee_config();
         let required_fee = match eld_common::fee::calculate_dynamic_fee(&tx, &fee_config) {
             Ok(fee) => fee,
             Err(e) => {

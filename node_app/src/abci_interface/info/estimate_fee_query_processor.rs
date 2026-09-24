@@ -1,13 +1,12 @@
 use super::info::{payload_ok, QueryProcessorResult};
-use crate::config::ConsensusConfig;
 use eld_common::error::EldError;
+use eld_common::protocol_constants::ProtocolHandle;
 use eld_common::tx::Tx;
 use eld_common::utils::to_json_bytes;
-use std::sync::{Arc, Mutex};
 use tracing::{error, info};
 
 pub(crate) fn process_estimate_fee_query(
-    consensus_config: &Arc<Mutex<ConsensusConfig>>,
+    protocol: &ProtocolHandle,
     _path: String,
     data: Vec<u8>,
 ) -> QueryProcessorResult {
@@ -66,11 +65,13 @@ pub(crate) fn process_estimate_fee_query(
         "estimate_fee query"
     );
 
-    let fee_config = consensus_config
-        .lock()
-        .map_err(EldError::from)?
-        .fee_config
-        .clone();
+    let fee_config = protocol
+        .get()
+        .ok_or_else(|| EldError::InitializationError {
+            component: "protocol_constants".into(),
+            details: "protocol constants are not loaded".into(),
+        })?
+        .fee_config();
 
     let fee = eld_common::fee::calculate_dynamic_fee(&tx, &fee_config)?;
     info!("calculated fee: {}", fee);

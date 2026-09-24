@@ -24,6 +24,7 @@ use crate::config::ConsensusConfig;
 use crate::errors::handle_fatal_eld_error;
 use crate::storage::traits::ConsensusConnectionStorage;
 use chain_tip::ChainTip;
+use eld_common::protocol_constants::ProtocolHandle;
 use info::InfoConnection;
 use mempool::MempoolConnection;
 use snapshot::{SnapshotConnection, SnapshotManager};
@@ -34,6 +35,7 @@ where
     S: ConsensusConnectionStorage,
 {
     pub consensus_config: Arc<Mutex<ConsensusConfig>>,
+    pub protocol: ProtocolHandle,
     pub storage: Arc<S>,
     pub snapshot_manager: Arc<SnapshotManager<S>>,
     pub p2p_sync_coordinator: Arc<dyn crate::content::sync::P2pCoordinatorTrait>,
@@ -64,6 +66,7 @@ where
 {
     let AbciServerInitContext {
         consensus_config,
+        protocol,
         storage,
         snapshot_manager,
         p2p_sync_coordinator,
@@ -146,17 +149,12 @@ where
         }
     }
 
-    let (chain_id, max_tx_bytes, fee_config) = {
+    let chain_id = {
         let config = match consensus_config.lock() {
             Ok(config) => config,
             Err(e) => handle_fatal_eld_error(e.into()),
         };
-
-        (
-            config.chain_id.clone(),
-            config.max_tx_bytes,
-            config.fee_config.clone(),
-        )
+        config.chain_id.clone()
     };
 
     let chain_tip = Arc::new(ChainTip::from_app_state(&committed_state));
@@ -164,6 +162,7 @@ where
 
     let consensus = ConsensusConnection::new(ConsensusConnectionNewContext {
         consensus_config: consensus_config.clone(),
+        protocol: protocol.clone(),
         committed_state: committed_state_mutex.clone(),
         chain_tip: chain_tip.clone(),
         current_state,
@@ -177,8 +176,7 @@ where
 
     let mempool = MempoolConnection::new(
         chain_id,
-        max_tx_bytes,
-        fee_config,
+        protocol.clone(),
         committed_state_mutex.clone(),
         storage.clone(),
     );
@@ -186,7 +184,7 @@ where
         committed_state_mutex.clone(),
         chain_tip.clone(),
         storage,
-        consensus_config,
+        protocol,
     );
     let snapshot = SnapshotConnection::new(snapshot_manager);
 
@@ -199,7 +197,6 @@ mod tests {
     use crate::abci_interface::snapshot::SnapshotManager;
     use crate::app_state::AppState;
     use crate::capacity::capacity_manager::CapacityManager;
-    use crate::config::FeeConfig;
     use crate::node_identity::LocalNodeIdentity;
     use crate::storage::hybrid_storage::HybridStorage;
     use crate::storage::rocksdb::RocksDBStorage;
@@ -230,8 +227,6 @@ mod tests {
             app_host: "127.0.0.1".to_string(),
             app_port: "8080".to_string(),
             accounts: HashMap::new(),
-            max_tx_bytes: 1024 * 1024, // 1MB
-            fee_config: FeeConfig::default(),
             storage_limits: crate::config::StorageLimits::default(),
         };
 
@@ -258,6 +253,7 @@ mod tests {
             "wallet1".into(),
             cli.clone(),
             consensus_config_arc.clone(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             storage.clone(),
         ));
         let local_identity = Arc::new(RwLock::new(LocalNodeIdentity::default()));
@@ -297,11 +293,13 @@ mod tests {
             "wallet1".to_string(),
             cli,
             consensus_config_arc.clone(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
         ));
 
         // This should succeed with a valid config
         let result = init_abci_server(AbciServerInitContext {
             consensus_config: consensus_config_arc,
+            protocol: eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             storage: storage.clone(),
             snapshot_manager: Arc::new(SnapshotManager::new(storage)),
             p2p_sync_coordinator,
@@ -345,8 +343,6 @@ mod tests {
             app_host: "127.0.0.1".to_string(),
             app_port: "8080".to_string(),
             accounts,
-            max_tx_bytes: 1024 * 1024,
-            fee_config: FeeConfig::default(),
             storage_limits: crate::config::StorageLimits::default(),
         };
 
@@ -373,6 +369,7 @@ mod tests {
             "wallet1".into(),
             cli.clone(),
             consensus_config_arc.clone(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             storage.clone(),
         ));
         let local_identity = Arc::new(RwLock::new(LocalNodeIdentity::default()));
@@ -409,11 +406,13 @@ mod tests {
             "wallet1".to_string(),
             cli,
             consensus_config_arc.clone(),
+            eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
         ));
 
         let committed_state = Arc::new(Mutex::new(AppState::default()));
         init_abci_server(AbciServerInitContext {
             consensus_config: consensus_config_arc,
+            protocol: eld_common::protocol_constants::ProtocolHandle::installed_local_dev(),
             storage: storage.clone(),
             snapshot_manager: Arc::new(SnapshotManager::new(storage.clone())),
             p2p_sync_coordinator,

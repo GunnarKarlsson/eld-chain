@@ -22,6 +22,8 @@ mod tests;
 pub use admin::AdminRocksDbStorageStats;
 pub use column_families::eld_column_family_descriptors;
 
+const PROTOCOL_CONSTANTS_KEY: &[u8] = b"protocol_constants";
+
 /// RocksDB-based implementation of AccountStorage
 pub struct RocksDBStorage {
     pub db: TransactionDB,
@@ -75,6 +77,26 @@ impl RocksDBStorage {
     /// Directory where this database was opened (from the underlying `TransactionDB`).
     pub fn database_path(&self) -> &Path {
         self.db.path()
+    }
+
+    pub fn put_protocol_constants(&self, bytes: &[u8]) -> Result<(), EldError> {
+        let cf = self.cf_handle("default")?;
+        self.db
+            .put_cf(cf, PROTOCOL_CONSTANTS_KEY, bytes)
+            .map_err(|e| EldError::StorageError {
+                operation: "put_protocol_constants".to_string(),
+                details: e.to_string(),
+            })
+    }
+
+    pub fn get_protocol_constants(&self) -> Result<Option<Vec<u8>>, EldError> {
+        let cf = self.cf_handle("default")?;
+        self.db
+            .get_cf(cf, PROTOCOL_CONSTANTS_KEY)
+            .map_err(|e| EldError::StorageError {
+                operation: "get_protocol_constants".to_string(),
+                details: e.to_string(),
+            })
     }
 
     pub fn begin_transaction(&self) -> Transaction<'_, TransactionDB> {

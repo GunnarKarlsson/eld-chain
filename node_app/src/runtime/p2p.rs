@@ -60,6 +60,7 @@ pub async fn init_p2p(
             capacity_validator_wallet_name,
             cli,
             consensus_config,
+            capacity_manager.protocol_handle(),
             node_storage.clone(),
         ));
         let (coordinator, msg_rx) = P2pSyncCoordinator::new(

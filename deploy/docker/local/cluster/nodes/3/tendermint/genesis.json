@@ -14,12 +14,14 @@
       "max_bytes": "1048576"
     },
     "validator": {
-      "pub_key_types": ["ed25519"]
+      "pub_key_types": [
+        "ed25519"
+      ]
     },
     "version": {}
   },
   "validators": [
-          {
+    {
       "address": "8B81CC2BA41D4C29D0A0F90123396993491C3EA6",
       "pub_key": {
         "type": "tendermint/PubKeyEd25519",
@@ -56,5 +58,32 @@
       "name": "node3"
     }
   ],
-  "app_hash": ""
+  "app_hash": "",
+  "app_state": {
+    "protocol_constants": {
+      "params_version": 1,
+      "min_stake_amount": "5",
+      "validators_per_epoch": 4,
+      "blocks_per_epoch": 20,
+      "active_storage_validators_per_epoch": 1,
+      "challenges_per_epoch": 5,
+      "chunks_per_challenge": 10,
+      "registration_duration_blocks": "1000000",
+      "verified_proof_reward_base_amount": "1000",
+      "failed_proofs_before_slash": 3,
+      "default_pinboard_post_ttl_blocks": "1000",
+      "max_pinboard_message_bytes": 1048576,
+      "max_tx_bytes": 10485760,
+      "fees": {
+        "base_fee": "1000",
+        "size_fee_per_kb": "100",
+        "gas_price": "1",
+        "transfer_multiplier_bps": 10000,
+        "stake_multiplier_bps": 15000,
+        "content_manifest_multiplier_bps": 25000,
+        "verified_proof_multiplier_bps": 20000,
+        "device_operation_multiplier_bps": 18000
+      }
+    }
+  }
 }

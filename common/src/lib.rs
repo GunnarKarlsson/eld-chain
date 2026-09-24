@@ -22,6 +22,7 @@ pub mod missing_content;
 pub mod namespace;
 pub mod nonce;
 pub mod pinboard;
+pub mod protocol_constants;
 pub mod public_key;
 pub mod staking_account;
 pub mod storage;

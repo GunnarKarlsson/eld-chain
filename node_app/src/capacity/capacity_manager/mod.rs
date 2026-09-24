@@ -2,6 +2,7 @@ use crate::capacity::capacity_registration::CapacityRegistrationService;
 use eld_common::address::Address;
 use eld_common::capacity::{CapacityConfig, CapacityProofMerkleTree, SlotAllocator};
 use eld_common::error::EldError;
+use eld_common::protocol_constants::ProtocolHandle;
 use eld_common::{CapacityMerkleRoot, ChallengeId};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -41,6 +42,7 @@ pub struct CapacityManager {
     pub(super) initialized: Arc<Mutex<bool>>,
     pub(super) cli: Arc<eld_client::facade::ChainClient>,
     pub(super) consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
+    pub(super) protocol: ProtocolHandle,
 }
 
 impl CapacityManager {
@@ -54,6 +56,7 @@ impl CapacityManager {
         capacity_validator_wallet_name: String,
         cli: Arc<eld_client::facade::ChainClient>,
         consensus_config: Arc<std::sync::Mutex<crate::config::ConsensusConfig>>,
+        protocol: ProtocolHandle,
     ) -> Self {
         let slot_allocator = SlotAllocator::new(&config.capacity_dir, &config.provider_id);
 
@@ -68,7 +71,22 @@ impl CapacityManager {
             initialized: Arc::new(Mutex::new(false)),
             cli,
             consensus_config,
+            protocol,
         }
+    }
+
+    pub(crate) fn protocol_handle(&self) -> ProtocolHandle {
+        self.protocol.clone()
+    }
+
+    pub(super) fn protocol_fee_config(&self) -> Result<eld_common::fee::FeeConfig, EldError> {
+        self.protocol
+            .get()
+            .map(|constants| constants.fee_config())
+            .ok_or_else(|| EldError::InitializationError {
+                component: "protocol_constants".into(),
+                details: "protocol constants are not loaded".into(),
+            })
     }
 
     /// Initialize capacity proof system
