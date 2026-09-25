@@ -69,11 +69,12 @@ Canonical client-facing surfaces:
 
 ## Run with Tendermint
 
-**Single node (local):** the checked-in localhost sample is [`deploy/host/single/config/`](../deploy/host/single/config/) (`127.0.0.1`, `./data/capacity`). [`host-start-without-history.sh`](../deploy/scripts/host/host-start-without-history.sh) runs `tendermint unsafe_reset_all`, starts `tendermint node --proxy_app=tcp://127.0.0.1:26658`, then `eld-node`. [`host-start-with-history.sh`](../deploy/scripts/host/host-start-with-history.sh) starts Tendermint without resetting it and passes `--init-data`.
+Supported runtime is Docker Compose. Images, expected secrets, and scripts are outlined in [`deploy/README.md`](../deploy/README.md).
+
+- **Single node:** [`single-start-with-history.sh`](../deploy/scripts/docker/local/single/single-start-with-history.sh) / [`single-start-without-history.sh`](../deploy/scripts/docker/local/single/single-start-without-history.sh)
+- **Four nodes:** [`cluster-start-with-history.sh`](../deploy/scripts/docker/local/cluster/cluster-start-with-history.sh) / [`cluster-start-without-history.sh`](../deploy/scripts/docker/local/cluster/cluster-start-without-history.sh)
 
 Query accounts and submit transfers with [`eld-client`](../client/README.md) or a binary built on `ChainClient`.
-
-**Four nodes (Compose):** images, secrets, and scripts live in [`deploy/README.md`](../deploy/README.md) (`deploy/docker/local/cluster/compose.yaml`, `deploy/scripts/docker/local/cluster/cluster-start-with-history.sh` / `cluster-start-without-history.sh`). That is the supported multi-node path, not four `cargo run` processes.
 
 ## Build and test
 

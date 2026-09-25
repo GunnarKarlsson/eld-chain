@@ -15,7 +15,6 @@ paths = [
 [[allowlists]]
 description = "Local-dev compose secrets (gitignored)"
 paths = [
-  '''(^|/)deploy/host/single/config/p2p_keypair\.json$''',
   '''(^|/)deploy/docker/local/cluster/wallets/''',
   '''(^|/)deploy/docker/local/cluster/nodes/.+/app/p2p_keypair\.json$''',
   '''(^|/)deploy/docker/local/cluster/nodes/.+/tendermint/node_key\.json$''',

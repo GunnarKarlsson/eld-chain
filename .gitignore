@@ -20,11 +20,6 @@ config/*.json
 _dev-docs/
 .cursor/
 
-# Local host binary runtime (cwd is deploy/host/single)
-deploy/host/single/data/
-deploy/host/single/tendermint.log
-deploy/host/single/config/p2p_keypair.json
-
 # Local cluster compose secrets (not committed)
 deploy/docker/local/cluster/nodes/*/app/p2p_keypair.json
 deploy/docker/local/cluster/nodes/*/tendermint/node_key.json
