@@ -1,0 +1,50 @@
+# Release image published to GHCR (linux/amd64 and linux/arm64).
+# Local debug images stay on Dockerfile.eld-base + Dockerfile.app.
+# Build context is the repository root.
+FROM rust:1.88.0-bookworm AS build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    clang \
+    libclang-dev \
+    pkg-config \
+    libssl-dev \
+    libudev-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY common ./common
+COPY client ./client
+COPY node_app ./node_app
+RUN cargo build --release --locked -p eld-node
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    libstdc++6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r -g 1000 elduser \
+    && useradd -r -u 1000 -g elduser elduser \
+    && mkdir -p /app/data /app/config /app/wallets \
+    && chown -R elduser:elduser /app
+
+COPY --from=build /app/target/release/eld-node /usr/local/bin/eld-node
+RUN chmod 755 /usr/local/bin/eld-node \
+    && ldd /usr/local/bin/eld-node \
+    && ! ldd /usr/local/bin/eld-node | grep -q 'not found'
+
+WORKDIR /app
+USER elduser
+
+EXPOSE 26658
+EXPOSE 8000
+EXPOSE 6881
+EXPOSE 25401
+EXPOSE 8085
+EXPOSE 4001
+EXPOSE 4002
+
+CMD ["eld-node"]

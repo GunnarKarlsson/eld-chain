@@ -8,6 +8,7 @@ Local development infrastructure for [`eld-chain`](../README.md): CI scripts, Do
 |---|---|
 | [`scripts/ci.sh`](scripts/ci.sh) | Workspace CI gate (fmt, Clippy, build, test, cargo audit, cargo deny, gitleaks) — same as GitHub Actions |
 | [`docker/Dockerfile.app`](docker/Dockerfile.app), [`Dockerfile.eld-base`](docker/Dockerfile.eld-base), [`Dockerfile.tendermint`](docker/Dockerfile.tendermint) | Local image build |
+| [`docker/Dockerfile.release`](docker/Dockerfile.release) | GHCR release image (`linux/amd64`, `linux/arm64`) |
 | [`docker/local/cluster/`](docker/local/cluster/) | Four `eld-app` + four Tendermint pairs. Checked-in config is `nodes/N/{app,tendermint}` |
 | [`docker/local/single/`](docker/local/single/) | One app + one Tendermint. Own one-validator Tendermint config; app files and keys from cluster node 1 |
 | [`docker/remote/cluster/`](docker/remote/cluster/) | Same four pairs on one host, images pulled from ECR |
@@ -65,6 +66,19 @@ Create them locally. They are gitignored.
 The node script is a two-stage flow: `Dockerfile.eld-base` compiles `eld-node` (`eld-base:<NODE_APP_VERSION_TAG>`), then `Dockerfile.app` is `FROM eld_base` and tags `eld-app:<NODE_APP_VERSION_TAG>`. Compose only runs the runtime image; the base image is a build cache, not a compose service.
 
 Tendermint is compiled `GOOS=linux` in `TENDERMINT_DIR` for the Mac’s CPU, then that tree’s `build/tendermint` is wrapped as `eld-tendermint:<TENDERMINT_VERSION_TAG>`.
+
+## Publish
+
+A tag matching `v*.*.*` starts [`.github/workflows/image.yml`](../.github/workflows/image.yml). CI runs first. The image job then publishes `linux/amd64` and `linux/arm64` as one manifest:
+
+`ghcr.io/eldnetwork/eld-chain:<tag>`
+
+```sh
+git tag -a v0.0.1 -m "eld-chain v0.0.1"
+git push origin v0.0.1
+```
+
+`Dockerfile.release` is a release build (`cargo build --release --locked -p eld-node`). The local `eld-app` image stays a debug build from `Dockerfile.eld-base` and `Dockerfile.app`. The process working directory is `/app`, so the same config, wallet, and data mounts apply.
 
 ## Run
 
