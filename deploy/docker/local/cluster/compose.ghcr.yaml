@@ -19,7 +19,7 @@ x-app-eld: &app-eld
     <<: *app-log
 
 x-tendermint: &tendermint-common
-  image: ghcr.io/eldnetwork/eld-tendermint:${TENDERMINT_VERSION_TAG}
+  image: ghcr.io/eldnetwork/eld-tendermint:${TENDERMINT_VERSION_TAG_GHCR}
   pull_policy: always
   restart: unless-stopped
   logging:
