@@ -1,0 +1,202 @@
+# Project name stays `deploy` so existing named volumes (deploy_eld-data-*) keep attaching.
+name: deploy
+
+x-app-log: &app-log
+  RUST_LOG: eld_node=info,eld_common=info,eld_client=info,abci=warn
+
+x-app-eld: &app-eld
+  image: eld-app:${NODE_APP_VERSION_TAG}
+  pull_policy: never
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "2"
+  networks:
+    - eld-network
+  environment:
+    <<: *app-log
+
+x-tendermint: &tendermint-common
+  image: ghcr.io/eldnetwork/eld-tendermint:${TENDERMINT_VERSION_TAG}
+  pull_policy: always
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "2"
+  networks:
+    - eld-network
+
+services:
+  eld-app-1:
+    <<: *app-eld
+    container_name: eld-app-1
+    ports:
+      - "8000:8000"
+      - "26658:26658"
+      - "8085:8085"
+      - "8885:8885"
+      - "9001:9001"
+    volumes:
+      - eld-data-1:/app/data
+      - ./nodes/1/app:/app/config:ro
+      - ./wallets/wallets.json:/app/wallets/wallets.json:ro
+    environment:
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-1:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-1
+
+  eld-app-2:
+    <<: *app-eld
+    container_name: eld-app-2
+    ports:
+      - "8001:8000"
+      - "26668:26658"
+      - "8086:8085"
+      - "8886:8885"
+      - "9002:9001"
+    volumes:
+      - eld-data-2:/app/data
+      - ./nodes/2/app:/app/config:ro
+      - ./wallets/wallets.json:/app/wallets/wallets.json:ro
+    environment:
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-2:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-2
+
+  eld-app-3:
+    <<: *app-eld
+    container_name: eld-app-3
+    ports:
+      - "8002:8000"
+      - "26678:26658"
+      - "8087:8085"
+      - "8887:8885"
+      - "9003:9001"
+    volumes:
+      - eld-data-3:/app/data
+      - ./nodes/3/app:/app/config:ro
+      - ./wallets/wallets.json:/app/wallets/wallets.json:ro
+    environment:
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-3:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-3
+
+  eld-app-4:
+    <<: *app-eld
+    container_name: eld-app-4
+    ports:
+      - "8003:8000"
+      - "26688:26658"
+      - "8088:8085"
+      - "8888:8885"
+      - "9004:9001"
+    volumes:
+      - eld-data-4:/app/data
+      - ./nodes/4/app:/app/config:ro
+      - ./wallets/wallets.json:/app/wallets/wallets.json:ro
+    environment:
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-4:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-4
+
+  tendermint-1:
+    <<: *tendermint-common
+    container_name: tendermint-1
+    ports:
+      - "26656:26656"
+      - "26657:26657"
+      - "26660:26660"
+    volumes:
+      - tendermint-data-1:/tendermint/.tendermint/data
+      - ./nodes/1/tendermint:/tendermint/.tendermint/config
+    environment:
+      - TMHOME=/tendermint/.tendermint
+      - PROXY_APP=tcp://eld-app-1:26658
+    depends_on:
+      eld-app-1:
+        condition: service_started
+
+  tendermint-2:
+    <<: *tendermint-common
+    container_name: tendermint-2
+    ports:
+      - "26666:26656"
+      - "26667:26657"
+      - "26670:26660"
+    volumes:
+      - tendermint-data-2:/tendermint/.tendermint/data
+      - ./nodes/2/tendermint:/tendermint/.tendermint/config
+    environment:
+      - TMHOME=/tendermint/.tendermint
+      - PROXY_APP=tcp://eld-app-2:26668
+    depends_on:
+      eld-app-2:
+        condition: service_started
+
+  tendermint-3:
+    <<: *tendermint-common
+    container_name: tendermint-3
+    ports:
+      - "26676:26656"
+      - "26677:26657"
+      - "26680:26660"
+    volumes:
+      - tendermint-data-3:/tendermint/.tendermint/data
+      - ./nodes/3/tendermint:/tendermint/.tendermint/config
+    environment:
+      - TMHOME=/tendermint/.tendermint
+      - PROXY_APP=tcp://eld-app-3:26678
+    depends_on:
+      eld-app-3:
+        condition: service_started
+
+  tendermint-4:
+    <<: *tendermint-common
+    container_name: tendermint-4
+    ports:
+      - "26686:26656"
+      - "26687:26657"
+      - "26690:26660"
+    volumes:
+      - tendermint-data-4:/tendermint/.tendermint/data
+      - ./nodes/4/tendermint:/tendermint/.tendermint/config
+    environment:
+      - TMHOME=/tendermint/.tendermint
+      - PROXY_APP=tcp://eld-app-4:26688
+    depends_on:
+      eld-app-4:
+        condition: service_started
+
+volumes:
+  eld-data-1:
+    driver: local
+  eld-data-2:
+    driver: local
+  eld-data-3:
+    driver: local
+  eld-data-4:
+    driver: local
+  tendermint-data-1:
+    driver: local
+  tendermint-data-2:
+    driver: local
+  tendermint-data-3:
+    driver: local
+  tendermint-data-4:
+    driver: local
+
+networks:
+  eld-network:
+    driver: bridge
