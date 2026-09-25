@@ -27,15 +27,10 @@ require_env() {
   fi
 }
 
-require_env ELD_ROOT
+require_env TENDERMINT_DIR
 require_env TENDERMINT_VERSION_TAG
 require_env NODE_APP_VERSION_TAG
 
-if [[ "$ELD_ROOT" != /* ]]; then
-  ELD_ROOT="$(cd "${REPO_ROOT}/${ELD_ROOT}" && pwd)"
-fi
-
-TENDERMINT_DIR="${TENDERMINT_DIR:-${ELD_ROOT}/third_party/tendermint}"
 if [[ "$TENDERMINT_DIR" != /* ]]; then
   TENDERMINT_DIR="$(cd "${REPO_ROOT}/${TENDERMINT_DIR}" && pwd)"
 fi

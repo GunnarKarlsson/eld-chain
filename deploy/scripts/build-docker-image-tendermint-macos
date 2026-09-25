@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/_env.sh"
 
 if [[ ! -d "$TENDERMINT_DIR" ]]; then
-  echo "Tendermint source not found at $TENDERMINT_DIR (set TENDERMINT_DIR or ELD_ROOT)." >&2
+  echo "Tendermint source not found at $TENDERMINT_DIR (set TENDERMINT_DIR)." >&2
   exit 1
 fi
 if [[ ! -f "$TENDERMINT_DOCKERFILE" ]]; then
