@@ -5,8 +5,8 @@ x-app-log: &app-log
   RUST_LOG: eld_node=info,eld_common=info,eld_client=info,abci=warn
 
 x-app-eld: &app-eld
-  image: eld-app:${NODE_APP_VERSION_TAG}
-  pull_policy: never
+  image: ghcr.io/eldnetwork/eld-chain:sha-c4c6b1c
+  pull_policy: always
   restart: unless-stopped
   logging:
     driver: json-file
