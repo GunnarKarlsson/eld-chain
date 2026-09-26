@@ -1,0 +1,82 @@
+# One app + one Tendermint. Images are pulled from GHCR.
+# App config and wallets come from cluster node 1.
+# Tendermint config, including gitignored key copies, is ./tendermint (one validator, no peers).
+# Project name stays eld-single so this does not attach the 4-node volumes.
+name: eld-single
+
+x-app-log: &app-log
+  RUST_LOG: eld_node=info,eld_common=info,eld_client=info,abci=warn
+
+x-app-eld: &app-eld
+  image: ghcr.io/eldnetwork/eld-chain:sha-c4c6b1c
+  pull_policy: always
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "2"
+  networks:
+    - eld-network
+  environment:
+    <<: *app-log
+
+x-tendermint: &tendermint-common
+  image: ghcr.io/eldnetwork/eld-tendermint:${TENDERMINT_VERSION_TAG_GHCR}
+  pull_policy: always
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "2"
+  networks:
+    - eld-network
+
+services:
+  eld-app-1:
+    <<: *app-eld
+    container_name: eld-app-1
+    ports:
+      - "8000:8000"    # Content API
+      - "26658:26658"  # ABCI
+      - "8085:8085"    # WebSocket
+      - "8885:8885"
+      - "9001:9001"
+    volumes:
+      - eld-data-1:/app/data
+      - ../cluster/nodes/1/app:/app/config:ro
+      - ../cluster/wallets/wallets.json:/app/wallets/wallets.json:ro
+    environment:
+      <<: *app-log
+      ELD_CONSENSUS_CONFIG_PATH: /app/config/consensus_config.json
+      ELD_DB_PATH: /app/data/rocksdb
+      TENDERMINT_RPC_URL: http://tendermint-1:26657
+      ELD_CAPACITY_VALIDATOR_WALLET_NAME: wallet-capacity-validator-1
+
+  tendermint-1:
+    <<: *tendermint-common
+    container_name: tendermint-1
+    ports:
+      - "26656:26656"  # P2P
+      - "26657:26657"  # RPC
+      - "26660:26660"  # Prometheus
+    volumes:
+      - tendermint-data-1:/tendermint/.tendermint/data
+      - ./tendermint:/tendermint/.tendermint/config
+    environment:
+      - TMHOME=/tendermint/.tendermint
+      - PROXY_APP=tcp://eld-app-1:26658
+    depends_on:
+      eld-app-1:
+        condition: service_started
+
+volumes:
+  eld-data-1:
+    driver: local
+  tendermint-data-1:
+    driver: local
+
+networks:
+  eld-network:
+    driver: bridge

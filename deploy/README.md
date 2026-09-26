@@ -126,3 +126,9 @@ Same three actions as the cluster, against the single Compose project (`eld-sing
 ./deploy/scripts/docker/local/single/single-start-without-history.sh
 ./deploy/scripts/docker/local/single/single-stop.sh
 ```
+
+`docker/local/single/compose.ghcr.yaml` is the same pair with GHCR images (`ghcr.io/eldnetwork/eld-chain:sha-c4c6b1c` and `ghcr.io/eldnetwork/eld-tendermint`). It still uses project `eld-single` and the cluster node 1 app mounts.
+
+```sh
+./deploy/scripts/docker/local/single/single-start-without-history.ghcr.sh
+```
