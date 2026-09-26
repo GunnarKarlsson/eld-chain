@@ -5,6 +5,7 @@
 ![macOS](https://img.shields.io/badge/platform-macOS-black?logo=apple)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![CI](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml/badge.svg)](https://github.com/eldnetwork/eld-chain/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/eldnetwork/eld-chain)](https://github.com/eldnetwork/eld-chain/releases/latest)
 [![Stars](https://img.shields.io/github/stars/eldnetwork/eld-chain)](https://github.com/eldnetwork/eld-chain/stargazers)
 
 Eld is an L1 for ephemeral, content-addressed storage: data is addressed, kept only for a TTL, then expires by protocol.
